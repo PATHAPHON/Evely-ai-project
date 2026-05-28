@@ -1,0 +1,159 @@
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import ChatInput, { type ChatInputProps } from './ChatInput';
+import type { SavedWord } from '../_lib/types';
+
+const defaultProps: ChatInputProps = {
+  onSend: vi.fn(),
+  isLoading: false,
+  sttSupported: true,
+  isListening: false,
+  onStartListening: vi.fn(),
+  onStopListening: vi.fn(),
+  transcript: '',
+  selectedWords: [],
+  onRemoveWord: vi.fn(),
+};
+
+function renderChatInput(overrides: Partial<ChatInputProps> = {}) {
+  return render(<ChatInput {...defaultProps} {...overrides} />);
+}
+
+describe('ChatInput', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders text input field', () => {
+    renderChatInput();
+    expect(screen.getByLabelText('Chat message input')).toBeInTheDocument();
+  });
+
+  it('renders send button disabled when input is empty', () => {
+    renderChatInput();
+    const sendBtn = screen.getByLabelText('Send message');
+    expect(sendBtn).toBeDisabled();
+  });
+
+  it('enables send button when input has non-whitespace text', () => {
+    renderChatInput();
+    const input = screen.getByLabelText('Chat message input');
+    fireEvent.change(input, { target: { value: '안녕하세요' } });
+    expect(screen.getByLabelText('Send message')).not.toBeDisabled();
+  });
+
+  it('keeps send button disabled when input is only whitespace', () => {
+    renderChatInput();
+    const input = screen.getByLabelText('Chat message input');
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(screen.getByLabelText('Send message')).toBeDisabled();
+  });
+
+  it('calls onSend with trimmed text when send button is clicked', () => {
+    const onSend = vi.fn();
+    renderChatInput({ onSend });
+    const input = screen.getByLabelText('Chat message input');
+    fireEvent.change(input, { target: { value: '  hello  ' } });
+    fireEvent.click(screen.getByLabelText('Send message'));
+    expect(onSend).toHaveBeenCalledWith('hello');
+  });
+
+  it('clears input after sending', () => {
+    renderChatInput();
+    const input = screen.getByLabelText('Chat message input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'test message' } });
+    fireEvent.click(screen.getByLabelText('Send message'));
+    expect(input.value).toBe('');
+  });
+
+  it('sends message on Enter key press', () => {
+    const onSend = vi.fn();
+    renderChatInput({ onSend });
+    const input = screen.getByLabelText('Chat message input');
+    fireEvent.change(input, { target: { value: 'enter test' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSend).toHaveBeenCalledWith('enter test');
+  });
+
+  it('does not send on Shift+Enter', () => {
+    const onSend = vi.fn();
+    renderChatInput({ onSend });
+    const input = screen.getByLabelText('Chat message input');
+    fireEvent.change(input, { target: { value: 'no send' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it('constrains input to 500 characters', () => {
+    renderChatInput();
+    const input = screen.getByLabelText('Chat message input') as HTMLInputElement;
+    const longText = 'a'.repeat(600);
+    fireEvent.change(input, { target: { value: longText } });
+    expect(input.value.length).toBeLessThanOrEqual(500);
+  });
+
+  it('hides microphone button when STT is not supported', () => {
+    renderChatInput({ sttSupported: false });
+    expect(screen.queryByLabelText('Start recording')).not.toBeInTheDocument();
+  });
+
+  it('shows microphone button when STT is supported', () => {
+    renderChatInput({ sttSupported: true });
+    expect(screen.getByLabelText('Start recording')).toBeInTheDocument();
+  });
+
+  it('calls onStartListening when mic button is clicked and not listening', () => {
+    const onStartListening = vi.fn();
+    renderChatInput({ onStartListening, isListening: false });
+    fireEvent.click(screen.getByLabelText('Start recording'));
+    expect(onStartListening).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onStopListening when mic button is clicked and is listening', () => {
+    const onStopListening = vi.fn();
+    renderChatInput({ onStopListening, isListening: true });
+    fireEvent.click(screen.getByLabelText('Stop recording'));
+    expect(onStopListening).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows pulsing animation on mic button when listening', () => {
+    renderChatInput({ isListening: true });
+    const micBtn = screen.getByLabelText('Stop recording');
+    expect(micBtn.className).toContain('animate-pulse');
+    expect(micBtn.className).toContain('bg-red-500');
+  });
+
+  it('inserts transcript into input field', () => {
+    const { rerender } = render(<ChatInput {...defaultProps} transcript="" />);
+    rerender(<ChatInput {...defaultProps} transcript="안녕" />);
+    const input = screen.getByLabelText('Chat message input') as HTMLInputElement;
+    expect(input.value).toContain('안녕');
+  });
+
+  it('displays selected words as removable tags', () => {
+    const words: SavedWord[] = [
+      { id: '1', korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', source: 'word-store' },
+      { id: '2', korean: '바나나', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย', source: 'feed-words' },
+    ];
+    renderChatInput({ selectedWords: words });
+    expect(screen.getByText('사과')).toBeInTheDocument();
+    expect(screen.getByText('바나나')).toBeInTheDocument();
+  });
+
+  it('calls onRemoveWord when remove button on tag is clicked', () => {
+    const onRemoveWord = vi.fn();
+    const words: SavedWord[] = [
+      { id: '1', korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', source: 'word-store' },
+    ];
+    renderChatInput({ selectedWords: words, onRemoveWord });
+    fireEvent.click(screen.getByLabelText('Remove 사과'));
+    expect(onRemoveWord).toHaveBeenCalledWith('1');
+  });
+
+  it('disables input and send button when isLoading is true', () => {
+    renderChatInput({ isLoading: true });
+    const input = screen.getByLabelText('Chat message input') as HTMLInputElement;
+    expect(input).toBeDisabled();
+    expect(screen.getByLabelText('Send message')).toBeDisabled();
+  });
+});
