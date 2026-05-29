@@ -11,6 +11,9 @@ import {
 } from "./_lib/useWordStorage";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
 import { useTTS } from "@/app/chat/_lib/useTTS";
+import { FlashcardMode } from "./_components/FlashcardMode";
+
+type ViewMode = "words" | "flashcard";
 
 function formatDate(ts: number) {
   const d = new Date(ts);
@@ -141,6 +144,8 @@ export default function LearnPage() {
   const router = useRouter();
   const { list, remove, save } = useWordStorage();
   const [words, setWords] = useState<WordRecord[] | null>(null);
+  const [mode, setMode] = useState<ViewMode>("words");
+  const [flashcardStudying, setFlashcardStudying] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +217,35 @@ export default function LearnPage() {
                 Saved vocabulary for your Flashcards
               </div>
             </div>
+
+            {/* Mode toggle switch: All words ↔ Flashcard.
+                Hidden while studying so the user must finish or cancel first. */}
+            {!flashcardStudying && (
+            <div className="mt-4 inline-flex rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-1 shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+              <button
+                type="button"
+                onClick={() => setMode("words")}
+                className={`rounded-lg px-4 py-1.5 text-sm font-extrabold transition-colors ${
+                  mode === "words"
+                    ? "bg-accent-pink-bg text-black dark:text-white border-3 border-black dark:border-[#4a4a6a]"
+                    : "text-black/50 dark:text-white/50"
+                }`}
+              >
+                คำทั้งหมด
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("flashcard")}
+                className={`rounded-lg px-4 py-1.5 text-sm font-extrabold transition-colors ${
+                  mode === "flashcard"
+                    ? "bg-accent-pink-bg text-black dark:text-white border-3 border-black dark:border-[#4a4a6a]"
+                    : "text-black/50 dark:text-white/50"
+                }`}
+              >
+                Flashcard
+              </button>
+            </div>
+            )}
           </div>
 
           <div className="px-4 mt-6 flex flex-col gap-3">
@@ -234,13 +268,22 @@ export default function LearnPage() {
                 </button>
               </div>
             )}
-            {words?.map((w) => (
-              <WordCard key={w.id} word={w} onDelete={handleDelete} />
-            ))}
+            {words !== null && words.length > 0 && mode === "words" &&
+              words.map((w) => (
+                <WordCard key={w.id} word={w} onDelete={handleDelete} />
+              ))}
+            {words !== null && words.length > 0 && mode === "flashcard" && (
+              <FlashcardMode
+                words={words}
+                onStudyingChange={setFlashcardStudying}
+              />
+            )}
           </div>
         </div>
 
-        {/* Bottom tab bar (Learn active) */}
+        {/* Bottom tab bar (Learn active). Hidden while studying a flashcard set
+            so navigation is locked until the user finishes or cancels. */}
+        {!flashcardStudying && (
         <div
           className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
           style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
@@ -303,6 +346,7 @@ export default function LearnPage() {
             <span className="text-[11px] font-bold tracking-wider">Profile</span>
           </a>
         </div>
+        )}
       </div>
     </ConfigProvider>
   );

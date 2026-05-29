@@ -6,6 +6,7 @@ const validConfig: SessionConfig = {
   topic: 'Korean food',
   proficiencyLevel: 'beginner',
   wordContext: [],
+  goal: '',
 };
 
 describe('validateSessionConfig', () => {

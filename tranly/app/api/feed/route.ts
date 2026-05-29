@@ -78,10 +78,10 @@ export async function POST(
   const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
-  // Use custom API key if provided, otherwise fall back to environment variable
-  const apiKey = customApiKey || process.env.KKU_API_KEY;
+  // Use custom API key provided in request headers
+  const apiKey = customApiKey;
   if (!apiKey) {
-    return errorResponse('api_error', 502);
+    return errorResponse('api_error', 401);
   }
 
   // Build exclusion instruction

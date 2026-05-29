@@ -101,6 +101,58 @@ describe('parseChatResponse', () => {
     expect(result).toEqual(validResponse);
   });
 
+  it('extracts reply suggestions when present', () => {
+    const withSuggestions = {
+      ...validResponse,
+      suggestions: [
+        { korean: '네, 좋아요', translation: 'ได้ ดีเลย' },
+        { korean: '잘 모르겠어요', translation: 'ไม่ค่อยแน่ใจ' },
+      ],
+    };
+    const result = parseChatResponse(JSON.stringify(withSuggestions));
+    expect(result.suggestions).toHaveLength(2);
+    expect(result.suggestions?.[0]).toEqual({
+      korean: '네, 좋아요',
+      translation: 'ได้ ดีเลย',
+    });
+  });
+
+  it('omits suggestions when absent or empty', () => {
+    expect(parseChatResponse(JSON.stringify(validResponse)).suggestions).toBeUndefined();
+    const emptyArr = { ...validResponse, suggestions: [] };
+    expect(parseChatResponse(JSON.stringify(emptyArr)).suggestions).toBeUndefined();
+  });
+
+  it('drops malformed suggestion entries', () => {
+    const messy = {
+      ...validResponse,
+      suggestions: [
+        { korean: '네', translation: 'ใช่' },
+        { translation: 'no korean' },
+        'not an object',
+      ],
+    };
+    const result = parseChatResponse(JSON.stringify(messy));
+    expect(result.suggestions).toHaveLength(1);
+    expect(result.suggestions?.[0].korean).toBe('네');
+  });
+
+  it('reads the ended flag when true', () => {
+    const ended = { ...validResponse, ended: true };
+    expect(parseChatResponse(JSON.stringify(ended)).ended).toBe(true);
+  });
+
+  it('defaults ended to undefined when absent or non-boolean', () => {
+    expect(parseChatResponse(JSON.stringify(validResponse)).ended).toBeUndefined();
+    const weird = { ...validResponse, ended: 'yes' };
+    expect(parseChatResponse(JSON.stringify(weird)).ended).toBeUndefined();
+  });
+
+  it('reads ended:false explicitly', () => {
+    const ended = { ...validResponse, ended: false };
+    expect(parseChatResponse(JSON.stringify(ended)).ended).toBe(false);
+  });
+
   it('ignores extra fields in the response', () => {
     const withExtra = {
       ...validResponse,

@@ -14,6 +14,7 @@ import type {
   IdentifySuccessResponse,
 } from '../flashcard/_lib/types';
 import { useWordStorage } from '@/app/learn/_lib/useWordStorage';
+import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 
 /**
  * Photo Preview page (/scan/preview).
@@ -97,9 +98,13 @@ export default function PreviewPage() {
 
     try {
       const base64 = await blobToBase64(blob);
+      const headers = getCustomAIHeaders();
       const response = await fetch('/api/identify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
         body: JSON.stringify({ image: base64 }),
       });
 

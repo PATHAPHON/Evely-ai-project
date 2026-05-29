@@ -14,7 +14,11 @@ import { setCapturedImage } from "../_lib/capturedImageStore";
  *
  * Requirements: 1.1, 5.2
  */
-export default function ScanButton() {
+export default function ScanButton({
+  disabled = false,
+}: {
+  disabled?: boolean;
+}) {
   const router = useRouter();
   const [hasGetUserMedia, setHasGetUserMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,6 +31,7 @@ export default function ScanButton() {
   }, []);
 
   const handleClick = useCallback(() => {
+    if (disabled) return;
     if (hasGetUserMedia) {
       // Secure context — use the full camera view with live stream
       router.push("/scan");
@@ -34,7 +39,7 @@ export default function ScanButton() {
       // Non-secure context — trigger native file picker with camera
       fileInputRef.current?.click();
     }
-  }, [hasGetUserMedia, router]);
+  }, [disabled, hasGetUserMedia, router]);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +60,10 @@ export default function ScanButton() {
     <>
       <a
         onClick={handleClick}
-        className="flex flex-col items-center gap-1 cursor-pointer transition-colors text-black dark:text-white"
+        aria-disabled={disabled}
+        className={`flex flex-col items-center gap-1 transition-colors text-black dark:text-white ${
+          disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+        }`}
       >
         <span className="w-10 h-10 flex items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#52C41A] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)]">
           <ScanOutlined style={{ fontSize: 20 }} />

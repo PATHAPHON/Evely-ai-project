@@ -41,9 +41,10 @@ export async function POST(
     return errorResponse('invalid_input', 'Text must be 1–500 characters.', 400);
   }
 
-  const apiKey = process.env.KKU_API_KEY;
+  const customApiKey = request.headers.get('x-custom-api-key');
+  const apiKey = customApiKey;
   if (!apiKey) {
-    return errorResponse('api_error', 'Server configuration error.', 502);
+    return errorResponse('api_error', 'API key is missing. Please add your API key in settings.', 401);
   }
 
   const requestBody = {

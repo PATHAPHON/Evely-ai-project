@@ -6,6 +6,7 @@ import type { ProficiencyLevel, SavedWord, SessionConfig } from '../_lib/types';
 import { validateTopic } from '../_lib/validateTopic';
 import { validateSessionConfig } from '../_lib/validateSessionConfig';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
+import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 
 interface ConversationSetupProps {
   onStart: (config: SessionConfig) => void;
@@ -37,14 +38,16 @@ export default function ConversationSetup({
   selectedWords = [],
 }: ConversationSetupProps) {
   const [topic, setTopic] = useState('');
+  const [goal, setGoal] = useState('');
   const [proficiencyLevel, setProficiencyLevel] = useState<ProficiencyLevel | null>(null);
+  const [isGeneratingTopic, setIsGeneratingTopic] = useState(false);
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
 
   const isTopicValid = validateTopic(topic);
   const isFormValid =
     proficiencyLevel !== null &&
-    validateSessionConfig({ topic, proficiencyLevel, wordContext: selectedWords });
+    validateSessionConfig({ topic, proficiencyLevel, wordContext: selectedWords, goal });
 
   const handleStart = useCallback(() => {
     if (!isFormValid || proficiencyLevel === null) return;
@@ -52,8 +55,9 @@ export default function ConversationSetup({
       topic: topic.trim(),
       proficiencyLevel,
       wordContext: selectedWords,
+      goal: goal.trim(),
     });
-  }, [isFormValid, proficiencyLevel, topic, selectedWords, onStart]);
+  }, [isFormValid, proficiencyLevel, topic, selectedWords, goal, onStart]);
 
   const handleTopicChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,53 +70,41 @@ export default function ConversationSetup({
     setProficiencyLevel(level);
   }, []);
 
+  const handleSuggestTopic = useCallback(async () => {
+    if (selectedWords.length === 0 || isGeneratingTopic) return;
+    setIsGeneratingTopic(true);
+
+    try {
+      const headers = getCustomAIHeaders();
+      const res = await fetch('/api/chat/suggest-topic', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          words: selectedWords.map((w) => ({ korean: w.korean, thai: w.thai })),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.topic) setTopic(data.topic);
+        if (data.goal) setGoal(data.goal);
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || 'Failed to suggest topic.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error when suggesting topic.');
+    } finally {
+      setIsGeneratingTopic(false);
+    }
+  }, [selectedWords, isGeneratingTopic]);
+
   return (
     <div className="flex flex-col gap-5 p-4">
-      {/* Topic input */}
-      <div className="flex flex-col gap-2">
-        <label htmlFor="topic-input" className="text-sm font-semibold text-text-primary">
-          {isThai ? 'หัวข้อสนทนา' : 'Conversation Topic'}
-        </label>
-        <input
-          id="topic-input"
-          type="text"
-          value={topic}
-          onChange={handleTopicChange}
-          placeholder={isThai ? 'เช่น สั่งอาหารที่ร้าน, ถามทาง, แนะนำตัว...' : 'e.g. Ordering food, Asking for directions, Self-introduction...'}
-          maxLength={100}
-          className="w-full rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] outline-none placeholder:text-text-secondary focus:shadow-[2px_2px_0_#000000] dark:focus:shadow-[2px_2px_0_rgba(0,0,0,0.4)] focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
-        />
-        <span className="text-xs text-text-secondary">
-          {isThai
-            ? `${topic.trim().length}/100 ตัวอักษร (ขั้นต่ำ 2 ตัวอักษร)`
-            : `${topic.trim().length}/100 characters (min. 2)`}
-        </span>
-      </div>
-
-      {/* Proficiency level selector */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-text-primary">
-          {isThai ? 'ระดับภาษา' : 'Proficiency Level'}
-        </label>
-        <div className="flex flex-col gap-2">
-          {PROFICIENCY_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => handleLevelSelect(option.value)}
-              className={`w-full rounded-xl border-3 border-border-color px-4 py-3 text-left transition-all cursor-pointer ${
-                proficiencyLevel === option.value
-                  ? 'bg-[#52C41A] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] translate-x-[2px] translate-y-[2px]'
-                  : 'bg-card-bg text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]'
-              }`}
-            >
-              <span className="font-semibold">{isThai ? option.labelTh : option.labelEn}</span>
-              <span className="ml-2 text-sm opacity-80">({option.description})</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Word selection button */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-text-primary">
@@ -144,6 +136,100 @@ export default function ConversationSetup({
             {savedWords.length}
           </span>
         </button>
+      </div>
+
+      {/* Topic input */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <label htmlFor="topic-input" className="text-sm font-semibold text-text-primary">
+            {isThai ? 'หัวข้อสนทนา' : 'Conversation Topic'}
+          </label>
+          <button
+            type="button"
+            onClick={handleSuggestTopic}
+            disabled={selectedWords.length === 0 || isGeneratingTopic}
+            className={`flex items-center gap-1.5 rounded-lg border-2 border-border-color px-2.5 py-1 text-xs font-bold transition-all ${
+              selectedWords.length === 0 || isGeneratingTopic
+                ? 'bg-gray-100 dark:bg-gray-800 text-text-secondary cursor-not-allowed opacity-50'
+                : 'bg-[#FFD93D] text-black shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#ffe169] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0_#000000]'
+            }`}
+          >
+            {isGeneratingTopic ? (
+              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+            ) : (
+              <span>✨</span>
+            )}
+            {isGeneratingTopic
+              ? (isThai ? 'กำลังแนะนำ...' : 'Suggesting...')
+              : (isThai ? 'แนะนำด้วย AI' : 'AI Suggest')}
+          </button>
+        </div>
+        <input
+          id="topic-input"
+          type="text"
+          value={topic}
+          onChange={handleTopicChange}
+          placeholder={isThai ? 'เช่น สั่งอาหารที่ร้าน, ถามทาง, แนะนำตัว...' : 'e.g. Ordering food, Asking for directions, Self-introduction...'}
+          maxLength={100}
+          className="w-full rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] outline-none placeholder:text-text-secondary focus:shadow-[2px_2px_0_#000000] dark:focus:shadow-[2px_2px_0_rgba(0,0,0,0.4)] focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
+        />
+        {selectedWords.length === 0 && (
+          <span className="text-[11px] text-[#FF4D4F] font-bold">
+            {isThai
+              ? '💡 เลือกคำศัพท์ประกอบ (ด้านบน) ก่อน เพื่อใช้ AI แนะนำหัวข้อ'
+              : '💡 Select word context above first to use AI suggest'}
+          </span>
+        )}
+        <span className="text-xs text-text-secondary">
+          {isThai
+            ? `${topic.trim().length}/100 ตัวอักษร (ขั้นต่ำ 2 ตัวอักษร)`
+            : `${topic.trim().length}/100 characters (min. 2)`}
+        </span>
+      </div>
+
+      {/* Goal input (optional) */}
+      <div className="flex flex-col gap-2">
+        <label htmlFor="goal-input" className="text-sm font-semibold text-text-primary">
+          {isThai ? 'เป้าหมายบทสนทนา (ไม่บังคับ)' : 'Conversation Goal (optional)'}
+        </label>
+        <input
+          id="goal-input"
+          type="text"
+          value={goal}
+          onChange={(e) => setGoal(e.target.value)}
+          placeholder={isThai ? 'เช่น สั่งกาแฟให้สำเร็จ, จองโต๊ะอาหาร...' : 'e.g. Successfully order a coffee, Book a table...'}
+          maxLength={100}
+          className="w-full rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] outline-none placeholder:text-text-secondary focus:shadow-[2px_2px_0_#000000] dark:focus:shadow-[2px_2px_0_rgba(0,0,0,0.4)] focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
+        />
+        <span className="text-xs text-text-secondary">
+          {isThai
+            ? 'เมื่อบรรลุเป้าหมาย AI จะจบบทสนทนาให้เอง'
+            : 'When the goal is reached, the AI ends the conversation.'}
+        </span>
+      </div>
+
+      {/* Proficiency level selector */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-text-primary">
+          {isThai ? 'ระดับภาษา' : 'Proficiency Level'}
+        </label>
+        <div className="flex flex-col gap-2">
+          {PROFICIENCY_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => handleLevelSelect(option.value)}
+              className={`w-full rounded-xl border-3 border-border-color px-4 py-3 text-left transition-all cursor-pointer ${
+                proficiencyLevel === option.value
+                  ? 'bg-[#52C41A] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] translate-x-[2px] translate-y-[2px]'
+                  : 'bg-card-bg text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]'
+              }`}
+            >
+              <span className="font-semibold">{isThai ? option.labelTh : option.labelEn}</span>
+              <span className="ml-2 text-sm opacity-80">({option.description})</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Start conversation button */}

@@ -15,6 +15,10 @@ export interface ChatInputProps {
   transcript: string;
   selectedWords: SavedWord[];
   onRemoveWord: (wordId: string) => void;
+  /** Fully disables the input (e.g. the conversation has ended). */
+  disabled?: boolean;
+  /** Placeholder override (e.g. shown when disabled). */
+  placeholder?: string;
 }
 
 /**
@@ -32,6 +36,8 @@ export default function ChatInput({
   transcript,
   selectedWords,
   onRemoveWord,
+  disabled = false,
+  placeholder,
 }: ChatInputProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -42,14 +48,14 @@ export default function ChatInput({
     }
   }, [transcript]);
 
-  const canSend = validateMessage(inputValue) && !isLoading;
+  const canSend = validateMessage(inputValue) && !isLoading && !disabled;
 
   const handleSend = useCallback(() => {
     const trimmed = inputValue.trim();
-    if (!trimmed || !validateMessage(inputValue) || isLoading) return;
+    if (!trimmed || !validateMessage(inputValue) || isLoading || disabled) return;
     onSend(trimmed);
     setInputValue('');
-  }, [inputValue, isLoading, onSend]);
+  }, [inputValue, isLoading, disabled, onSend]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
@@ -102,9 +108,9 @@ export default function ChatInput({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value.slice(0, 500))}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
+            placeholder={placeholder ?? 'Type a message...'}
             maxLength={500}
-            disabled={isLoading}
+            disabled={isLoading || disabled}
             aria-label="Chat message input"
             className="w-full rounded-xl px-4 py-3 text-base outline-none bg-transparent text-text-primary placeholder:text-text-secondary disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
           />
@@ -115,8 +121,9 @@ export default function ChatInput({
           <button
             type="button"
             onClick={handleMicClick}
+            disabled={disabled}
             aria-label={isListening ? 'Stop recording' : 'Start recording'}
-            className={`flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer ${
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed ${
               isListening
                 ? 'bg-red-500 text-white animate-pulse'
                 : 'bg-card-bg text-text-primary'

@@ -1,4 +1,24 @@
-import type { ChatSuccessResponse } from '@/app/chat/_lib/types';
+import type { ChatSuccessResponse, ReplySuggestion } from '@/app/chat/_lib/types';
+
+/**
+ * Extract a clean list of reply suggestions from a raw value. Returns undefined
+ * when there are none, so the field is simply omitted.
+ */
+function extractSuggestions(value: unknown): ReplySuggestion[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const suggestions: ReplySuggestion[] = [];
+  for (const raw of value) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    const rec = raw as Record<string, unknown>;
+    const korean = typeof rec.korean === 'string' ? rec.korean.trim() : '';
+    const translation =
+      typeof rec.translation === 'string' ? rec.translation.trim() : '';
+    if (korean.length > 0) {
+      suggestions.push({ korean, translation });
+    }
+  }
+  return suggestions.length > 0 ? suggestions.slice(0, 4) : undefined;
+}
 
 /**
  * Attempt to parse a string as JSON. Returns null on failure.
@@ -58,6 +78,8 @@ function extractChatResponse(
     translation:
       typeof obj.translation === 'string' ? obj.translation.trim() : '',
     english: typeof obj.english === 'string' ? obj.english.trim() : '',
+    suggestions: extractSuggestions(obj.suggestions),
+    ended: typeof obj.ended === 'boolean' ? obj.ended : undefined,
   };
   return isValidChatResponse(response) ? response : null;
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  ArrowLeftOutlined,
   HistoryOutlined,
   PlusOutlined,
   StopOutlined,
@@ -13,25 +14,37 @@ import ConversationSetup from './_components/ConversationSetup';
 import WordSelector from './_components/WordSelector';
 import ChatList from './_components/ChatList';
 import ChatInput from './_components/ChatInput';
+import ReplySuggestions from './_components/ReplySuggestions';
 import SessionHistory from './_components/SessionHistory';
+import LessonSetup from './_components/LessonSetup';
+import LessonPlayer from './_components/LessonPlayer';
+import LessonComplete from './_components/LessonComplete';
+import LessonHistory from './_components/LessonHistory';
 import { useConversationSession } from './_lib/useConversationSession';
 import { useConversationHistory } from './_lib/useConversationHistory';
+import { useLessonSession } from './_lib/useLessonSession';
+import { useLessonHistory } from './_lib/useLessonHistory';
 import { useTTS } from './_lib/useTTS';
 import { useSTT } from './_lib/useSTT';
 import { useWordContext } from './_lib/useWordContext';
 import type { ChatMessage, SavedWord, SessionConfig } from './_lib/types';
+import type { LessonConfig, LessonRecord } from './_lib/lessonTypes';
 
-type ViewState = 'setup' | 'active-chat' | 'history';
+type ViewState = 'setup' | 'active-chat' | 'history' | 'view-session';
+type ChatMode = 'chat' | 'lesson';
 
 export default function ChatPage() {
   const router = useRouter();
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
+  const [mode, setMode] = useState<ChatMode>('chat');
   const [view, setView] = useState<ViewState>('setup');
   const [showWordSelector, setShowWordSelector] = useState(false);
   const [selectedWords, setSelectedWords] = useState<SavedWord[]>([]);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [viewedMessages, setViewedMessages] = useState<ChatMessage[]>([]);
+  const [viewedTopic, setViewedTopic] = useState<string>('');
 
   // Hooks
   const {
@@ -41,6 +54,7 @@ export default function ChatPage() {
     isLoading: isSessionLoading,
     error: sessionError,
     sessionConfig,
+    isEnded,
     startSession,
     endSession,
   } = useConversationSession();
@@ -66,6 +80,15 @@ export default function ChatPage() {
 
   const { savedWords, loadSavedWords } = useWordContext();
 
+  const lesson = useLessonSession();
+  const {
+    lessons: savedLessons,
+    loadLessons,
+    deleteLesson,
+  } = useLessonHistory();
+  const [lessonHistoryOpen, setLessonHistoryOpen] = useState(false);
+  const [showQuitLessonConfirm, setShowQuitLessonConfirm] = useState(false);
+
   // Load saved words on mount
   useEffect(() => {
     loadSavedWords();
@@ -80,6 +103,90 @@ export default function ChatPage() {
     [startSession],
   );
 
+  // Handle starting a lesson from lesson setup
+  const handleStartLesson = useCallback(
+    (config: LessonConfig) => {
+      void lesson.startLesson(config);
+    },
+    [lesson],
+  );
+
+  // Open the saved-lessons list
+  const handleShowLessonHistory = useCallback(() => {
+    void loadLessons();
+    setLessonHistoryOpen(true);
+  }, [loadLessons]);
+
+  // Replay a saved lesson (no API call)
+  const handleReplayLesson = useCallback(
+    (record: LessonRecord) => {
+      lesson.replayLesson(record);
+      setLessonHistoryOpen(false);
+    },
+    [lesson],
+  );
+
+  // Delete a saved lesson
+  const handleDeleteLesson = useCallback(
+    async (lessonId: string) => {
+      try {
+        await deleteLesson(lessonId);
+      } catch {
+        // Error surfaced by the history hook
+      }
+    },
+    [deleteLesson],
+  );
+
+  // Start a fresh lesson from the history view
+  const handleNewLessonFromHistory = useCallback(() => {
+    lesson.reset();
+    setLessonHistoryOpen(false);
+  }, [lesson]);
+
+  // Quit an in-progress lesson (with confirmation)
+  const handleQuitLessonTap = useCallback(() => {
+    setShowQuitLessonConfirm(true);
+  }, []);
+
+  const handleConfirmQuitLesson = useCallback(() => {
+    lesson.reset();
+    setShowQuitLessonConfirm(false);
+  }, [lesson]);
+
+  const handleCancelQuitLesson = useCallback(() => {
+    setShowQuitLessonConfirm(false);
+  }, []);
+
+  // The learner is locked into an active session — navigation away (tabbar)
+  // and switching modes are disabled until they finish or quit it. This applies
+  // to both an in-progress lesson and an in-progress chat conversation; the
+  // only way out is to complete it or end/quit it explicitly.
+  const navLocked =
+    (mode === 'lesson' && lesson.status === 'active') ||
+    (mode === 'chat' &&
+      view === 'active-chat' &&
+      sessionConfig !== null &&
+      !isEnded);
+
+  // Guarded navigation: no-op while locked into an active session.
+  const handleNav = useCallback(
+    (path: string) => {
+      if (navLocked) return;
+      router.push(path);
+    },
+    [navLocked, router],
+  );
+
+  // Reply suggestions for the latest AI message — shown only when it's the
+  // user's turn (the last message is the assistant's) so they have hints on
+  // what to say next.
+  const lastMessage = messages[messages.length - 1];
+  const currentSuggestions =
+    lastMessage && lastMessage.role === 'assistant'
+      ? lastMessage.suggestions ?? []
+      : [];
+
   // Handle speaking a message (TTS)
   const handleSpeak = useCallback(
     (messageId: string) => {
@@ -89,6 +196,17 @@ export default function ChatPage() {
       }
     },
     [messages, speak],
+  );
+
+  // Handle speaking a viewed (past) message
+  const handleSpeakViewed = useCallback(
+    (messageId: string) => {
+      const message = viewedMessages.find((m) => m.id === messageId);
+      if (message && message.korean) {
+        speak(message.korean);
+      }
+    },
+    [viewedMessages, speak],
   );
 
   // Handle sending a message
@@ -113,25 +231,29 @@ export default function ChatPage() {
     setView('history');
   }, [loadSessions]);
 
-  // Handle selecting a past session from history
+  // Handle selecting a past session from history — open a read-only view of
+  // the saved messages so the user can review what was said.
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       try {
         const msgs = await loadSessionMessages(sessionId);
-        // We can't load into the active session hook directly,
-        // but we can show the messages in a read-only view.
-        // For now, switch to active-chat view with loaded messages.
-        // The session hook doesn't support loading existing sessions,
-        // so we'll just view the history in the chat list.
-        void msgs;
-        // TODO: If the design requires loading past sessions into active chat,
-        // the useConversationSession hook would need a loadSession method.
+        const session = sessions.find((s) => s.id === sessionId);
+        setViewedMessages(msgs);
+        setViewedTopic(session?.topic ?? '');
+        setView('view-session');
       } catch {
         // Error is handled by the history hook
       }
     },
-    [loadSessionMessages],
+    [loadSessionMessages, sessions],
   );
+
+  // Return from the read-only session view back to the history list
+  const handleBackToHistory = useCallback(() => {
+    setViewedMessages([]);
+    setViewedTopic('');
+    setView('history');
+  }, []);
 
   // Handle deleting a session
   const handleDeleteSession = useCallback(
@@ -212,7 +334,17 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {(view === 'setup' || view === 'active-chat') && (
+            {mode === 'chat' && view === 'view-session' && (
+              <button
+                type="button"
+                onClick={handleBackToHistory}
+                aria-label="Back to history"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer text-text-primary"
+              >
+                <ArrowLeftOutlined style={{ fontSize: 18 }} />
+              </button>
+            )}
+            {mode === 'chat' && (view === 'setup' || view === 'active-chat') && (
               <button
                 type="button"
                 onClick={handleShowHistory}
@@ -222,7 +354,7 @@ export default function ChatPage() {
                 <HistoryOutlined style={{ fontSize: 18 }} />
               </button>
             )}
-            {(view === 'history' || view === 'active-chat') && (
+            {mode === 'chat' && (view === 'history' || view === 'active-chat') && (
               <button
                 type="button"
                 onClick={handleNewConversation}
@@ -232,7 +364,7 @@ export default function ChatPage() {
                 <PlusOutlined style={{ fontSize: 18 }} />
               </button>
             )}
-            {view === 'active-chat' && sessionConfig && (
+            {mode === 'chat' && view === 'active-chat' && sessionConfig && (
               <button
                 type="button"
                 onClick={handleEndConversationTap}
@@ -242,7 +374,73 @@ export default function ChatPage() {
                 <StopOutlined style={{ fontSize: 18 }} />
               </button>
             )}
+            {mode === 'lesson' &&
+              !lessonHistoryOpen &&
+              (lesson.status === 'idle' || lesson.status === 'complete') && (
+                <button
+                  type="button"
+                  onClick={handleShowLessonHistory}
+                  aria-label="View saved lessons"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer text-text-primary"
+                >
+                  <HistoryOutlined style={{ fontSize: 18 }} />
+                </button>
+              )}
+            {mode === 'lesson' && lessonHistoryOpen && (
+              <button
+                type="button"
+                onClick={handleNewLessonFromHistory}
+                aria-label="Start new lesson"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#52C41A] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              >
+                <PlusOutlined style={{ fontSize: 18 }} />
+              </button>
+            )}
+            {mode === 'lesson' &&
+              !lessonHistoryOpen &&
+              lesson.status === 'active' && (
+                <button
+                  type="button"
+                  onClick={handleQuitLessonTap}
+                  aria-label="Quit lesson"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#FF4D4F] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                >
+                  <StopOutlined style={{ fontSize: 18 }} />
+                </button>
+              )}
           </div>
+        </div>
+
+        {/* Mode toggle: Chat vs Lessons */}
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border-3 border-border-color bg-card-bg p-1.5 shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+          <button
+            type="button"
+            onClick={() => setMode('chat')}
+            disabled={navLocked}
+            className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+              navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+            } ${
+              mode === 'chat'
+                ? 'bg-[#52C41A] text-white'
+                : 'bg-transparent text-text-secondary'
+            }`}
+          >
+            {isThai ? 'แชท' : 'Chat'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('lesson')}
+            disabled={navLocked}
+            className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+              navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+            } ${
+              mode === 'lesson'
+                ? 'bg-[#52C41A] text-white'
+                : 'bg-transparent text-text-secondary'
+            }`}
+          >
+            {isThai ? 'บทเรียน' : 'Lessons'}
+          </button>
         </div>
       </div>
 
@@ -255,8 +453,8 @@ export default function ChatPage() {
 
       {/* Main content area */}
       <main className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}>
-        {/* Setup view */}
-        {view === 'setup' && (
+        {/* ===== Chat mode ===== */}
+        {mode === 'chat' && view === 'setup' && (
           <div className="flex-1 overflow-y-auto">
             <ConversationSetup
               onStart={handleStartSession}
@@ -268,8 +466,16 @@ export default function ChatPage() {
         )}
 
         {/* Active chat view */}
-        {view === 'active-chat' && (
+        {mode === 'chat' && view === 'active-chat' && (
           <>
+            {sessionConfig?.goal && (
+              <div className="px-4 pt-3">
+                <span className="inline-flex items-center gap-1 rounded-lg border-2 border-border-color bg-[#FFD93D] px-2 py-0.5 text-xs font-bold text-black">
+                  {isThai ? '🎯 เป้าหมาย: ' : '🎯 Goal: '}
+                  {sessionConfig.goal}
+                </span>
+              </div>
+            )}
             <ChatList
               messages={messages}
               isLoading={isSessionLoading}
@@ -277,24 +483,55 @@ export default function ChatPage() {
               onRetry={retryLastMessage}
               onSpeak={handleSpeak}
             />
-            <div className="border-t-3 border-border-color bg-card-bg p-3">
-              <ChatInput
-                onSend={handleSendMessage}
-                isLoading={isSessionLoading}
-                sttSupported={sttSupported}
-                isListening={isListening}
-                onStartListening={handleStartListening}
-                onStopListening={stopListening}
-                transcript={transcript}
-                selectedWords={selectedWords}
-                onRemoveWord={handleRemoveWord}
-              />
+            <div className="border-t-3 border-border-color bg-card-bg">
+              {isEnded ? (
+                <div className="p-4 text-center">
+                  <p className="text-base font-extrabold text-[#389E0D]">
+                    {isThai ? 'บทสนทนาจบแล้ว 🎉' : 'Conversation complete 🎉'}
+                  </p>
+                  <p className="mt-1 mb-3 text-sm text-text-secondary">
+                    {isThai
+                      ? 'บรรลุเป้าหมายแล้ว บันทึกลงประวัติเรียบร้อย'
+                      : 'Goal reached — saved to your history.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleNewConversation}
+                    className="w-full rounded-xl border-3 border-border-color bg-[#52C41A] py-3 text-base font-bold uppercase tracking-wider text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                  >
+                    {isThai ? 'เริ่มใหม่' : 'New Conversation'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {!isSessionLoading && (
+                    <ReplySuggestions
+                      suggestions={currentSuggestions}
+                      onSelect={handleSendMessage}
+                      disabled={isSessionLoading}
+                    />
+                  )}
+                  <div className="p-3">
+                    <ChatInput
+                      onSend={handleSendMessage}
+                      isLoading={isSessionLoading}
+                      sttSupported={sttSupported}
+                      isListening={isListening}
+                      onStartListening={handleStartListening}
+                      onStopListening={stopListening}
+                      transcript={transcript}
+                      selectedWords={selectedWords}
+                      onRemoveWord={handleRemoveWord}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}
 
         {/* History view */}
-        {view === 'history' && (
+        {mode === 'chat' && view === 'history' && (
           <SessionHistory
             sessions={sessions}
             onSelectSession={handleSelectSession}
@@ -302,6 +539,75 @@ export default function ChatPage() {
             onNewConversation={handleNewConversation}
           />
         )}
+
+        {/* Read-only view of a past conversation */}
+        {mode === 'chat' && view === 'view-session' && (
+          <>
+            {viewedTopic && (
+              <div className="px-4 pt-3">
+                <p className="text-sm font-bold text-text-secondary">
+                  {isThai ? 'หัวข้อ: ' : 'Topic: '}
+                  <span className="text-text-primary">{viewedTopic}</span>
+                </p>
+              </div>
+            )}
+            <ChatList
+              messages={viewedMessages}
+              isLoading={false}
+              error={null}
+              onRetry={() => {}}
+              onSpeak={handleSpeakViewed}
+            />
+          </>
+        )}
+
+        {/* ===== Lesson mode ===== */}
+        {mode === 'lesson' && lessonHistoryOpen && (
+          <LessonHistory
+            lessons={savedLessons}
+            onSelectLesson={handleReplayLesson}
+            onDeleteLesson={handleDeleteLesson}
+            onNewLesson={handleNewLessonFromHistory}
+          />
+        )}
+
+        {mode === 'lesson' && !lessonHistoryOpen && lesson.status === 'idle' && (
+          <div className="flex-1 overflow-y-auto">
+            <LessonSetup
+              onStart={handleStartLesson}
+              savedWords={savedWords}
+              selectedWords={selectedWords}
+              onOpenWordSelector={() => setShowWordSelector(true)}
+            />
+          </div>
+        )}
+
+        {mode === 'lesson' &&
+          !lessonHistoryOpen &&
+          (lesson.status === 'loading' ||
+            lesson.status === 'active' ||
+            lesson.status === 'error') && (
+            <LessonPlayer
+              exercise={lesson.currentExercise}
+              currentIndex={lesson.currentIndex}
+              total={lesson.total}
+              isLoading={lesson.status === 'loading'}
+              error={lesson.status === 'error' ? lesson.error : null}
+              onAnswer={lesson.submitAnswer}
+              onNext={lesson.nextExercise}
+              onRetry={lesson.retry}
+            />
+          )}
+
+        {mode === 'lesson' &&
+          !lessonHistoryOpen &&
+          lesson.status === 'complete' && (
+            <LessonComplete
+              score={lesson.score}
+              total={lesson.total}
+              onNewLesson={lesson.reset}
+            />
+          )}
       </main>
 
       {/* Word selector modal */}
@@ -320,8 +626,11 @@ export default function ChatPage() {
         style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
       >
         <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
-          onClick={() => router.push("/home")}
+          className={`flex flex-col items-center gap-1 text-text-secondary ${
+            navLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+          }`}
+          aria-disabled={navLocked}
+          onClick={() => handleNav("/home")}
         >
           <span className="w-10 h-10 flex items-center justify-center rounded-xl">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -332,8 +641,11 @@ export default function ChatPage() {
         </a>
 
         <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
-          onClick={() => router.push("/learn")}
+          className={`flex flex-col items-center gap-1 text-text-secondary ${
+            navLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+          }`}
+          aria-disabled={navLocked}
+          onClick={() => handleNav("/learn")}
         >
           <span className="w-10 h-10 flex items-center justify-center rounded-xl">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -345,7 +657,7 @@ export default function ChatPage() {
           <span className="text-[11px] font-bold tracking-wider">Word</span>
         </a>
 
-        <ScanButton />
+        <ScanButton disabled={navLocked} />
 
         <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
           <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]">
@@ -365,8 +677,11 @@ export default function ChatPage() {
         </a>
 
         <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
-          onClick={() => router.push("/profile")}
+          className={`flex flex-col items-center gap-1 text-text-secondary ${
+            navLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+          }`}
+          aria-disabled={navLocked}
+          onClick={() => handleNav("/profile")}
         >
           <span className="w-10 h-10 flex items-center justify-center rounded-xl">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -402,6 +717,38 @@ export default function ChatPage() {
                 className="flex-1 rounded-xl border-3 border-border-color bg-[#FF4D4F] py-3 text-sm font-bold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
               >
                 End
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quit lesson confirmation modal */}
+      {showQuitLessonConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-[6px_6px_0_#000000] dark:shadow-[6px_6px_0_rgba(0,0,0,0.4)]">
+            <h2 className="text-lg font-bold text-text-primary mb-2">
+              {isThai ? 'ยกเลิกการเรียน?' : 'Quit lesson?'}
+            </h2>
+            <p className="text-sm text-text-secondary mb-5">
+              {isThai
+                ? 'บทเรียนนี้ถูกบันทึกไว้แล้ว คุณกลับมาเรียนซ้ำได้จากประวัติบทเรียน'
+                : 'This lesson is saved — you can replay it anytime from your saved lessons.'}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleCancelQuitLesson}
+                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              >
+                {isThai ? 'เรียนต่อ' : 'Keep learning'}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmQuitLesson}
+                className="flex-1 rounded-xl border-3 border-border-color bg-[#FF4D4F] py-3 text-sm font-bold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              >
+                {isThai ? 'ยกเลิก' : 'Quit'}
               </button>
             </div>
           </div>

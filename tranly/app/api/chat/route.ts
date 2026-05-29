@@ -43,7 +43,8 @@ function errorResponse(
 function buildSystemPrompt(
   topic: string,
   level: ProficiencyLevel,
-  wordContext: string[]
+  wordContext: string[],
+  goal: string
 ): string {
   const levelInstructions: Record<ProficiencyLevel, string> = {
     beginner:
@@ -56,17 +57,29 @@ function buildSystemPrompt(
 
   const wordInstruction =
     wordContext.length > 0
-      ? `Naturally incorporate these Korean words into the conversation within the first 5 exchanges: ${wordContext.join(', ')}.`
+      ? `When it fits naturally, weave in these Korean words: ${wordContext.join(', ')}.`
       : '';
 
+  const goalInstruction =
+    goal.length > 0
+      ? `GOAL: The user wants this conversation to accomplish: "${goal}". Gradually guide the chat toward this goal. Once it has CLEARLY been achieved, send a warm, natural closing line (e.g. say goodbye / wrap up) and set "ended" to true. Until the goal is achieved, keep "ended" false. Do not end too early or drag it out unnecessarily.`
+      : `There is no goal for this chat — always set "ended" to false and keep the conversation going.`;
+
   return (
-    `IMPORTANT: You must respond with ONLY a valid JSON object. No prose, no markdown, no explanation — just raw JSON.\n\n` +
-    `You are a Korean friend having a casual chat. Topic: "${topic}". ${levelInstructions[level]} ${wordInstruction} Keep responses SHORT — 1-2 sentences like texting.\n\n` +
-    `Your entire response must be exactly this JSON structure and nothing else:\n` +
-    `{"korean":"<Korean reply in Hangul>","reading":"<Korean sounds in Thai script karaoke e.g. อัน เนียง ฮา เซ โย for 안녕하세요 — NOT Thai meaning>","romanization":"<Revised Romanization>","translation":"<Thai meaning>","english":"<English meaning>"}\n\n` +
+    `You are a Korean friend having an ongoing, casual text chat with the user. The conversation topic is "${topic}".\n\n` +
+    `CONTEXT IS CRITICAL: The messages above are the real conversation so far. Read ALL of them and reply DIRECTLY to the user's most recent message. Acknowledge what they just said, answer their questions, and keep the dialogue flowing on this topic. Never ignore their message, never change the subject randomly, and never repeat one of your earlier replies.\n\n` +
+    `The user may write in Korean, Thai, or English — understand their meaning either way, but ALWAYS reply in Korean.\n\n` +
+    `${levelInstructions[level]} ${wordInstruction} Keep each reply SHORT — 1-2 sentences, like real texting.\n\n` +
+    `${goalInstruction}\n\n` +
+    `Also provide "suggestions": 2-3 short, natural replies (in Korean) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction). When "ended" is true you may use an empty suggestions array.\n\n` +
+    `Respond with ONLY a valid JSON object — no prose, no markdown, no code fences, no text before or after it. Exactly this structure:\n` +
+    `{"korean":"<your reply in Hangul>","reading":"<your Korean reply's pronunciation in Thai-script karaoke, e.g. อันนยองฮาเซโย for 안녕하세요 — NOT the Thai meaning>","romanization":"<Revised Romanization>","translation":"<Thai meaning of your reply>","english":"<English meaning of your reply>","suggestions":[{"korean":"<a reply the user could send, in Hangul>","translation":"<its Thai meaning>"},{"korean":"<another option>","translation":"<its Thai meaning>"}],"ended":false}\n\n` +
     `RULES:\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
-    `- The "reading" field = Korean pronunciation written in Thai characters (karaoke), NOT translation\n` +
+    `- "ended" is a boolean: true ONLY when the conversation's goal has been achieved and you are closing the chat\n` +
+    `- The top-level "korean"/"reading"/"romanization"/"translation"/"english" fields describe YOUR Korean reply, not the user's message\n` +
+    `- "suggestions" are replies for the USER to choose from (Korean + Thai meaning), NOT your reply\n` +
+    `- "reading" = the Korean pronunciation written in Thai characters (karaoke), NOT a translation\n` +
     `- Do NOT add any text before or after the JSON`
   );
 }
@@ -114,11 +127,21 @@ function validateInput(body: unknown): ChatRequest | null {
     wordContext = record.wordContext as string[];
   }
 
+  // goal is optional free text; trim and ignore if empty or too long
+  let goal = '';
+  if (typeof record.goal === 'string') {
+    const trimmedGoal = record.goal.trim();
+    if (trimmedGoal.length > 0 && trimmedGoal.length <= 100) {
+      goal = trimmedGoal;
+    }
+  }
+
   return {
     messages: record.messages as ChatRequest['messages'],
     proficiencyLevel: record.proficiencyLevel as ProficiencyLevel,
     topic: trimmedTopic,
     wordContext,
+    goal,
   };
 }
 
@@ -139,23 +162,23 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { messages, proficiencyLevel, topic, wordContext } = input;
+  const { messages, proficiencyLevel, topic, wordContext, goal } = input;
 
-  // Read custom API key and model from request headers (user-provided config)
+  // Read custom API key and model from request headers (user-provided config).
   const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
-  // Use custom API key if provided, otherwise fall back to environment variable
-  const apiKey = customApiKey || process.env.KKU_API_KEY;
+  const apiKey = customApiKey;
   if (!apiKey) {
-    return errorResponse('api_error', 502);
+    return errorResponse('api_error', 401);
   }
 
   // Build system prompt
   const systemPrompt = buildSystemPrompt(
     topic,
     proficiencyLevel,
-    wordContext ?? []
+    wordContext ?? [],
+    goal ?? ''
   );
 
   // Build conversation context from messages (up to 20 most recent)
@@ -175,16 +198,28 @@ export async function POST(
 
   const contextPayload = buildContext(chatMessages);
 
-  // Construct KKU IntelSphere API request
-  // Prepend system prompt to the first user message to avoid unsupported system role
+  // Construct KKU IntelSphere API request.
+  // KKU has no system role, so the instructions are attached to the LATEST user
+  // message (the one the model must reply to). Keeping the prompt adjacent to the
+  // newest turn — instead of buried at the start — keeps replies on-context and
+  // correctly formatted even in long conversations.
+  let lastUserIndex = -1;
+  for (let i = contextPayload.length - 1; i >= 0; i--) {
+    if (contextPayload[i].role === 'user') {
+      lastUserIndex = i;
+      break;
+    }
+  }
+
   const contextWithSystem = contextPayload.map((msg, i) => ({
     role: msg.role as 'user' | 'assistant',
     content: [
       {
         type: 'text' as const,
-        text: i === 0 && msg.role === 'user'
-          ? `${systemPrompt}\n\n${msg.content}`
-          : msg.content,
+        text:
+          i === lastUserIndex
+            ? `${systemPrompt}\n\n--- The user's latest message (reply to this) ---\n${msg.content}`
+            : msg.content,
       },
     ],
   }));

@@ -22,6 +22,8 @@ export interface UseConversationSessionReturn {
   isLoading: boolean;
   error: string | null;
   sessionConfig: SessionConfig | null;
+  /** True once the AI has concluded the conversation (its goal was reached). */
+  isEnded: boolean;
   startSession: (config: SessionConfig) => void;
   endSession: () => Promise<void>;
 }
@@ -33,6 +35,7 @@ export function useConversationSession(): UseConversationSessionReturn {
   const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(
     null
   );
+  const [isEnded, setIsEnded] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
   const createdAtRef = useRef<string | null>(null);
 
@@ -47,12 +50,14 @@ export function useConversationSession(): UseConversationSessionReturn {
       setSessionConfig(config);
       setMessages([]);
       setError(null);
+      setIsEnded(false);
 
       const sessionRecord: ConversationSessionRecord = {
         id,
         topic: config.topic,
         proficiencyLevel: config.proficiencyLevel,
         wordContext: config.wordContext.map((w) => w.korean),
+        goal: config.goal,
         createdAt,
         endedAt: null,
         completed: false,
@@ -68,6 +73,26 @@ export function useConversationSession(): UseConversationSessionReturn {
     },
     [saveSession]
   );
+
+  // Persist the current session as completed (used when the AI ends the chat).
+  const markCompleted = useCallback(async (): Promise<void> => {
+    if (!sessionIdRef.current || !sessionConfig || !createdAtRef.current) return;
+    const record: ConversationSessionRecord = {
+      id: sessionIdRef.current,
+      topic: sessionConfig.topic,
+      proficiencyLevel: sessionConfig.proficiencyLevel,
+      wordContext: sessionConfig.wordContext.map((w) => w.korean),
+      goal: sessionConfig.goal,
+      createdAt: createdAtRef.current,
+      endedAt: new Date().toISOString(),
+      completed: true,
+    };
+    try {
+      await saveSession(record);
+    } catch {
+      // Non-fatal: the conversation is already shown as ended in the UI.
+    }
+  }, [sessionConfig, saveSession]);
 
   const buildContextPayload = useCallback(
     (msgs: ChatMessage[]): ChatMessagePayload[] => {
@@ -93,6 +118,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         proficiencyLevel: sessionConfig.proficiencyLevel,
         topic: sessionConfig.topic,
         wordContext: sessionConfig.wordContext.map((w) => w.korean),
+        goal: sessionConfig.goal,
       };
 
       const response = await fetch('/api/chat', {
@@ -142,9 +168,13 @@ export function useConversationSession(): UseConversationSessionReturn {
 
       // Fire translation of the user's input in the background (non-blocking)
       const userMessageId = userMessage.id;
+      const headers = getCustomAIHeaders();
       fetch('/api/translate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
         body: JSON.stringify({ text }),
       })
         .then((res) => (res.ok ? res.json() : null))
@@ -213,6 +243,8 @@ export function useConversationSession(): UseConversationSessionReturn {
           rawText: aiResponse.korean,
           timestamp: new Date().toISOString(),
           status: 'sent',
+          suggestions: aiResponse.suggestions ?? [],
+          ended: aiResponse.ended ?? false,
         };
 
         setMessages((prev) =>
@@ -224,6 +256,13 @@ export function useConversationSession(): UseConversationSessionReturn {
           await saveMessage(sessionIdRef.current!, aiMessage);
         } catch {
           // Continue even if persistence fails — data is in memory
+        }
+
+        // If the AI concluded the conversation (goal reached), lock the chat
+        // and persist the session as completed.
+        if (aiMessage.ended) {
+          setIsEnded(true);
+          void markCompleted();
         }
       } catch (err) {
         // Remove pending message and mark error
@@ -239,7 +278,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         setIsLoading(false);
       }
     },
-    [sessionConfig, messages, saveMessage, callChatApi]
+    [sessionConfig, messages, saveMessage, callChatApi, markCompleted]
   );
 
   const retryLastMessage = useCallback(async (): Promise<void> => {
@@ -285,6 +324,8 @@ export function useConversationSession(): UseConversationSessionReturn {
         rawText: aiResponse.korean,
         timestamp: new Date().toISOString(),
         status: 'sent',
+        suggestions: aiResponse.suggestions ?? [],
+        ended: aiResponse.ended ?? false,
       };
 
       setMessages((prev) =>
@@ -296,6 +337,13 @@ export function useConversationSession(): UseConversationSessionReturn {
         await saveMessage(sessionIdRef.current!, aiMessage);
       } catch {
         // Continue even if persistence fails — data is in memory
+      }
+
+      // If the AI concluded the conversation (goal reached), lock the chat
+      // and persist the session as completed.
+      if (aiMessage.ended) {
+        setIsEnded(true);
+        void markCompleted();
       }
     } catch (err) {
       // Remove pending message and mark error
@@ -310,7 +358,7 @@ export function useConversationSession(): UseConversationSessionReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, saveMessage, callChatApi]);
+  }, [messages, saveMessage, callChatApi, markCompleted]);
 
   const endSession = useCallback(async (): Promise<void> => {
     if (!sessionIdRef.current || !sessionConfig || !createdAtRef.current) return;
@@ -321,6 +369,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         topic: sessionConfig.topic,
         proficiencyLevel: sessionConfig.proficiencyLevel,
         wordContext: sessionConfig.wordContext.map((w) => w.korean),
+        goal: sessionConfig.goal,
         createdAt: createdAtRef.current,
         endedAt: new Date().toISOString(),
         completed: true,
@@ -344,6 +393,7 @@ export function useConversationSession(): UseConversationSessionReturn {
     isLoading,
     error,
     sessionConfig,
+    isEnded,
     startSession,
     endSession,
   };

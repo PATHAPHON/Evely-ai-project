@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { blobToBase64 } from './blobToBase64';
 import { ERROR_MESSAGES, MAX_RETRY_COUNT } from './constants';
 import type { IdentifyErrorResponse, IdentifySuccessResponse } from './types';
+import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 
 export interface UseObjectIdentificationReturn {
   label: string | null;
@@ -43,9 +44,13 @@ export function useObjectIdentification(): UseObjectIdentificationReturn {
     try {
       const base64 = await blobToBase64(blob);
 
+      const headers = getCustomAIHeaders();
       const response = await fetch('/api/identify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
         body: JSON.stringify({ image: base64 }),
         signal: controller.signal,
       });

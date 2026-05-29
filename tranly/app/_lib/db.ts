@@ -1,5 +1,5 @@
 export const DB_NAME = 'tarnly-images';
-export const DB_VERSION = 5;
+export const DB_VERSION = 7;
 
 export const CAPTURES_STORE = 'captures';
 export const FLASHCARDS_STORE = 'flashcards';
@@ -7,6 +7,8 @@ export const WORDS_STORE = 'words';
 export const FEED_WORDS_STORE = 'feed-words';
 export const CONVERSATIONS_STORE = 'conversations';
 export const CONVERSATION_MESSAGES_STORE = 'conversation-messages';
+export const LESSONS_STORE = 'lessons';
+export const FLASHCARD_SETS_STORE = 'flashcard-sets';
 
 function ensureStore(
   db: IDBDatabase,
@@ -41,6 +43,12 @@ export function openDatabase(): Promise<IDBDatabase> {
       ensureStore(db, CONVERSATION_MESSAGES_STORE, [
         { name: 'sessionId', keyPath: 'sessionId' },
         { name: 'timestamp', keyPath: 'timestamp' },
+      ]);
+      ensureStore(db, LESSONS_STORE, [
+        { name: 'createdAt', keyPath: 'createdAt' },
+      ]);
+      ensureStore(db, FLASHCARD_SETS_STORE, [
+        { name: 'createdAt', keyPath: 'createdAt' },
       ]);
     };
 

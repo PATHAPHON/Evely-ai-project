@@ -210,16 +210,19 @@ export async function POST(
     return errorResponse('too_large', 413);
   }
 
-  // Read API key from environment
-  const apiKey = process.env.KKU_API_KEY;
+  // Read custom API credentials from headers
+  const customApiKey = request.headers.get('x-custom-api-key');
+  const customModel = request.headers.get('x-custom-model');
+
+  const apiKey = customApiKey;
   if (!apiKey) {
-    return errorResponse('api_error', 502);
+    return errorResponse('api_error', 401);
   }
 
   // Construct KKU IntelSphere API request
   const dataUrl = `data:image/jpeg;base64,${image}`;
   const requestBody = {
-    model: 'gemini-3.1-flash-lite',
+    model: customModel || 'gemini-3.1-flash-lite',
     messages: [
       {
         role: 'user' as const,
