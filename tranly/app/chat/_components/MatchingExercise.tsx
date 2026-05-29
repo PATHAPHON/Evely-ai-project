@@ -101,16 +101,16 @@ export default function MatchingExercise({
             : wrongKeys.thai === item.key);
 
         let stateClasses =
-          'bg-card-bg text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer';
+          'bg-card-bg text-text-primary shadow-nb-md cursor-pointer';
         if (isMatched) {
           stateClasses =
-            'bg-[#52C41A] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] translate-x-[2px] translate-y-[2px] cursor-default';
+            'bg-accent-green text-white shadow-nb-sm translate-x-[2px] translate-y-[2px] cursor-default';
         } else if (isWrong) {
           stateClasses =
-            'bg-[#FF4D4F] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]';
+            'bg-accent-red text-white shadow-nb-sm';
         } else if (isSelected) {
           stateClasses =
-            'bg-[#FFD93D] text-black shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] translate-x-[2px] translate-y-[2px]';
+            'bg-accent-yellow text-black shadow-nb-sm translate-x-[2px] translate-y-[2px]';
         }
 
         return (

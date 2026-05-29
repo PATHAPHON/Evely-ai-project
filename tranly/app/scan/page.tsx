@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCameraStream } from './_lib/useCameraStream';
 import { setCapturedImage } from './_lib/capturedImageStore';
 import ErrorOverlay from './_components/ErrorOverlay';
+import { useStrings } from '@/app/_lib/strings';
 
 /**
  * Camera View page (/scan).
@@ -14,6 +15,7 @@ import ErrorOverlay from './_components/ErrorOverlay';
  */
 export default function ScanPage() {
   const router = useRouter();
+  const t = useStrings();
   const { videoRef, error, capture, retry, stop } = useCameraStream();
   const [isCapturing, setIsCapturing] = useState(false);
 
@@ -78,9 +80,9 @@ export default function ScanPage() {
       {/* Close button — top-left, 44×44px minimum tap target */}
       <button
         type="button"
-        aria-label="ปิดกล้อง"
+        aria-label={t.scan.closeAria}
         onClick={handleClose}
-        className="absolute top-4 left-4 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-3 border-black bg-white/90 shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:border-border-color dark:bg-card-bg/90 dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] cursor-pointer"
+        className="absolute top-4 left-4 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-3 border-black bg-white/90 shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] dark:border-border-color dark:bg-card-bg/90 dark:shadow-nb-sm cursor-pointer"
       >
         <svg
           width="20"
@@ -102,6 +104,7 @@ export default function ScanPage() {
         <CaptureButton
           onPress={handleCapture}
           disabled={isCapturing}
+          label={t.scan.captureAria}
         />
       </div>
 
@@ -125,24 +128,26 @@ export default function ScanPage() {
 function CaptureButton({
   onPress,
   disabled,
+  label,
 }: {
   onPress: () => void;
   disabled: boolean;
+  label: string;
 }) {
   return (
     <button
       type="button"
-      aria-label="ถ่ายภาพ"
+      aria-label={label}
       onClick={onPress}
       disabled={disabled}
       className={`
         flex h-[72px] w-[72px] items-center justify-center rounded-full
         border-[4px] border-black bg-white
-        shadow-[4px_4px_0_#000000]
+        shadow-nb-md
         transition-transform duration-150 ease-in-out
         active:scale-90
         disabled:opacity-50 disabled:cursor-not-allowed
-        dark:border-border-color dark:bg-card-bg dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]
+        dark:border-border-color dark:bg-card-bg
         cursor-pointer
       `}
     >
@@ -151,7 +156,7 @@ function CaptureButton({
         <div className="h-6 w-6 animate-spin rounded-full border-3 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
       ) : (
         /* Inner circle indicator */
-        <div className="h-[52px] w-[52px] rounded-full border-3 border-black bg-[#FF4D4F] dark:border-border-color" />
+        <div className="h-[52px] w-[52px] rounded-full border-3 border-black bg-accent-red dark:border-border-color" />
       )}
     </button>
   );

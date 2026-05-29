@@ -99,8 +99,8 @@ export default function LessonSetup({
           disabled={savedWords.length === 0}
           className={`flex items-center gap-3 w-full rounded-xl border-3 border-border-color px-4 py-3 text-left transition-all cursor-pointer ${
             savedWords.length === 0
-              ? 'bg-gray-100 dark:bg-gray-800 text-text-secondary shadow-[4px_4px_0_#d9d9d9] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-not-allowed'
-              : 'bg-card-bg text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]'
+              ? 'bg-gray-100 dark:bg-gray-800 text-text-secondary shadow-[4px_4px_0_#d9d9d9] cursor-not-allowed'
+              : 'bg-card-bg text-text-primary shadow-nb-md hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm'
           }`}
         >
           <BookOutlined style={{ fontSize: 18 }} />
@@ -113,7 +113,7 @@ export default function LessonSetup({
           </span>
           <span
             className={`rounded-lg border-2 border-border-color px-2 py-0.5 text-xs font-bold ${
-              savedWords.length === 0 ? 'bg-gray-200 dark:bg-gray-700 text-text-secondary' : 'bg-[#FFD93D] text-black'
+              savedWords.length === 0 ? 'bg-gray-200 dark:bg-gray-700 text-text-secondary' : 'bg-accent-yellow text-black'
             }`}
           >
             {savedWords.length}
@@ -134,7 +134,7 @@ export default function LessonSetup({
             className={`flex items-center gap-1.5 rounded-lg border-2 border-border-color px-2.5 py-1 text-xs font-bold transition-all ${
               selectedWords.length === 0 || isGeneratingTopic
                 ? 'bg-gray-100 dark:bg-gray-800 text-text-secondary cursor-not-allowed opacity-50'
-                : 'bg-[#FFD93D] text-black shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#ffe169] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0_#000000]'
+                : 'bg-accent-yellow text-black shadow-nb-sm cursor-pointer hover:bg-[#ffe169] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)]'
             }`}
           >
             {isGeneratingTopic ? (
@@ -154,10 +154,10 @@ export default function LessonSetup({
           onChange={(e) => setTopic(e.target.value)}
           placeholder={isThai ? 'เช่น อาหารเกาหลี, การทักทาย, ตัวเลข...' : 'e.g. Korean food, Greetings, Numbers...'}
           maxLength={100}
-          className="w-full rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] outline-none placeholder:text-text-secondary focus:shadow-[2px_2px_0_#000000] dark:focus:shadow-[2px_2px_0_rgba(0,0,0,0.4)] focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
+          className="w-full rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base text-text-primary shadow-nb-md outline-none placeholder:text-text-secondary focus:shadow-nb-sm dark:focus:shadow-nb-sm focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
         />
         {selectedWords.length === 0 && (
-          <span className="text-[11px] text-[#FF4D4F] font-bold">
+          <span className="text-[11px] text-accent-red font-bold">
             {isThai
               ? '💡 เลือกคำศัพท์ประกอบ (ด้านบน) ก่อน เพื่อใช้ AI แนะนำหัวข้อ'
               : '💡 Select word context above first to use AI suggest'}
@@ -183,8 +183,8 @@ export default function LessonSetup({
               onClick={() => setProficiencyLevel(option.value)}
               className={`w-full rounded-xl border-3 border-border-color px-4 py-3 text-left transition-all cursor-pointer ${
                 proficiencyLevel === option.value
-                  ? 'bg-[#52C41A] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] translate-x-[2px] translate-y-[2px]'
-                  : 'bg-card-bg text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]'
+                  ? 'bg-accent-green text-white shadow-nb-sm translate-x-[2px] translate-y-[2px]'
+                  : 'bg-card-bg text-text-primary shadow-nb-md hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm'
               }`}
             >
               <span className="font-semibold">{isThai ? option.labelTh : option.labelEn}</span>
@@ -201,8 +201,8 @@ export default function LessonSetup({
         disabled={!isFormValid}
         className={`flex items-center justify-center gap-2 w-full rounded-xl border-3 border-border-color px-4 py-4 text-base font-bold uppercase tracking-wider transition-all ${
           isFormValid
-            ? 'bg-[#52C41A] text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer hover:bg-[#49b018] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]'
-            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 shadow-[4px_4px_0_#d9d9d9] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-not-allowed'
+            ? 'bg-accent-green text-white shadow-nb-md cursor-pointer hover:bg-[#49b018] active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 shadow-[4px_4px_0_#d9d9d9] cursor-not-allowed'
         }`}
       >
         <ReadOutlined style={{ fontSize: 18 }} />

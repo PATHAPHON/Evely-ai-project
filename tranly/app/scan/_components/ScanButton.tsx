@@ -65,7 +65,7 @@ export default function ScanButton({
           disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
         }`}
       >
-        <span className="w-10 h-10 flex items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#52C41A] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)]">
+        <span className="w-10 h-10 flex items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green text-white shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)]">
           <ScanOutlined style={{ fontSize: 20 }} />
         </span>
         <span className="text-[11px] font-bold tracking-wider">Scan</span>

@@ -161,7 +161,7 @@ export default function FlashcardPage() {
   if (error && !label) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black px-6">
-        <div className="w-full max-w-sm rounded-2xl border-3 border-black bg-white p-6 shadow-[4px_4px_0_#000000] dark:border-border-color dark:bg-card-bg dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+        <div className="w-full max-w-sm rounded-2xl border-3 border-black bg-white p-6 shadow-nb-md dark:border-border-color dark:bg-card-bg">
           <p className="mb-6 text-center text-base font-bold text-red-600 dark:text-red-400">
             {error.message}
           </p>
@@ -170,7 +170,7 @@ export default function FlashcardPage() {
               <button
                 type="button"
                 onClick={handleRetry}
-                className="flex-1 rounded-xl border-3 border-black bg-[#52C41A] px-4 py-3 text-center font-extrabold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:border-border-color dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-black bg-accent-green px-4 py-3 text-center font-extrabold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-nb-sm dark:border-border-color cursor-pointer"
               >
                 Retry
               </button>
@@ -178,7 +178,7 @@ export default function FlashcardPage() {
               <button
                 type="button"
                 onClick={handleRetake}
-                className="flex-1 rounded-xl border-3 border-black bg-white px-4 py-3 text-center font-extrabold text-black shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:border-border-color dark:bg-card-bg dark:text-text-primary dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-black bg-white px-4 py-3 text-center font-extrabold text-black shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-nb-sm dark:border-border-color dark:bg-card-bg dark:text-text-primary cursor-pointer"
               >
                 Retake
               </button>
@@ -194,7 +194,7 @@ export default function FlashcardPage() {
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       {/* Flashcard card */}
       <div className="flex flex-1 items-center justify-center overflow-hidden px-4 pt-4">
-        <div className="w-full max-w-sm rounded-2xl border-3 border-black bg-white p-4 shadow-[4px_4px_0_#000000] dark:border-border-color dark:bg-card-bg dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+        <div className="w-full max-w-sm rounded-2xl border-3 border-black bg-white p-4 shadow-nb-md dark:border-border-color dark:bg-card-bg">
           {/* Image */}
           <div className="flex items-center justify-center overflow-hidden rounded-xl">
             <img
@@ -231,14 +231,14 @@ export default function FlashcardPage() {
 
       {/* Save error message */}
       {saveError && (
-        <div className="mx-4 mb-2 rounded-xl border-3 border-black bg-[#FFF0F0] px-4 py-3 text-center shadow-[3px_3px_0_#000000] dark:border-border-color dark:bg-[#3d2020] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+        <div className="mx-4 mb-2 rounded-xl border-3 border-black bg-[#FFF0F0] px-4 py-3 text-center shadow-nb-sm dark:border-border-color dark:bg-[#3d2020] dark:shadow-nb-sm">
           <p className="text-sm font-bold text-red-600 dark:text-red-400">{saveError}</p>
         </div>
       )}
 
       {/* Success confirmation */}
       {saveSuccess && (
-        <div className="mx-4 mb-2 rounded-xl border-3 border-black bg-[#F0FFF0] px-4 py-3 text-center shadow-[3px_3px_0_#000000] dark:border-border-color dark:bg-[#1a3d1a] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+        <div className="mx-4 mb-2 rounded-xl border-3 border-black bg-[#F0FFF0] px-4 py-3 text-center shadow-nb-sm dark:border-border-color dark:bg-[#1a3d1a] dark:shadow-nb-sm">
           <p className="text-sm font-bold text-green-600 dark:text-green-400">
             Saved!
           </p>
@@ -252,7 +252,7 @@ export default function FlashcardPage() {
           type="button"
           onClick={handleRetake}
           disabled={buttonsDisabled}
-          className="flex-1 rounded-xl border-3 border-black bg-white px-4 py-3 text-center font-extrabold text-black shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:opacity-50 disabled:cursor-not-allowed dark:border-border-color dark:bg-card-bg dark:text-text-primary dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="flex-1 rounded-xl border-3 border-black bg-white px-4 py-3 text-center font-extrabold text-black shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-nb-sm disabled:opacity-50 disabled:cursor-not-allowed dark:border-border-color dark:bg-card-bg dark:text-text-primary cursor-pointer"
         >
           ถ่ายใหม่
         </button>
@@ -262,7 +262,7 @@ export default function FlashcardPage() {
           type="button"
           onClick={handleSave}
           disabled={buttonsDisabled}
-          className="flex-1 rounded-xl border-3 border-black bg-[#52C41A] px-4 py-3 text-center font-extrabold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:opacity-50 disabled:cursor-not-allowed dark:border-border-color dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="flex-1 rounded-xl border-3 border-black bg-accent-green px-4 py-3 text-center font-extrabold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-nb-sm disabled:opacity-50 disabled:cursor-not-allowed dark:border-border-color cursor-pointer"
         >
           {isSaving ? (
             <span className="inline-flex items-center gap-2">

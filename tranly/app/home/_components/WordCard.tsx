@@ -32,7 +32,7 @@ export default function WordCard({ word, onToggleBookmark }: WordCardProps) {
   }, [word.id, onToggleBookmark]);
 
   return (
-    <div className="w-full rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+    <div className="w-full rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md">
       {/* Korean word (Hangul) */}
       <p className="text-3xl font-bold text-black dark:text-white text-center mb-2">
         {word.korean}
@@ -61,7 +61,7 @@ export default function WordCard({ word, onToggleBookmark }: WordCardProps) {
             type="button"
             onClick={handlePlayAudio}
             aria-label="Play Korean pronunciation"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#4096FF] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
           >
             <SoundOutlined style={{ fontSize: 18 }} />
           </button>
@@ -72,7 +72,7 @@ export default function WordCard({ word, onToggleBookmark }: WordCardProps) {
           type="button"
           onClick={handleToggleBookmark}
           aria-label={word.bookmarked ? "Remove bookmark" : "Add bookmark"}
-          className={`flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer ${
+          className={`flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer ${
             word.bookmarked
               ? "bg-[#FAAD14] text-white"
               : "bg-white dark:bg-[#2d2d44] text-black dark:text-white"

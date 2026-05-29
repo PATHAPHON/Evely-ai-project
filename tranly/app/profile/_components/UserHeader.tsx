@@ -39,7 +39,7 @@ export default function UserHeader() {
     <div className="flex items-center gap-4">
       {/* Avatar circle */}
       <div
-        className="w-16 h-16 rounded-full border-3 border-border-color bg-accent-pink-bg flex items-center justify-center shrink-0 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
+        className="w-16 h-16 rounded-full border-3 border-border-color bg-accent-pink-bg flex items-center justify-center shrink-0 shadow-nb-md"
       >
         <span className="text-2xl font-bold text-text-primary select-none">
           {avatarInitial}

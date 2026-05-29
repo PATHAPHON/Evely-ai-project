@@ -102,7 +102,7 @@ export default function ChatInput({
       {/* Input row */}
       <div className="flex items-center gap-2">
         {/* Text input */}
-        <div className="flex-1 rounded-xl border-3 border-border-color bg-card-bg shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+        <div className="flex-1 rounded-xl border-3 border-border-color bg-card-bg shadow-nb-md">
           <input
             type="text"
             value={inputValue}
@@ -123,7 +123,7 @@ export default function ChatInput({
             onClick={handleMicClick}
             disabled={disabled}
             aria-label={isListening ? 'Stop recording' : 'Start recording'}
-            className={`flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] disabled:opacity-50 disabled:cursor-not-allowed ${
               isListening
                 ? 'bg-red-500 text-white animate-pulse'
                 : 'bg-card-bg text-text-primary'
@@ -139,7 +139,7 @@ export default function ChatInput({
           onClick={handleSend}
           disabled={!canSend}
           aria-label="Send message"
-          className="flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color bg-[#4096FF] text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed disabled:shadow-[4px_4px_0_#666666]"
+          className="flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color bg-[#4096FF] text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed disabled:shadow-[4px_4px_0_#666666]"
         >
           <SendOutlined style={{ fontSize: 20 }} />
         </button>

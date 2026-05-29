@@ -66,6 +66,6 @@ describe("UserHeader", () => {
     expect(avatar.className).toContain("rounded-full");
     expect(avatar.className).toContain("border-3");
     expect(avatar.className).toContain("border-border-color");
-    expect(avatar.className).toContain("shadow-[4px_4px_0_#000000]");
+    expect(avatar.className).toContain("shadow-nb-md");
   });
 });

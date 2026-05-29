@@ -75,7 +75,7 @@ export default function LessonHistory({
         <button
           type="button"
           onClick={onNewLesson}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-[#52C41A] px-4 py-3 text-white font-bold shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-green px-4 py-3 text-white font-bold shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
         >
           <PlusOutlined style={{ fontSize: 18 }} />
           <span>{isThai ? 'บทเรียนใหม่' : 'New Lesson'}</span>
@@ -101,7 +101,7 @@ export default function LessonHistory({
                   onSelectLesson(lesson);
                 }
               }}
-              className="w-full rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              className="w-full rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -121,7 +121,7 @@ export default function LessonHistory({
                         lesson.proficiencyLevel}
                     </span>
                     {lesson.lastScore !== null && (
-                      <span className="inline-flex items-center gap-1 rounded-md border-2 border-border-color bg-[#FFD93D] px-2 py-0.5 text-xs font-bold text-black">
+                      <span className="inline-flex items-center gap-1 rounded-md border-2 border-border-color bg-accent-yellow px-2 py-0.5 text-xs font-bold text-black">
                         <TrophyOutlined style={{ fontSize: 12 }} />
                         {lesson.lastScore}/{lesson.total}
                       </span>
@@ -138,7 +138,7 @@ export default function LessonHistory({
                         type="button"
                         onClick={(e) => handleConfirmDelete(e, lesson.id)}
                         aria-label="Confirm delete"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#FF4D4F] text-white text-xs font-bold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
                       >
                         ✓
                       </button>
@@ -146,7 +146,7 @@ export default function LessonHistory({
                         type="button"
                         onClick={handleCancelDelete}
                         aria-label="Cancel delete"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
                       >
                         ✕
                       </button>
@@ -156,7 +156,7 @@ export default function LessonHistory({
                       type="button"
                       onClick={(e) => handleDeleteClick(e, lesson.id)}
                       aria-label="Delete lesson"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-[#FF4D4F] shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
                     >
                       <DeleteOutlined style={{ fontSize: 14 }} />
                     </button>

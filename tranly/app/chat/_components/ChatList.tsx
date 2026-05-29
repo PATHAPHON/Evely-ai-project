@@ -81,7 +81,7 @@ function AIMessage({
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+      <div className="max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
         {/* Korean text */}
         <p className="text-2xl font-bold text-text-primary mb-1">{message.korean}</p>
 
@@ -105,7 +105,7 @@ function AIMessage({
           type="button"
           onClick={() => onSpeak(message.id)}
           aria-label="Play Korean pronunciation"
-          className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
         >
           <SoundOutlined style={{ fontSize: 14 }} />
         </button>
@@ -123,7 +123,7 @@ function UserMessage({
 }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[75%] rounded-2xl border-3 border-border-color bg-[#E6F4FF] dark:bg-[#1a3a5c] p-3 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+      <div className="max-w-[75%] rounded-2xl border-3 border-border-color bg-[#E6F4FF] dark:bg-[#1a3a5c] p-3 shadow-nb-md">
         {message.korean ? (
           <>
             <p className="text-2xl font-bold text-text-primary mb-1">{message.korean}</p>
@@ -138,7 +138,7 @@ function UserMessage({
               type="button"
               onClick={() => onSpeak(message.id)}
               aria-label="Play Korean pronunciation"
-              className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
             >
               <SoundOutlined style={{ fontSize: 14 }} />
             </button>
@@ -154,7 +154,7 @@ function UserMessage({
 function LoadingBubble() {
   return (
     <div className="flex justify-start">
-      <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+      <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
         <div className="flex items-center gap-2 text-text-secondary">
           <LoadingOutlined style={{ fontSize: 18 }} spin />
           <span className="text-sm">Generating response...</span>
@@ -185,7 +185,7 @@ function ErrorBanner({
               type="button"
               onClick={onRetry}
               aria-label="Retry sending message"
-              className="mt-2 rounded-lg border-2 border-border-color bg-card-bg px-3 py-1 text-sm font-medium text-text-primary shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              className="mt-2 rounded-lg border-2 border-border-color bg-card-bg px-3 py-1 text-sm font-medium text-text-primary shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
             >
               Try again
             </button>

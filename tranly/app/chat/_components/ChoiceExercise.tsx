@@ -52,18 +52,18 @@ export default function ChoiceExercise({
           const isSelected = index === selectedIndex;
 
           let stateClasses =
-            'bg-card-bg text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]';
+            'bg-card-bg text-text-primary shadow-nb-md active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm';
 
           if (answered) {
             if (isCorrectOption) {
               stateClasses =
-                'bg-[#52C41A] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] translate-x-[2px] translate-y-[2px]';
+                'bg-accent-green text-white shadow-nb-sm translate-x-[2px] translate-y-[2px]';
             } else if (isSelected) {
               stateClasses =
-                'bg-[#FF4D4F] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] translate-x-[2px] translate-y-[2px]';
+                'bg-accent-red text-white shadow-nb-sm translate-x-[2px] translate-y-[2px]';
             } else {
               stateClasses =
-                'bg-card-bg text-text-secondary opacity-60 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]';
+                'bg-card-bg text-text-secondary opacity-60 shadow-nb-md';
             }
           }
 

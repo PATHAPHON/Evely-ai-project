@@ -10,7 +10,7 @@ const STAT_CARDS = [
 
 function StatSkeleton() {
   return (
-    <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] flex flex-col items-center gap-2 animate-pulse">
+    <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex flex-col items-center gap-2 animate-pulse">
       <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-[#4a4a6a]" />
       <div className="w-12 h-6 rounded bg-gray-200 dark:bg-[#4a4a6a]" />
       <div className="w-16 h-4 rounded bg-gray-200 dark:bg-[#4a4a6a]" />
@@ -42,7 +42,7 @@ export default function LearningStats() {
       {STAT_CARDS.map((card) => (
         <div
           key={card.key}
-          className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] flex flex-col items-center gap-1"
+          className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex flex-col items-center gap-1"
         >
           <span className="text-2xl" aria-hidden="true">
             {card.emoji}

@@ -70,11 +70,11 @@ export default function LessonPlayer({
   if (error) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-        <p className="text-center text-base font-bold text-[#FF4D4F]">{error}</p>
+        <p className="text-center text-base font-bold text-accent-red">{error}</p>
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-xl border-3 border-border-color bg-[#52C41A] px-6 py-3 text-base font-bold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="rounded-xl border-3 border-border-color bg-accent-green px-6 py-3 text-base font-bold text-white shadow-nb-md transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm cursor-pointer"
         >
           {isThai ? 'ลองอีกครั้ง' : 'Try Again'}
         </button>
@@ -89,7 +89,7 @@ export default function LessonPlayer({
       type="button"
       onClick={() => speak(exercise.korean as string)}
       aria-label={isThai ? 'เล่นเสียง' : 'Play audio'}
-      className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl border-3 border-border-color bg-[#4096FF] text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)] cursor-pointer"
+      className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl border-3 border-border-color bg-[#4096FF] text-white shadow-nb-md transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm cursor-pointer"
     >
       <SoundOutlined style={{ fontSize: 32 }} />
     </button>
@@ -102,7 +102,7 @@ export default function LessonPlayer({
   } else if (exercise.korean) {
     // multiple_choice / fill_blank: show the Korean prompt word/sentence.
     header = (
-      <div className="rounded-xl border-3 border-border-color bg-card-bg p-4 text-center shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+      <div className="rounded-xl border-3 border-border-color bg-card-bg p-4 text-center shadow-nb-md">
         <p className="text-2xl font-extrabold text-text-primary">
           {exercise.korean}
         </p>
@@ -125,7 +125,7 @@ export default function LessonPlayer({
         <div className="flex items-center gap-3">
           <div className="h-3 flex-1 overflow-hidden rounded-full border-3 border-border-color bg-card-bg">
             <div
-              className="h-full bg-[#52C41A] transition-all duration-300"
+              className="h-full bg-accent-green transition-all duration-300"
               style={{
                 width: `${total > 0 ? ((currentIndex + (answered ? 1 : 0)) / total) * 100 : 0}%`,
               }}
@@ -162,8 +162,8 @@ export default function LessonPlayer({
         <div
           className={`border-t-3 border-border-color p-4 ${
             wasCorrect
-              ? 'bg-[#52C41A]/15 dark:bg-[#52C41A]/25'
-              : 'bg-[#FF4D4F]/15 dark:bg-[#FF4D4F]/25'
+              ? 'bg-accent-green/15 dark:bg-accent-green/25'
+              : 'bg-accent-red/15 dark:bg-accent-red/25'
           }`}
         >
           <p
@@ -195,7 +195,7 @@ export default function LessonPlayer({
           <button
             type="button"
             onClick={onNext}
-            className="mt-3 w-full rounded-xl border-3 border-border-color bg-[#52C41A] py-3 text-base font-bold uppercase tracking-wider text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)] cursor-pointer"
+            className="mt-3 w-full rounded-xl border-3 border-border-color bg-accent-green py-3 text-base font-bold uppercase tracking-wider text-white shadow-nb-md transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm cursor-pointer"
           >
             {currentIndex + 1 >= total
               ? isThai

@@ -247,13 +247,13 @@ export default function WordFeed() {
   if (error && !word) {
     return (
       <div
-        className="mx-4 mt-4 p-6 rounded-2xl text-center border-3 border-[#FA5252] bg-[#FFF0F6] dark:bg-[#3d2d44]"
+        className="mx-4 mt-4 p-6 rounded-2xl text-center border-3 border-accent-red bg-[#FFF0F6] dark:bg-[#3d2d44]"
       >
-        <p className="text-base text-[#FA5252] font-bold mb-4">{error}</p>
+        <p className="text-base text-accent-red font-bold mb-4">{error}</p>
         <button
           type="button"
           onClick={advance}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] font-bold text-sm text-black dark:text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] font-bold text-sm text-black dark:text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
         >
           <ReloadOutlined />
           Try again
@@ -284,7 +284,7 @@ export default function WordFeed() {
           }}
         >
           <WordCard word={word} onToggleBookmark={handleToggleBookmark} />
-          <p className="text-center text-xs text-black/40 dark:text-white/40 font-bold mt-4 select-none">
+          <p className="text-center text-xs text-text-meta font-bold mt-4 select-none">
             ↑ Swipe up for next word
           </p>
         </div>
@@ -299,9 +299,9 @@ export default function WordFeed() {
 
       {error && word && (
         <div
-          className="mt-4 p-4 rounded-2xl text-center border-3 border-[#FA5252] bg-[#FFF0F6] dark:bg-[#3d2d44]"
+          className="mt-4 p-4 rounded-2xl text-center border-3 border-accent-red bg-[#FFF0F6] dark:bg-[#3d2d44]"
         >
-          <p className="text-sm text-[#FA5252] font-bold">{error}</p>
+          <p className="text-sm text-accent-red font-bold">{error}</p>
         </div>
       )}
     </div>

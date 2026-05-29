@@ -39,7 +39,7 @@ export default function AIConfigPanel() {
   const displayValue = showKey ? (apiKey ?? "") : (maskedKey ?? "");
 
   return (
-    <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+    <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
       <p className="text-sm font-semibold text-text-primary mb-3">AI Configuration</p>
 
       {/* API Key Input */}
@@ -54,7 +54,7 @@ export default function AIConfigPanel() {
             value={inputKey || displayValue}
             onChange={(e) => setInputKey(e.target.value)}
             placeholder="Enter your API key"
-            className="w-full rounded-xl border-3 border-border-color bg-card-bg text-text-primary px-3 py-2 pr-10 text-sm shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] outline-none focus:shadow-[3px_3px_0_#000000] dark:focus:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-shadow"
+            className="w-full rounded-xl border-3 border-border-color bg-card-bg text-text-primary px-3 py-2 pr-10 text-sm shadow-nb-sm outline-none focus:shadow-nb-sm dark:focus:shadow-nb-sm transition-shadow"
           />
           <button
             type="button"
@@ -88,7 +88,7 @@ export default function AIConfigPanel() {
           id="ai-model-select"
           value={selectedModel}
           onChange={(e) => setSelectedModel(e.target.value)}
-          className="w-full rounded-xl border-3 border-border-color px-3 py-2 text-sm shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] outline-none focus:shadow-[3px_3px_0_#000000] dark:focus:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-shadow bg-card-bg text-text-primary appearance-none cursor-pointer"
+          className="w-full rounded-xl border-3 border-border-color px-3 py-2 text-sm shadow-nb-sm outline-none focus:shadow-nb-sm dark:focus:shadow-nb-sm transition-shadow bg-card-bg text-text-primary appearance-none cursor-pointer"
         >
           {MODEL_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -103,14 +103,14 @@ export default function AIConfigPanel() {
         <button
           type="button"
           onClick={handleSave}
-          className="flex-1 rounded-xl border-3 border-border-color bg-[#52C41A] px-4 py-2 text-sm font-bold text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="flex-1 rounded-xl border-3 border-border-color bg-accent-green px-4 py-2 text-sm font-bold text-white shadow-nb-sm transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
         >
           Save
         </button>
         <button
           type="button"
           onClick={handleClear}
-          className="flex-1 rounded-xl border-3 border-border-color bg-card-bg px-4 py-2 text-sm font-bold text-text-primary shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="flex-1 rounded-xl border-3 border-border-color bg-card-bg px-4 py-2 text-sm font-bold text-text-primary shadow-nb-sm transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
         >
           Clear
         </button>

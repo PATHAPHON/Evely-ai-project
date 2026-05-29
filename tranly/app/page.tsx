@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Button, ConfigProvider, Card, Typography, Spin } from "antd";
 import { RocketOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import useIllustrationTheme from "@/app/theme/illustrationTheme";
+import { useStrings } from "@/app/_lib/strings";
 
 const { Title, Paragraph } = Typography;
 
 export default function LandingPage() {
   const configProps = useIllustrationTheme();
   const router = useRouter();
+  const t = useStrings();
 
   useEffect(() => {
     // Automatically redirect to the mobile app home screen after 1.5 seconds
@@ -29,18 +31,18 @@ export default function LandingPage() {
             title={
               <div className="flex items-center gap-2 font-black uppercase text-sm">
                 <ThunderboltOutlined style={{ color: "#FFD93D" }} />
-                <span>Launching Portal</span>
+                <span>{t.landing.launching}</span>
               </div>
             }
             bordered={true}
             className="text-center p-6"
           >
             <Title level={2} style={{ margin: "0 0 12px 0", fontWeight: 900 }}>
-              TARNLY <span className="text-[#52C41A]">KOREAN</span>
+              Tarn<span className="text-accent-green">ly</span>
             </Title>
-            
+
             <Paragraph style={{ fontWeight: 600, color: "#2C2C2C" }}>
-              Loading the mobile app view, please wait...
+              {t.landing.loadingApp}
             </Paragraph>
 
             <div className="py-6 flex items-center justify-center">
@@ -55,7 +57,7 @@ export default function LandingPage() {
               onClick={() => router.push("/home")}
               className="mt-4"
             >
-              Open App
+              {t.landing.openApp}
             </Button>
           </Card>
 

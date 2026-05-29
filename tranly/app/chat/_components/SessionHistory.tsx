@@ -80,7 +80,7 @@ export default function SessionHistory({
           type="button"
           onClick={onNewConversation}
           aria-label="New conversation"
-          className="flex w-full items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-[#52C41A] px-4 py-3 text-white font-bold shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-green px-4 py-3 text-white font-bold shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
         >
           <PlusOutlined style={{ fontSize: 18 }} />
           <span>New Conversation</span>
@@ -106,7 +106,7 @@ export default function SessionHistory({
                   onSelectSession(session.id);
                 }
               }}
-              className="w-full rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              className="w-full rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
             >
               <div className="flex items-start justify-between gap-2">
                 {/* Session info */}
@@ -145,7 +145,7 @@ export default function SessionHistory({
                         type="button"
                         onClick={(e) => handleConfirmDelete(e, session.id)}
                         aria-label="Confirm delete"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#FF4D4F] text-white text-xs font-bold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
                       >
                         ✓
                       </button>
@@ -153,7 +153,7 @@ export default function SessionHistory({
                         type="button"
                         onClick={handleCancelDelete}
                         aria-label="Cancel delete"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
                       >
                         ✕
                       </button>
@@ -163,7 +163,7 @@ export default function SessionHistory({
                       type="button"
                       onClick={(e) => handleDeleteClick(e, session.id)}
                       aria-label="Delete session"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-[#FF4D4F] shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
                     >
                       <DeleteOutlined style={{ fontSize: 14 }} />
                     </button>

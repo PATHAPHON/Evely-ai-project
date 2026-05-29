@@ -47,7 +47,7 @@ export default function WordSelector({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-t-2xl border-3 border-border-color bg-card-bg shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] flex flex-col max-h-[80vh]">
+      <div className="w-full max-w-md rounded-t-2xl border-3 border-border-color bg-card-bg shadow-nb-md flex flex-col max-h-[80vh]">
         {/* Header */}
         <div className="flex items-center justify-between border-b-3 border-border-color p-4">
           <h2 className="text-lg font-bold text-text-primary">
@@ -61,7 +61,7 @@ export default function WordSelector({
               type="button"
               onClick={onClose}
               aria-label="Close word selector"
-              className="flex h-8 w-8 items-center justify-center rounded-lg border-3 border-border-color bg-card-bg text-text-primary shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border-3 border-border-color bg-card-bg text-text-primary shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
             >
               <CloseOutlined style={{ fontSize: 14 }} />
             </button>
@@ -96,12 +96,12 @@ export default function WordSelector({
                   disabled={disabled}
                   aria-pressed={selected}
                   aria-label={`${selected ? "Deselect" : "Select"} ${word.korean}`}
-                  className={`w-full rounded-xl border-3 border-border-color p-3 text-left transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer ${
+                  className={`w-full rounded-xl border-3 border-border-color p-3 text-left transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer ${
                     selected
-                      ? "bg-[#E6F4FF] dark:bg-[#1a3a5c] shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]"
+                      ? "bg-[#E6F4FF] dark:bg-[#1a3a5c] shadow-nb-sm"
                       : disabled
-                        ? "bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]"
-                        : "bg-card-bg shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] hover:bg-gray-50 dark:hover:bg-[#3d3d5c]"
+                        ? "bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed shadow-nb-sm"
+                        : "bg-card-bg shadow-nb-sm hover:bg-gray-50 dark:hover:bg-[#3d3d5c]"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -132,7 +132,7 @@ export default function WordSelector({
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-xl border-3 border-border-color bg-[#4096FF] py-3 text-base font-bold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+            className="w-full rounded-xl border-3 border-border-color bg-[#4096FF] py-3 text-base font-bold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
           >
             {isThai
               ? `เสร็จสิ้น (${selectedWords.length} คำ)`

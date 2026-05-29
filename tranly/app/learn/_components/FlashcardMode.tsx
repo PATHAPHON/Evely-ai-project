@@ -66,7 +66,7 @@ export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
           <button
             type="button"
             onClick={() => setView({ kind: "list" })}
-            className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-5 py-3 font-extrabold text-black dark:text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000]"
+            className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-5 py-3 font-extrabold text-black dark:text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm"
           >
             ← กลับ
           </button>
@@ -89,13 +89,13 @@ export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
         type="button"
         onClick={() => setView({ kind: "create" })}
         disabled={words.length === 0}
-        className="flex items-center justify-center gap-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#52C41A] px-5 py-3 font-extrabold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex items-center justify-center gap-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-40"
       >
         <span className="text-xl leading-none">＋</span> สร้าง Flashcard
       </button>
 
       {sets === null && (
-        <p className="mt-8 text-center text-sm font-bold text-black/40 dark:text-white/40">
+        <p className="mt-8 text-center text-sm font-bold text-text-meta">
           Loading...
         </p>
       )}
@@ -111,7 +111,7 @@ export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
       {sets?.map((set) => (
         <div
           key={set.id}
-          className="flex items-center gap-3 rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-3 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
+          className="flex items-center gap-3 rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-3 shadow-nb-md"
         >
           <button
             type="button"
@@ -121,7 +121,7 @@ export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
             <span className="block truncate text-base font-extrabold text-black dark:text-white">
               {set.name}
             </span>
-            <span className="block text-sm font-bold text-black/50 dark:text-white/50">
+            <span className="block text-sm font-bold text-text-secondary">
               {set.wordIds.length} คำ
             </span>
           </button>
@@ -130,7 +130,7 @@ export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
             onClick={() => {
               if (confirm(`ลบชุด "${set.name}"?`)) removeSet(set.id);
             }}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F6] dark:bg-[#3d2d44] font-extrabold text-black dark:text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000]"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F6] dark:bg-[#3d2d44] font-extrabold text-black dark:text-white shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
             aria-label="ลบ"
           >
             ✕
@@ -240,14 +240,14 @@ function CreateSet({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-3 py-1.5 text-xs font-extrabold text-black dark:text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000]"
+          className="rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-3 py-1.5 text-xs font-extrabold text-black dark:text-white shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
         >
           ← ยกเลิก
         </button>
         <button
           type="button"
           onClick={toggleAll}
-          className="rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-3 py-1.5 text-xs font-extrabold text-black dark:text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000]"
+          className="rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-3 py-1.5 text-xs font-extrabold text-black dark:text-white shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
         >
           {allSelected ? "ล้างทั้งหมด" : "เลือกทั้งหมด"}
         </button>
@@ -258,20 +258,20 @@ function CreateSet({
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="ชื่อชุด Flashcard"
-        className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-4 py-3 text-base font-bold text-black dark:text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] outline-none placeholder:text-black/30 dark:placeholder:text-white/30"
+        className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-4 py-3 text-base font-bold text-black dark:text-white shadow-nb-sm outline-none placeholder:text-black/30 dark:placeholder:text-white/30"
       />
 
       <button
         type="button"
         onClick={handleAiPick}
         disabled={aiLoading}
-        className="flex items-center justify-center gap-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#9775FA] px-5 py-3 font-extrabold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex items-center justify-center gap-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#9775FA] px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-60"
       >
         {aiLoading ? "กำลังให้ AI เลือก..." : "✨ ให้ AI เลือกให้"}
       </button>
 
       {aiError && (
-        <p className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F0] dark:bg-[#3d2020] px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]">
+        <p className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F0] dark:bg-[#3d2020] px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 shadow-nb-sm">
           {aiError}
         </p>
       )}
@@ -289,13 +289,13 @@ function CreateSet({
             key={w.id}
             type="button"
             onClick={() => toggle(w.id)}
-            className={`flex items-center gap-3 rounded-2xl border-3 border-black dark:border-[#4a4a6a] p-3 text-left shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] ${
+            className={`flex items-center gap-3 rounded-2xl border-3 border-black dark:border-[#4a4a6a] p-3 text-left shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm ${
               isOn ? "bg-accent-pink-bg" : "bg-white dark:bg-[#2d2d44]"
             }`}
           >
             <span
               className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border-3 border-black dark:border-[#4a4a6a] font-extrabold ${
-                isOn ? "bg-[#52C41A] text-white" : "bg-white dark:bg-[#1a1a2e]"
+                isOn ? "bg-accent-green text-white" : "bg-white dark:bg-[#1a1a2e]"
               }`}
             >
               {isOn ? "✓" : ""}
@@ -318,7 +318,7 @@ function CreateSet({
         type="button"
         onClick={handleSave}
         disabled={!canSave}
-        className="mt-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#52C41A] px-5 py-3 font-extrabold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-40"
       >
         {saving ? "กำลังบันทึก..." : `บันทึกชุด (${selected.size})`}
       </button>
@@ -375,7 +375,7 @@ function Study({
         <button
           type="button"
           onClick={onExit}
-          className="flex-shrink-0 rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-[#FF4D4F] px-3 py-1.5 text-xs font-extrabold text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000]"
+          className="flex-shrink-0 rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-accent-red px-3 py-1.5 text-xs font-extrabold text-white shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
         >
           ยกเลิก
         </button>
@@ -384,7 +384,7 @@ function Study({
       <button
         type="button"
         onClick={() => setFlipped((f) => !f)}
-        className="flex min-h-[20rem] w-full flex-col items-center justify-center rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-6 text-center shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000]"
+        className="flex min-h-[20rem] w-full flex-col items-center justify-center rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-6 text-center shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm"
         aria-label="แตะเพื่อพลิกการ์ด"
       >
         {!flipped ? (
@@ -392,7 +392,7 @@ function Study({
             <p className="break-words text-4xl font-extrabold text-black dark:text-white">
               {korean || word.label}
             </p>
-            <p className="mt-6 text-xs font-bold text-black/40 dark:text-white/40">
+            <p className="mt-6 text-xs font-bold text-text-meta">
               แตะเพื่อดูคำแปล
             </p>
           </>
@@ -407,7 +407,7 @@ function Study({
               {romanization}
             </p>
             {reading && (
-              <p className="text-sm font-bold text-black/50 dark:text-white/50">
+              <p className="text-sm font-bold text-text-secondary">
                 {reading}
               </p>
             )}
@@ -430,7 +430,7 @@ function Study({
                     speak(korean);
                   }
                 }}
-                className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black bg-[#4DABF7] text-white shadow-[2px_2px_0_#000000] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:border-[#4a4a6a] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]"
+                className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black bg-accent-blue text-white shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] dark:border-[#4a4a6a] dark:shadow-nb-sm"
                 aria-label="ฟังเสียง"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -449,7 +449,7 @@ function Study({
           type="button"
           onClick={() => go(safeIndex - 1)}
           disabled={safeIndex === 0}
-          className="flex-1 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] py-3 font-extrabold text-black dark:text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:opacity-40"
+          className="flex-1 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] py-3 font-extrabold text-black dark:text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:opacity-40"
         >
           ก่อนหน้า
         </button>
@@ -457,7 +457,7 @@ function Study({
           <button
             type="button"
             onClick={onExit}
-            className="flex-1 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#52C41A] py-3 font-extrabold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000]"
+            className="flex-1 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm"
           >
             จบ
           </button>
@@ -465,7 +465,7 @@ function Study({
           <button
             type="button"
             onClick={() => go(safeIndex + 1)}
-            className="flex-1 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-pink-bg py-3 font-extrabold text-black dark:text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000]"
+            className="flex-1 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-pink-bg py-3 font-extrabold text-black dark:text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm"
           >
             ถัดไป
           </button>

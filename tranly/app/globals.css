@@ -8,10 +8,16 @@
   --foreground: #171717;
   --card-bg: #ffffff;
   --text-primary: #000000;
-  --text-secondary: rgba(0, 0, 0, 0.5);
+  /* Secondary/meta text bumped to meet WCAG AA (4.5:1) on white. */
+  --text-secondary: rgba(0, 0, 0, 0.62);
+  --text-meta: rgba(0, 0, 0, 0.6);
   --border-color: #000000;
   --shadow-color: #000000;
+  /* Accent palette — single source of truth (was hardcoded inline app-wide). */
   --accent-green: #52c41a;
+  --accent-red: #fa5252;
+  --accent-blue: #4dabf7;
+  --accent-yellow: #ffd93d;
   --accent-pink-bg: #fff0f6;
 }
 
@@ -20,10 +26,14 @@
   --foreground: #ffffff;
   --card-bg: #2d2d44;
   --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-meta: rgba(255, 255, 255, 0.7);
   --border-color: #4a4a6a;
   --shadow-color: rgba(0, 0, 0, 0.4);
   --accent-green: #52c41a;
+  --accent-red: #fa5252;
+  --accent-blue: #4dabf7;
+  --accent-yellow: #ffd93d;
   --accent-pink-bg: #3d2d44;
 }
 
@@ -33,12 +43,21 @@
   --color-card-bg: var(--card-bg);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  --color-text-meta: var(--text-meta);
   --color-border-color: var(--border-color);
   --color-shadow-color: var(--shadow-color);
   --color-accent-green: var(--accent-green);
+  --color-accent-red: var(--accent-red);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-yellow: var(--accent-yellow);
   --color-accent-pink-bg: var(--accent-pink-bg);
   --font-sans: var(--font-outfit);
   --font-mono: var(--font-geist-mono);
+  /* Neobrutalist flat-offset shadow scale. The dark variant is baked in via
+     --shadow-color, so one utility covers both themes (no dark: needed). */
+  --shadow-nb-sm: 2px 2px 0 var(--shadow-color);
+  --shadow-nb-md: 4px 4px 0 var(--shadow-color);
+  --shadow-nb-lg: 6px 6px 0 var(--shadow-color);
 }
 
 body {

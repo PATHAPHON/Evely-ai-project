@@ -19,7 +19,7 @@ export default function ProgressIndicator({
 }: ProgressIndicatorProps) {
   return (
     <div
-      className="inline-flex items-center justify-center px-3 py-1 rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] font-bold text-sm text-black dark:text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
+      className="inline-flex items-center justify-center px-3 py-1 rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] font-bold text-sm text-black dark:text-white shadow-nb-md"
       aria-label={`Card ${current} of ${total}`}
     >
       {formatProgress(current, total)}

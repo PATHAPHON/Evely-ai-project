@@ -10,7 +10,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Tarnly Korean",
+  title: "Tarnly",
   description: "Learn Korean in Neobrutalist illustration style",
   appleWebApp: {
     capable: true,

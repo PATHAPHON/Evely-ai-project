@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Tarnly Korean',
+    name: 'Tarnly',
     short_name: 'Tarnly',
     description: 'Learn Korean in Neobrutalist illustration style',
     start_url: '/home',

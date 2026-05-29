@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, message } from "antd";
 import useIllustrationTheme from "@/app/theme/illustrationTheme";
 import ScanButton from "@/app/scan/_components/ScanButton";
 import {
@@ -10,7 +10,9 @@ import {
   type WordRecord,
 } from "./_lib/useWordStorage";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
+import { useStrings } from "@/app/_lib/strings";
 import { useTTS } from "@/app/chat/_lib/useTTS";
+import PageHeader from "@/app/_components/PageHeader";
 import { FlashcardMode } from "./_components/FlashcardMode";
 
 type ViewMode = "words" | "flashcard";
@@ -36,6 +38,7 @@ function WordCard({
   const url = useMemo(() => URL.createObjectURL(word.imageBlob), [word.imageBlob]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
   const { language } = useLanguagePreference();
+  const t = useStrings();
   const { speak } = useTTS("ko-KR");
 
   const korean = word.korean || '';
@@ -46,36 +49,39 @@ function WordCard({
   const translation = language === 'thai' ? thai : (word.english || '');
 
   return (
-    <div className="rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-3 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] flex gap-3 items-center">
+    <div className="rounded-2xl border-3 border-border-color bg-card-bg p-3 shadow-nb-md flex gap-3 items-center">
       <img
         src={url}
         alt={korean || thai}
-        className="w-32 h-32 object-cover rounded-xl border-3 border-black dark:border-[#4a4a6a]"
+        className="w-32 h-32 object-cover rounded-xl border-3 border-border-color"
       />
       <div className="flex-1 min-w-0">
-        <p className="text-xl font-extrabold text-black dark:text-white truncate">
+        {/* Primary: the headword the learner reads first. */}
+        <p className="text-xl font-extrabold text-text-primary truncate">
           {romanization}
         </p>
+        {/* Secondary: the Korean script — important but not the headword. */}
         {korean && (
-          <p className="text-base font-extrabold text-black dark:text-white truncate mt-0.5">
+          <p className="text-base font-bold text-text-primary truncate mt-0.5">
             {korean}
           </p>
         )}
         {language === 'thai' ? (
           <>
             {reading && (
-              <p className="text-sm font-bold text-black/50 dark:text-white/50 truncate">{reading}</p>
+              <p className="text-sm font-semibold text-text-secondary truncate">{reading}</p>
             )}
             {translation && (
-              <p className="text-sm font-bold text-black/70 dark:text-white/70 truncate">{translation}</p>
+              <p className="text-sm font-semibold text-text-secondary truncate">{translation}</p>
             )}
           </>
         ) : (
           translation && (
-            <p className="text-sm font-bold text-black/70 dark:text-white/70 truncate">{translation}</p>
+            <p className="text-sm font-semibold text-text-secondary truncate">{translation}</p>
           )
         )}
-        <p className="text-[10px] font-bold text-black/40 dark:text-white/40 mt-1">
+        {/* Meta: de-emphasized, AA-legible. */}
+        <p className="text-[11px] font-medium text-text-meta mt-1">
           {formatDate(word.createdAt)}
         </p>
       </div>
@@ -84,8 +90,8 @@ function WordCard({
           type="button"
           onClick={() => canSpeak && speak(korean)}
           disabled={!canSpeak}
-          className="w-9 h-9 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#4DABF7] text-white font-extrabold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-          aria-label="ฟังเสียง"
+          className="w-9 h-9 rounded-xl border-3 border-border-color bg-accent-blue text-white font-extrabold shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+          aria-label={t.learn.listenAria}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
@@ -95,11 +101,9 @@ function WordCard({
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (confirm(`ลบคำว่า "${korean}"?`)) onDelete(word.id);
-          }}
-          className="w-9 h-9 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F6] dark:bg-[#3d2d44] text-black dark:text-white font-extrabold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)]"
-          aria-label="ลบ"
+          onClick={() => onDelete(word.id)}
+          className="w-9 h-9 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F6] dark:bg-[#3d2d44] text-black dark:text-white font-extrabold shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
+          aria-label={t.learn.deleteAria}
         >
           ✕
         </button>
@@ -142,10 +146,16 @@ async function generateAppleSampleBlob(): Promise<Blob | null> {
 export default function LearnPage() {
   const configProps = useIllustrationTheme();
   const router = useRouter();
+  const t = useStrings();
+  const [messageApi, contextHolder] = message.useMessage();
   const { list, remove, save } = useWordStorage();
   const [words, setWords] = useState<WordRecord[] | null>(null);
   const [mode, setMode] = useState<ViewMode>("words");
   const [flashcardStudying, setFlashcardStudying] = useState(false);
+  // Deletes are soft: the card disappears immediately and the real removal is
+  // committed only after the Undo window closes. Pending timers are tracked so
+  // Undo can cancel them — and so unmounting commits anything still pending.
+  const pendingDeletes = useRef(new Map<string, () => void>());
 
   useEffect(() => {
     let cancelled = false;
@@ -193,45 +203,95 @@ export default function LearnPage() {
     };
   }, [list, save, remove]);
 
-  const handleDelete = async (id: string) => {
-    await remove(id);
+  // Commit any deletes still inside their Undo window when leaving the screen,
+  // so a soft-deleted word doesn't silently reappear on the next visit.
+  useEffect(() => {
+    const pending = pendingDeletes.current;
+    return () => {
+      pending.forEach((commit) => commit());
+      pending.clear();
+    };
+  }, []);
+
+  const handleDelete = (id: string) => {
+    const target = words?.find((w) => w.id === id);
+    if (!target) return;
+    const index = words!.indexOf(target);
+    const korean = target.korean || target.label || "";
+    const key = `delete-${id}`;
+
+    // Optimistically remove from view.
     setWords((prev) => prev?.filter((w) => w.id !== id) ?? null);
+
+    const commit = () => {
+      if (!pendingDeletes.current.has(id)) return;
+      pendingDeletes.current.delete(id);
+      clearTimeout(timer);
+      messageApi.destroy(key);
+      remove(id).catch(() => {});
+    };
+
+    const undo = () => {
+      if (!pendingDeletes.current.has(id)) return;
+      pendingDeletes.current.delete(id);
+      clearTimeout(timer);
+      messageApi.destroy(key);
+      setWords((prev) => {
+        if (!prev) return prev;
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, target);
+        return next;
+      });
+    };
+
+    const timer = setTimeout(commit, 5000);
+    pendingDeletes.current.set(id, commit);
+
+    messageApi.open({
+      key,
+      type: "success",
+      duration: 0, // managed manually so Undo stays for the full window
+      content: (
+        <span className="inline-flex items-center gap-3">
+          {t.learn.deleted(korean)}
+          <button
+            type="button"
+            onClick={undo}
+            className="font-extrabold underline underline-offset-2"
+          >
+            {t.learn.undo}
+          </button>
+        </span>
+      ),
+    });
   };
 
   return (
     <ConfigProvider {...configProps}>
+      {contextHolder}
       <div className="w-full h-dvh bg-white dark:bg-[#1a1a2e] text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
         <div
           className="flex-1 overflow-y-auto"
           style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
         >
-          <div className="p-[20px_16px_0]">
-            <div className="pt-[10px]">
-              <div
-                className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-black dark:text-white"
-                style={{ fontFamily: "var(--font-outfit), sans-serif" }}
-              >
-                My Words
-              </div>
-              <div className="text-black dark:text-white/80 text-sm mt-1 font-bold">
-                Saved vocabulary for your Flashcards
-              </div>
-            </div>
-
+          <PageHeader
+            title={t.learn.title}
+            subtitle={t.learn.subtitle}
+          >
             {/* Mode toggle switch: All words ↔ Flashcard.
                 Hidden while studying so the user must finish or cancel first. */}
             {!flashcardStudying && (
-            <div className="mt-4 inline-flex rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-1 shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+            <div className="mt-4 inline-flex rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-1 shadow-nb-sm">
               <button
                 type="button"
                 onClick={() => setMode("words")}
                 className={`rounded-lg px-4 py-1.5 text-sm font-extrabold transition-colors ${
                   mode === "words"
                     ? "bg-accent-pink-bg text-black dark:text-white border-3 border-black dark:border-[#4a4a6a]"
-                    : "text-black/50 dark:text-white/50"
+                    : "text-text-secondary"
                 }`}
               >
-                คำทั้งหมด
+                {t.learn.allWords}
               </button>
               <button
                 type="button"
@@ -239,32 +299,32 @@ export default function LearnPage() {
                 className={`rounded-lg px-4 py-1.5 text-sm font-extrabold transition-colors ${
                   mode === "flashcard"
                     ? "bg-accent-pink-bg text-black dark:text-white border-3 border-black dark:border-[#4a4a6a]"
-                    : "text-black/50 dark:text-white/50"
+                    : "text-text-secondary"
                 }`}
               >
-                Flashcard
+                {t.learn.flashcard}
               </button>
             </div>
             )}
-          </div>
+          </PageHeader>
 
           <div className="px-4 mt-6 flex flex-col gap-3">
             {words === null && (
-              <p className="text-center text-sm font-bold text-black/40 dark:text-white/40 mt-12">
-                Loading...
+              <p className="text-center text-sm font-bold text-text-meta mt-12">
+                {t.common.loading}
               </p>
             )}
             {words !== null && words.length === 0 && (
               <div className="mt-12 flex flex-col items-center gap-4 text-center">
                 <p className="text-base font-bold text-black/60 dark:text-white/60">
-                  No saved words yet
+                  {t.learn.noWords}
                 </p>
                 <button
                   type="button"
                   onClick={() => router.push("/scan")}
-                  className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#52C41A] px-5 py-3 font-extrabold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]"
+                  className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm"
                 >
-                  Scan Now
+                  {t.learn.scanNow}
                 </button>
               </div>
             )}
@@ -285,7 +345,7 @@ export default function LearnPage() {
             so navigation is locked until the user finishes or cancels. */}
         {!flashcardStudying && (
         <div
-          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
+          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-nb-md"
           style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
         >
           <a
@@ -297,18 +357,18 @@ export default function LearnPage() {
                 <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
               </svg>
             </span>
-            <span className="text-[11px] font-bold tracking-wider">Home</span>
+            <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
           </a>
 
           <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]">
+            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="4 7 4 4 20 4 20 7" />
                 <line x1="9" y1="20" x2="15" y2="20" />
                 <line x1="12" y1="4" x2="12" y2="20" />
               </svg>
             </span>
-            <span className="text-[11px] font-bold tracking-wider">Word</span>
+            <span className="text-[11px] font-bold tracking-wider">{t.common.tabWord}</span>
           </a>
 
           <ScanButton />
@@ -330,7 +390,7 @@ export default function LearnPage() {
                 <circle cx="12" cy="12" r="4" />
               </svg>
             </span>
-            <span className="text-[11px] font-bold tracking-wider">AI</span>
+            <span className="text-[11px] font-bold tracking-wider">{t.common.tabAI}</span>
           </a>
 
           <a
@@ -343,7 +403,7 @@ export default function LearnPage() {
                 <path d="M20 21a8 8 0 0 0-16 0" />
               </svg>
             </span>
-            <span className="text-[11px] font-bold tracking-wider">Profile</span>
+            <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
           </a>
         </div>
         )}

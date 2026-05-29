@@ -8,8 +8,10 @@ import {
   PlusOutlined,
   StopOutlined,
 } from '@ant-design/icons';
+import { message as antdMessage } from 'antd';
 import ScanButton from '@/app/scan/_components/ScanButton';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
+import { useStrings } from '@/app/_lib/strings';
 import ConversationSetup from './_components/ConversationSetup';
 import WordSelector from './_components/WordSelector';
 import ChatList from './_components/ChatList';
@@ -37,6 +39,8 @@ export default function ChatPage() {
   const router = useRouter();
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
+  const t = useStrings();
+  const [messageApi, navMessageHolder] = antdMessage.useMessage();
   const [mode, setMode] = useState<ChatMode>('chat');
   const [view, setView] = useState<ViewState>('setup');
   const [showWordSelector, setShowWordSelector] = useState(false);
@@ -169,13 +173,17 @@ export default function ChatPage() {
       sessionConfig !== null &&
       !isEnded);
 
-  // Guarded navigation: no-op while locked into an active session.
+  // Guarded navigation: while locked into an active session, explain *why* the
+  // tabs don't respond instead of silently no-opping, and point at End/Quit.
   const handleNav = useCallback(
     (path: string) => {
-      if (navLocked) return;
+      if (navLocked) {
+        messageApi.open({ key: 'nav-locked', type: 'info', content: t.chat.navLockedHint });
+        return;
+      }
       router.push(path);
     },
-    [navLocked, router],
+    [navLocked, router, messageApi, t],
   );
 
   // Reply suggestions for the latest AI message — shown only when it's the
@@ -319,6 +327,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-dvh bg-background relative">
+      {navMessageHolder}
       {/* Header */}
       <div className="p-[20px_16px_0]">
         <div className="flex items-start justify-between pt-[10px]">
@@ -339,7 +348,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleBackToHistory}
                 aria-label="Back to history"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer text-text-primary"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer text-text-primary"
               >
                 <ArrowLeftOutlined style={{ fontSize: 18 }} />
               </button>
@@ -349,7 +358,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleShowHistory}
                 aria-label="View conversation history"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer text-text-primary"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer text-text-primary"
               >
                 <HistoryOutlined style={{ fontSize: 18 }} />
               </button>
@@ -359,7 +368,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleNewConversation}
                 aria-label="Start new conversation"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#52C41A] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-green text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
               >
                 <PlusOutlined style={{ fontSize: 18 }} />
               </button>
@@ -369,7 +378,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleEndConversationTap}
                 aria-label="End conversation"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#FF4D4F] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-red text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
               >
                 <StopOutlined style={{ fontSize: 18 }} />
               </button>
@@ -381,7 +390,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={handleShowLessonHistory}
                   aria-label="View saved lessons"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer text-text-primary"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer text-text-primary"
                 >
                   <HistoryOutlined style={{ fontSize: 18 }} />
                 </button>
@@ -391,7 +400,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleNewLessonFromHistory}
                 aria-label="Start new lesson"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#52C41A] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-green text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
               >
                 <PlusOutlined style={{ fontSize: 18 }} />
               </button>
@@ -403,7 +412,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={handleQuitLessonTap}
                   aria-label="Quit lesson"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#FF4D4F] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-red text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
                 >
                   <StopOutlined style={{ fontSize: 18 }} />
                 </button>
@@ -412,7 +421,7 @@ export default function ChatPage() {
         </div>
 
         {/* Mode toggle: Chat vs Lessons */}
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border-3 border-border-color bg-card-bg p-1.5 shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border-3 border-border-color bg-card-bg p-1.5 shadow-nb-sm">
           <button
             type="button"
             onClick={() => setMode('chat')}
@@ -421,7 +430,7 @@ export default function ChatPage() {
               navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
             } ${
               mode === 'chat'
-                ? 'bg-[#52C41A] text-white'
+                ? 'bg-accent-green text-white'
                 : 'bg-transparent text-text-secondary'
             }`}
           >
@@ -435,7 +444,7 @@ export default function ChatPage() {
               navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
             } ${
               mode === 'lesson'
-                ? 'bg-[#52C41A] text-white'
+                ? 'bg-accent-green text-white'
                 : 'bg-transparent text-text-secondary'
             }`}
           >
@@ -470,7 +479,7 @@ export default function ChatPage() {
           <>
             {sessionConfig?.goal && (
               <div className="px-4 pt-3">
-                <span className="inline-flex items-center gap-1 rounded-lg border-2 border-border-color bg-[#FFD93D] px-2 py-0.5 text-xs font-bold text-black">
+                <span className="inline-flex items-center gap-1 rounded-lg border-2 border-border-color bg-accent-yellow px-2 py-0.5 text-xs font-bold text-black">
                   {isThai ? '🎯 เป้าหมาย: ' : '🎯 Goal: '}
                   {sessionConfig.goal}
                 </span>
@@ -497,7 +506,7 @@ export default function ChatPage() {
                   <button
                     type="button"
                     onClick={handleNewConversation}
-                    className="w-full rounded-xl border-3 border-border-color bg-[#52C41A] py-3 text-base font-bold uppercase tracking-wider text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                    className="w-full rounded-xl border-3 border-border-color bg-accent-green py-3 text-base font-bold uppercase tracking-wider text-white shadow-nb-md transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm cursor-pointer"
                   >
                     {isThai ? 'เริ่มใหม่' : 'New Conversation'}
                   </button>
@@ -622,7 +631,7 @@ export default function ChatPage() {
 
       {/* Bottom nav bar */}
       <div
-        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
+        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-nb-md"
         style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
       >
         <a
@@ -637,7 +646,7 @@ export default function ChatPage() {
               <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">Home</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
         </a>
 
         <a
@@ -654,13 +663,13 @@ export default function ChatPage() {
               <line x1="12" y1="4" x2="12" y2="20" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">Word</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabWord}</span>
         </a>
 
         <ScanButton disabled={navLocked} />
 
         <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]">
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3v2" />
               <path d="M12 19v2" />
@@ -673,7 +682,7 @@ export default function ChatPage() {
               <circle cx="12" cy="12" r="4" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">AI</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabAI}</span>
         </a>
 
         <a
@@ -689,14 +698,14 @@ export default function ChatPage() {
               <path d="M20 21a8 8 0 0 0-16 0" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">Profile</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
         </a>
       </div>
 
       {/* End conversation confirmation modal */}
       {showEndConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-[6px_6px_0_#000000] dark:shadow-[6px_6px_0_rgba(0,0,0,0.4)]">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-nb-lg">
             <h2 className="text-lg font-bold text-text-primary mb-2">
               End Conversation?
             </h2>
@@ -707,14 +716,14 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={handleCancelEnd}
-                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmEnd}
-                className="flex-1 rounded-xl border-3 border-border-color bg-[#FF4D4F] py-3 text-sm font-bold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-border-color bg-accent-red py-3 text-sm font-bold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
               >
                 End
               </button>
@@ -726,7 +735,7 @@ export default function ChatPage() {
       {/* Quit lesson confirmation modal */}
       {showQuitLessonConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-[6px_6px_0_#000000] dark:shadow-[6px_6px_0_rgba(0,0,0,0.4)]">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-nb-lg">
             <h2 className="text-lg font-bold text-text-primary mb-2">
               {isThai ? 'ยกเลิกการเรียน?' : 'Quit lesson?'}
             </h2>
@@ -739,14 +748,14 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={handleCancelQuitLesson}
-                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
               >
                 {isThai ? 'เรียนต่อ' : 'Keep learning'}
               </button>
               <button
                 type="button"
                 onClick={handleConfirmQuitLesson}
-                className="flex-1 rounded-xl border-3 border-border-color bg-[#FF4D4F] py-3 text-sm font-bold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-border-color bg-accent-red py-3 text-sm font-bold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
               >
                 {isThai ? 'ยกเลิก' : 'Quit'}
               </button>

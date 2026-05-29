@@ -19,7 +19,7 @@ export default function ThemeToggle() {
         type="button"
         onClick={toggleTheme}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        className="relative w-[72px] h-[38px] rounded-full border-3 border-border-color shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-colors duration-200 cursor-pointer bg-[#F0F0F0] dark:bg-[#2d2d44]"
+        className="relative w-[72px] h-[38px] rounded-full border-3 border-border-color shadow-nb-sm transition-colors duration-200 cursor-pointer bg-[#F0F0F0] dark:bg-[#2d2d44]"
       >
         {/* Sliding knob */}
         <span

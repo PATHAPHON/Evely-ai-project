@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import ScanButton from "@/app/scan/_components/ScanButton";
+import PageHeader from "@/app/_components/PageHeader";
 import UserHeader from "./_components/UserHeader";
 import LearningStats from "./_components/LearningStats";
 import SettingsSection from "./_components/SettingsSection";
@@ -10,9 +11,11 @@ import AIConfigPanel from "./_components/AIConfigPanel";
 import ThemeToggle from "./_components/ThemeToggle";
 import DataManagement from "./_components/DataManagement";
 import AppInfo from "./_components/AppInfo";
+import { useStrings } from "@/app/_lib/strings";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const t = useStrings();
 
   return (
     <div className="w-full h-dvh bg-background text-foreground flex flex-col relative overflow-hidden font-sans select-none">
@@ -21,19 +24,10 @@ export default function ProfilePage() {
         className="flex-1 overflow-y-auto"
         style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
       >
-        <div className="p-[20px_16px_0]">
-          <div className="pt-[10px]">
-            <div
-              className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-text-primary"
-              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
-            >
-              Profile
-            </div>
-            <div className="text-text-secondary text-sm mt-1 font-bold">
-              Customize your learning experience
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title={t.profile.title}
+          subtitle={t.profile.subtitle}
+        />
 
         <div className="px-4 mt-6 flex flex-col gap-6">
           {/* User Header */}
@@ -43,7 +37,7 @@ export default function ProfilePage() {
           <LearningStats />
 
           {/* Settings */}
-          <SettingsSection title="Settings">
+          <SettingsSection title={t.profile.settings}>
             <LanguageSelector />
             <AIConfigPanel />
             <ThemeToggle />
@@ -57,7 +51,7 @@ export default function ProfilePage() {
 
       {/* Bottom nav bar */}
       <div
-        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
+        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-nb-md"
         style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
       >
         <a
@@ -69,7 +63,7 @@ export default function ProfilePage() {
               <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">Home</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
         </a>
 
         <a
@@ -83,7 +77,7 @@ export default function ProfilePage() {
               <line x1="12" y1="4" x2="12" y2="20" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">Word</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabWord}</span>
         </a>
 
         <ScanButton />
@@ -100,17 +94,17 @@ export default function ProfilePage() {
               <circle cx="12" cy="12" r="4" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">AI</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabAI}</span>
         </a>
 
         <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]">
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <circle cx="12" cy="8" r="4" />
               <path d="M20 21a8 8 0 0 0-16 0" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">Profile</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
         </a>
       </div>
     </div>
