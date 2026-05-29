@@ -196,18 +196,18 @@ export default function ChatPage() {
   }, [startListening]);
 
   return (
-    <div className="flex flex-col h-dvh bg-[#FFFDF7] relative">
+    <div className="flex flex-col h-dvh bg-background relative">
       {/* Header */}
       <div className="p-[20px_16px_0]">
         <div className="flex items-start justify-between pt-[10px]">
           <div>
             <div
-              className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-black"
+              className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-text-primary"
               style={{ fontFamily: "var(--font-outfit), sans-serif" }}
             >
               AI Chat
             </div>
-            <div className="text-black text-sm mt-1 font-bold">
+            <div className="text-text-primary text-sm mt-1 font-bold">
               Practice Korean with AI
             </div>
           </div>
@@ -217,7 +217,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleShowHistory}
                 aria-label="View conversation history"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black bg-white shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer text-text-primary"
               >
                 <HistoryOutlined style={{ fontSize: 18 }} />
               </button>
@@ -227,7 +227,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleNewConversation}
                 aria-label="Start new conversation"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black bg-[#52C41A] text-white shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#52C41A] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
               >
                 <PlusOutlined style={{ fontSize: 18 }} />
               </button>
@@ -237,7 +237,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={handleEndConversationTap}
                 aria-label="End conversation"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black bg-[#FF4D4F] text-white shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-[#FF4D4F] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
               >
                 <StopOutlined style={{ fontSize: 18 }} />
               </button>
@@ -248,8 +248,8 @@ export default function ChatPage() {
 
       {/* Save error banner */}
       {saveError && (
-        <div className="px-4 py-2 bg-red-50 border-b-3 border-red-500">
-          <p className="text-sm text-red-700 font-medium">{saveError}</p>
+        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border-b-3 border-red-500">
+          <p className="text-sm text-red-700 dark:text-red-300 font-medium">{saveError}</p>
         </div>
       )}
 
@@ -277,7 +277,7 @@ export default function ChatPage() {
               onRetry={retryLastMessage}
               onSpeak={handleSpeak}
             />
-            <div className="border-t-3 border-black bg-white p-3">
+            <div className="border-t-3 border-border-color bg-card-bg p-3">
               <ChatInput
                 onSend={handleSendMessage}
                 isLoading={isSessionLoading}
@@ -316,11 +316,11 @@ export default function ChatPage() {
 
       {/* Bottom nav bar */}
       <div
-        className="absolute left-4 right-4 h-[80px] bg-white border-3 border-black p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000]"
+        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
         style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
       >
         <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-black/40"
+          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
           onClick={() => router.push("/home")}
         >
           <span className="w-10 h-10 flex items-center justify-center rounded-xl">
@@ -332,7 +332,7 @@ export default function ChatPage() {
         </a>
 
         <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-black/40"
+          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
           onClick={() => router.push("/learn")}
         >
           <span className="w-10 h-10 flex items-center justify-center rounded-xl">
@@ -347,8 +347,8 @@ export default function ChatPage() {
 
         <ScanButton />
 
-        <a className="flex flex-col items-center gap-1 cursor-pointer text-black">
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#FFF0F6] border-3 border-black shadow-[2px_2px_0_#000000]">
+        <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3v2" />
               <path d="M12 19v2" />
@@ -365,7 +365,7 @@ export default function ChatPage() {
         </a>
 
         <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-black/40"
+          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
           onClick={() => router.push("/profile")}
         >
           <span className="w-10 h-10 flex items-center justify-center rounded-xl">
@@ -381,25 +381,25 @@ export default function ChatPage() {
       {/* End conversation confirmation modal */}
       {showEndConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-black bg-white p-6 shadow-[6px_6px_0_#000000]">
-            <h2 className="text-lg font-bold text-black mb-2">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-[6px_6px_0_#000000] dark:shadow-[6px_6px_0_rgba(0,0,0,0.4)]">
+            <h2 className="text-lg font-bold text-text-primary mb-2">
               End Conversation?
             </h2>
-            <p className="text-sm text-gray-600 mb-5">
+            <p className="text-sm text-text-secondary mb-5">
               This conversation will be saved to your history.
             </p>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={handleCancelEnd}
-                className="flex-1 rounded-xl border-3 border-black bg-white py-3 text-sm font-bold text-black shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmEnd}
-                className="flex-1 rounded-xl border-3 border-black bg-[#FF4D4F] py-3 text-sm font-bold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+                className="flex-1 rounded-xl border-3 border-border-color bg-[#FF4D4F] py-3 text-sm font-bold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
               >
                 End
               </button>

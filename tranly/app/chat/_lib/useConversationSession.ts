@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 import { useConversationHistory } from './useConversationHistory';
 import type {
   ChatMessage,
@@ -96,7 +97,10 @@ export function useConversationSession(): UseConversationSessionReturn {
 
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCustomAIHeaders(),
+        },
         body: JSON.stringify(payload),
       });
 

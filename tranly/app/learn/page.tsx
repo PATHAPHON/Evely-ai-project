@@ -10,6 +10,7 @@ import {
   type WordRecord,
 } from "./_lib/useWordStorage";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
+import { useTTS } from "@/app/chat/_lib/useTTS";
 
 function formatDate(ts: number) {
   const d = new Date(ts);
@@ -22,15 +23,6 @@ function formatDate(ts: number) {
   });
 }
 
-function speakKorean(text: string) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "ko-KR";
-  utterance.rate = 0.9;
-  window.speechSynthesis.speak(utterance);
-}
-
 function WordCard({
   word,
   onDelete,
@@ -41,6 +33,7 @@ function WordCard({
   const url = useMemo(() => URL.createObjectURL(word.imageBlob), [word.imageBlob]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
   const { language } = useLanguagePreference();
+  const { speak } = useTTS("ko-KR");
 
   const korean = word.korean || '';
   const thai = word.label && word.label !== korean ? word.label : '';
@@ -50,45 +43,45 @@ function WordCard({
   const translation = language === 'thai' ? thai : (word.english || '');
 
   return (
-    <div className="rounded-2xl border-3 border-black bg-white p-3 shadow-[4px_4px_0_#000000] flex gap-3 items-center">
+    <div className="rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-3 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] flex gap-3 items-center">
       <img
         src={url}
         alt={korean || thai}
-        className="w-32 h-32 object-cover rounded-xl border-3 border-black"
+        className="w-32 h-32 object-cover rounded-xl border-3 border-black dark:border-[#4a4a6a]"
       />
       <div className="flex-1 min-w-0">
-        <p className="text-xl font-extrabold text-black truncate">
+        <p className="text-xl font-extrabold text-black dark:text-white truncate">
           {romanization}
         </p>
         {korean && (
-          <p className="text-base font-extrabold text-black truncate mt-0.5">
+          <p className="text-base font-extrabold text-black dark:text-white truncate mt-0.5">
             {korean}
           </p>
         )}
         {language === 'thai' ? (
           <>
             {reading && (
-              <p className="text-sm font-bold text-black/50 truncate">{reading}</p>
+              <p className="text-sm font-bold text-black/50 dark:text-white/50 truncate">{reading}</p>
             )}
             {translation && (
-              <p className="text-sm font-bold text-black/70 truncate">{translation}</p>
+              <p className="text-sm font-bold text-black/70 dark:text-white/70 truncate">{translation}</p>
             )}
           </>
         ) : (
           translation && (
-            <p className="text-sm font-bold text-black/70 truncate">{translation}</p>
+            <p className="text-sm font-bold text-black/70 dark:text-white/70 truncate">{translation}</p>
           )
         )}
-        <p className="text-[10px] font-bold text-black/40 mt-1">
+        <p className="text-[10px] font-bold text-black/40 dark:text-white/40 mt-1">
           {formatDate(word.createdAt)}
         </p>
       </div>
       <div className="flex flex-col gap-2">
         <button
           type="button"
-          onClick={() => canSpeak && speakKorean(korean)}
+          onClick={() => canSpeak && speak(korean)}
           disabled={!canSpeak}
-          className="w-9 h-9 rounded-xl border-3 border-black bg-[#4DABF7] text-white font-extrabold shadow-[2px_2px_0_#000000] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+          className="w-9 h-9 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#4DABF7] text-white font-extrabold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
           aria-label="ฟังเสียง"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -102,7 +95,7 @@ function WordCard({
           onClick={() => {
             if (confirm(`ลบคำว่า "${korean}"?`)) onDelete(word.id);
           }}
-          className="w-9 h-9 rounded-xl border-3 border-black bg-[#FFF0F6] text-black font-extrabold shadow-[2px_2px_0_#000000] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000]"
+          className="w-9 h-9 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F6] dark:bg-[#3d2d44] text-black dark:text-white font-extrabold shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)]"
           aria-label="ลบ"
         >
           ✕
@@ -202,7 +195,7 @@ export default function LearnPage() {
 
   return (
     <ConfigProvider {...configProps}>
-      <div className="w-full h-dvh bg-white text-[#2C2C2C] flex flex-col relative overflow-hidden font-sans select-none">
+      <div className="w-full h-dvh bg-white dark:bg-[#1a1a2e] text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
         <div
           className="flex-1 overflow-y-auto"
           style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
@@ -210,12 +203,12 @@ export default function LearnPage() {
           <div className="p-[20px_16px_0]">
             <div className="pt-[10px]">
               <div
-                className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-black"
+                className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-black dark:text-white"
                 style={{ fontFamily: "var(--font-outfit), sans-serif" }}
               >
                 My Words
               </div>
-              <div className="text-black text-sm mt-1 font-bold">
+              <div className="text-black dark:text-white/80 text-sm mt-1 font-bold">
                 Saved vocabulary for your Flashcards
               </div>
             </div>
@@ -223,19 +216,19 @@ export default function LearnPage() {
 
           <div className="px-4 mt-6 flex flex-col gap-3">
             {words === null && (
-              <p className="text-center text-sm font-bold text-black/40 mt-12">
+              <p className="text-center text-sm font-bold text-black/40 dark:text-white/40 mt-12">
                 Loading...
               </p>
             )}
             {words !== null && words.length === 0 && (
               <div className="mt-12 flex flex-col items-center gap-4 text-center">
-                <p className="text-base font-bold text-black/60">
+                <p className="text-base font-bold text-black/60 dark:text-white/60">
                   No saved words yet
                 </p>
                 <button
                   type="button"
                   onClick={() => router.push("/scan")}
-                  className="rounded-xl border-3 border-black bg-[#52C41A] px-5 py-3 font-extrabold text-white shadow-[4px_4px_0_#000000] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000]"
+                  className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#52C41A] px-5 py-3 font-extrabold text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:active:shadow-[2px_2px_0_rgba(0,0,0,0.4)]"
                 >
                   Scan Now
                 </button>
@@ -249,11 +242,11 @@ export default function LearnPage() {
 
         {/* Bottom tab bar (Learn active) */}
         <div
-          className="absolute left-4 right-4 h-[80px] bg-white border-3 border-black p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000]"
+          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
           style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
         >
           <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-black/40"
+            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
             onClick={() => router.push("/home")}
           >
             <span className="w-10 h-10 flex items-center justify-center rounded-xl">
@@ -264,8 +257,8 @@ export default function LearnPage() {
             <span className="text-[11px] font-bold tracking-wider">Home</span>
           </a>
 
-          <a className="flex flex-col items-center gap-1 cursor-pointer text-black">
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#FFF0F6] border-3 border-black shadow-[2px_2px_0_#000000]">
+          <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
+            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="4 7 4 4 20 4 20 7" />
                 <line x1="9" y1="20" x2="15" y2="20" />
@@ -278,7 +271,7 @@ export default function LearnPage() {
           <ScanButton />
 
           <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-black/40"
+            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
             onClick={() => router.push("/chat")}
           >
             <span className="w-10 h-10 flex items-center justify-center rounded-xl">
@@ -298,7 +291,7 @@ export default function LearnPage() {
           </a>
 
           <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-black/40"
+            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
             onClick={() => router.push("/profile")}
           >
             <span className="w-10 h-10 flex items-center justify-center rounded-xl">

@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTTS } from './useTTS';
 
-// Mock SpeechSynthesisUtterance
 class MockUtterance {
   text: string;
   lang = '';
@@ -15,6 +14,22 @@ class MockUtterance {
   }
 }
 
+class MockAudio {
+  src: string;
+  onplay: (() => void) | null = null;
+  onended: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  play = vi.fn().mockResolvedValue(undefined);
+  pause = vi.fn();
+
+  constructor(src = '') {
+    this.src = src;
+    MockAudio.lastInstance = this;
+  }
+
+  static lastInstance: MockAudio | null = null;
+}
+
 function createMockSpeechSynthesis() {
   return {
     speak: vi.fn(),
@@ -22,44 +37,71 @@ function createMockSpeechSynthesis() {
   };
 }
 
-beforeEach(() => {
-  // Reset mocks
-  vi.restoreAllMocks();
+function installSpeechSynthesis() {
+  const mock = createMockSpeechSynthesis();
+  Object.defineProperty(window, 'speechSynthesis', {
+    value: mock,
+    writable: true,
+    configurable: true,
+  });
+  return mock;
+}
 
-  // Set up SpeechSynthesisUtterance mock
+function mockFetchOk(audioBytes = new Uint8Array([0x01, 0x02, 0x03])) {
+  const blob = new Blob([audioBytes], { type: 'audio/mpeg' });
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    blob: () => Promise.resolve(blob),
+  });
+}
+
+function mockFetchStatus(status: number) {
+  return vi.fn().mockResolvedValue({
+    ok: false,
+    status,
+    blob: () => Promise.resolve(new Blob()),
+  });
+}
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  MockAudio.lastInstance = null;
   (globalThis as unknown as Record<string, unknown>).SpeechSynthesisUtterance = MockUtterance;
+  (globalThis as unknown as Record<string, unknown>).Audio = MockAudio;
+
+  // URL.createObjectURL / revokeObjectURL aren't in jsdom by default.
+  if (!('createObjectURL' in URL)) {
+    (URL as unknown as { createObjectURL: (b: Blob) => string }).createObjectURL = vi
+      .fn()
+      .mockReturnValue('blob:mock');
+  } else {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
+  }
+  if (!('revokeObjectURL' in URL)) {
+    (URL as unknown as { revokeObjectURL: (s: string) => void }).revokeObjectURL = vi.fn();
+  } else {
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  }
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('useTTS', () => {
   describe('isSupported', () => {
-    it('returns true when speechSynthesis is available', () => {
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: createMockSpeechSynthesis(),
-        writable: true,
-        configurable: true,
-      });
-
+    it('returns true when Audio is available', () => {
       const { result } = renderHook(() => useTTS());
       expect(result.current.isSupported).toBe(true);
     });
-
-    it('returns false when speechSynthesis is not available', () => {
-      // Delete speechSynthesis so 'speechSynthesis' in window is false
-      delete (window as unknown as Record<string, unknown>).speechSynthesis;
-
-      const { result } = renderHook(() => useTTS());
-      expect(result.current.isSupported).toBe(false);
-    });
   });
 
-  describe('speak', () => {
-    it('calls speechSynthesis.speak with correct lang', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
-      });
+  describe('speak — cloud TTS happy path', () => {
+    it('POSTs text to /api/tts and plays returned audio', async () => {
+      installSpeechSynthesis();
+      const fetchMock = mockFetchOk();
+      vi.stubGlobal('fetch', fetchMock);
 
       const { result } = renderHook(() => useTTS('ko-KR'));
 
@@ -67,209 +109,173 @@ describe('useTTS', () => {
         result.current.speak('안녕하세요');
       });
 
-      expect(mockSynthesis.cancel).toHaveBeenCalled();
-      expect(mockSynthesis.speak).toHaveBeenCalledTimes(1);
-      const utterance = mockSynthesis.speak.mock.calls[0][0] as MockUtterance;
+      await waitFor(() => {
+        expect(MockAudio.lastInstance).not.toBeNull();
+      });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('/api/tts');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toMatchObject({ text: '안녕하세요' });
+      expect(MockAudio.lastInstance!.play).toHaveBeenCalled();
+    });
+
+    it('passes voice option to /api/tts when provided', async () => {
+      installSpeechSynthesis();
+      const fetchMock = mockFetchOk();
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { result } = renderHook(() =>
+        useTTS('ko-KR', 'ko-KR-Chirp3-HD-Charon'),
+      );
+
+      act(() => {
+        result.current.speak('안녕');
+      });
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const init = fetchMock.mock.calls[0]![1] as RequestInit;
+      expect(JSON.parse(init.body as string)).toMatchObject({
+        text: '안녕',
+        voice: 'ko-KR-Chirp3-HD-Charon',
+      });
+    });
+
+    it('sets isSpeaking true on audio play, false on ended', async () => {
+      installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchOk());
+
+      const { result } = renderHook(() => useTTS());
+
+      act(() => {
+        result.current.speak('테스트');
+      });
+
+      await waitFor(() => expect(MockAudio.lastInstance).not.toBeNull());
+
+      act(() => {
+        MockAudio.lastInstance!.onplay?.();
+      });
+      expect(result.current.isSpeaking).toBe(true);
+
+      act(() => {
+        MockAudio.lastInstance!.onended?.();
+      });
+      expect(result.current.isSpeaking).toBe(false);
+    });
+  });
+
+  describe('speak — fallback to Web Speech', () => {
+    it('falls back when /api/tts returns 503', async () => {
+      const synth = installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchStatus(503));
+
+      const { result } = renderHook(() => useTTS('ko-KR'));
+
+      act(() => {
+        result.current.speak('안녕하세요');
+      });
+
+      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
+
+      const utterance = synth.speak.mock.calls[0]![0] as MockUtterance;
       expect(utterance.text).toBe('안녕하세요');
       expect(utterance.lang).toBe('ko-KR');
+      expect(MockAudio.lastInstance).toBeNull();
     });
 
-    it('cancels current playback before starting new', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
+    it('falls back when fetch throws a network error', async () => {
+      const synth = installSpeechSynthesis();
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+
+      const { result } = renderHook(() => useTTS('ko-KR'));
+
+      act(() => {
+        result.current.speak('안녕');
       });
+
+      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
+      expect((synth.speak.mock.calls[0]![0] as MockUtterance).lang).toBe('ko-KR');
+    });
+
+    it('falls back when audio playback errors out', async () => {
+      const synth = installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchOk());
 
       const { result } = renderHook(() => useTTS());
 
       act(() => {
-        result.current.speak('첫 번째');
-      });
-      act(() => {
-        result.current.speak('두 번째');
+        result.current.speak('안녕');
       });
 
-      // cancel should be called each time speak is invoked
-      expect(mockSynthesis.cancel).toHaveBeenCalledTimes(2);
-      expect(mockSynthesis.speak).toHaveBeenCalledTimes(2);
-    });
-
-    it('sets isSpeaking to true on utterance start', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
-      });
-
-      const { result } = renderHook(() => useTTS());
+      await waitFor(() => expect(MockAudio.lastInstance).not.toBeNull());
 
       act(() => {
-        result.current.speak('안녕하세요');
+        MockAudio.lastInstance!.onerror?.();
       });
 
-      const utterance = mockSynthesis.speak.mock.calls[0][0] as MockUtterance;
-
-      act(() => {
-        utterance.onstart?.();
-      });
-
-      expect(result.current.isSpeaking).toBe(true);
-    });
-
-    it('sets isSpeaking to false on utterance end', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
-      });
-
-      const { result } = renderHook(() => useTTS());
-
-      act(() => {
-        result.current.speak('안녕하세요');
-      });
-
-      const utterance = mockSynthesis.speak.mock.calls[0][0] as MockUtterance;
-
-      act(() => {
-        utterance.onstart?.();
-      });
-      act(() => {
-        utterance.onend?.();
-      });
-
-      expect(result.current.isSpeaking).toBe(false);
-    });
-
-    it('sets error when speechSynthesis is not supported', () => {
-      delete (window as unknown as Record<string, unknown>).speechSynthesis;
-
-      const { result } = renderHook(() => useTTS());
-
-      act(() => {
-        result.current.speak('안녕하세요');
-      });
-
-      expect(result.current.error).toBe('ไม่สามารถเล่นเสียงได้');
-    });
-
-    it('sets error on utterance error (non-interrupted)', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
-      });
-
-      const { result } = renderHook(() => useTTS());
-
-      act(() => {
-        result.current.speak('안녕하세요');
-      });
-
-      const utterance = mockSynthesis.speak.mock.calls[0][0] as MockUtterance;
-
-      act(() => {
-        utterance.onerror?.({ error: 'synthesis-failed' });
-      });
-
-      expect(result.current.error).toBe('ไม่สามารถเล่นเสียงได้');
-      expect(result.current.isSpeaking).toBe(false);
-    });
-
-    it('does not set error on interrupted/canceled events', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
-      });
-
-      const { result } = renderHook(() => useTTS());
-
-      act(() => {
-        result.current.speak('안녕하세요');
-      });
-
-      const utterance = mockSynthesis.speak.mock.calls[0][0] as MockUtterance;
-
-      act(() => {
-        utterance.onstart?.();
-      });
-      act(() => {
-        utterance.onerror?.({ error: 'interrupted' });
-      });
-
-      expect(result.current.error).toBeNull();
-      expect(result.current.isSpeaking).toBe(false);
+      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
     });
   });
 
   describe('stop', () => {
-    it('calls speechSynthesis.cancel', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
-      });
+    it('pauses audio playback and clears state', async () => {
+      installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchOk());
 
       const { result } = renderHook(() => useTTS());
 
       act(() => {
-        result.current.stop();
+        result.current.speak('안녕');
       });
 
-      expect(mockSynthesis.cancel).toHaveBeenCalled();
-    });
-
-    it('sets isSpeaking to false', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
-      });
-
-      const { result } = renderHook(() => useTTS());
+      await waitFor(() => expect(MockAudio.lastInstance).not.toBeNull());
+      const audio = MockAudio.lastInstance!;
 
       act(() => {
-        result.current.speak('안녕하세요');
+        audio.onplay?.();
       });
-
-      const utterance = mockSynthesis.speak.mock.calls[0][0] as MockUtterance;
-      act(() => {
-        utterance.onstart?.();
-      });
-
       expect(result.current.isSpeaking).toBe(true);
 
       act(() => {
         result.current.stop();
       });
 
+      expect(audio.pause).toHaveBeenCalled();
       expect(result.current.isSpeaking).toBe(false);
+    });
+
+    it('cancels Web Speech synthesis as well', () => {
+      const synth = installSpeechSynthesis();
+
+      const { result } = renderHook(() => useTTS());
+
+      act(() => {
+        result.current.stop();
+      });
+
+      expect(synth.cancel).toHaveBeenCalled();
     });
   });
 
   describe('cleanup', () => {
-    it('cancels speech on unmount', () => {
-      const mockSynthesis = createMockSpeechSynthesis();
-      Object.defineProperty(window, 'speechSynthesis', {
-        value: mockSynthesis,
-        writable: true,
-        configurable: true,
+    it('releases resources on unmount', async () => {
+      const synth = installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchOk());
+
+      const { result, unmount } = renderHook(() => useTTS());
+
+      act(() => {
+        result.current.speak('안녕');
       });
 
-      const { unmount } = renderHook(() => useTTS());
+      await waitFor(() => expect(MockAudio.lastInstance).not.toBeNull());
 
       unmount();
 
-      expect(mockSynthesis.cancel).toHaveBeenCalled();
+      expect(MockAudio.lastInstance!.pause).toHaveBeenCalled();
+      expect(synth.cancel).toHaveBeenCalled();
     });
   });
 });

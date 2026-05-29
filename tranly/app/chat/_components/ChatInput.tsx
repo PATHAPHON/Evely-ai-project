@@ -77,14 +77,14 @@ export default function ChatInput({
           {selectedWords.map((word) => (
             <span
               key={word.id}
-              className="inline-flex items-center gap-1 rounded-lg border-2 border-black bg-[#E6F4FF] px-2 py-0.5 text-sm font-medium"
+              className="inline-flex items-center gap-1 rounded-lg border-2 border-border-color bg-[#E6F4FF] dark:bg-[#1a3a5c] px-2 py-0.5 text-sm font-medium text-text-primary"
             >
               {word.korean}
               <button
                 type="button"
                 onClick={() => onRemoveWord(word.id)}
                 aria-label={`Remove ${word.korean}`}
-                className="text-gray-500 hover:text-black cursor-pointer"
+                className="text-text-secondary hover:text-text-primary cursor-pointer"
               >
                 <CloseCircleFilled style={{ fontSize: 14 }} />
               </button>
@@ -96,7 +96,7 @@ export default function ChatInput({
       {/* Input row */}
       <div className="flex items-center gap-2">
         {/* Text input */}
-        <div className="flex-1 rounded-xl border-3 border-black bg-white shadow-[4px_4px_0_#000000]">
+        <div className="flex-1 rounded-xl border-3 border-border-color bg-card-bg shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
           <input
             type="text"
             value={inputValue}
@@ -106,7 +106,7 @@ export default function ChatInput({
             maxLength={500}
             disabled={isLoading}
             aria-label="Chat message input"
-            className="w-full rounded-xl px-4 py-3 text-base outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="w-full rounded-xl px-4 py-3 text-base outline-none bg-transparent text-text-primary placeholder:text-text-secondary disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -116,10 +116,10 @@ export default function ChatInput({
             type="button"
             onClick={handleMicClick}
             aria-label={isListening ? 'Stop recording' : 'Start recording'}
-            className={`flex h-12 w-12 items-center justify-center rounded-xl border-3 border-black shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer ${
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer ${
               isListening
                 ? 'bg-red-500 text-white animate-pulse'
-                : 'bg-white text-black'
+                : 'bg-card-bg text-text-primary'
             }`}
           >
             <AudioOutlined style={{ fontSize: 20 }} />
@@ -132,7 +132,7 @@ export default function ChatInput({
           onClick={handleSend}
           disabled={!canSend}
           aria-label="Send message"
-          className="flex h-12 w-12 items-center justify-center rounded-xl border-3 border-black bg-[#4096FF] text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed disabled:shadow-[4px_4px_0_#666666]"
+          className="flex h-12 w-12 items-center justify-center rounded-xl border-3 border-border-color bg-[#4096FF] text-white shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed disabled:shadow-[4px_4px_0_#666666]"
         >
           <SendOutlined style={{ fontSize: 20 }} />
         </button>

@@ -165,8 +165,8 @@ export default function PreviewPage() {
 
       {/* Save error message */}
       {saveError && (
-        <div className="mx-4 mb-2 rounded-xl border-3 border-black bg-[#FFF0F0] px-4 py-3 text-center shadow-[3px_3px_0_#000000]">
-          <p className="text-sm font-bold text-red-600">{saveError}</p>
+        <div className="mx-4 mb-2 rounded-xl border-3 border-black bg-[#FFF0F0] px-4 py-3 text-center shadow-[3px_3px_0_#000000] dark:border-border-color dark:bg-[#3d2020] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+          <p className="text-sm font-bold text-red-600 dark:text-red-400">{saveError}</p>
         </div>
       )}
 
@@ -177,7 +177,7 @@ export default function PreviewPage() {
           type="button"
           onClick={handleRetake}
           disabled={isSaving}
-          className="flex-1 rounded-xl border-3 border-black bg-white px-4 py-3 text-center font-extrabold text-black shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="flex-1 rounded-xl border-3 border-black bg-white px-4 py-3 text-center font-extrabold text-black shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:opacity-50 disabled:cursor-not-allowed dark:border-border-color dark:bg-card-bg dark:text-text-primary dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
         >
           Retake
         </button>
@@ -187,7 +187,7 @@ export default function PreviewPage() {
           type="button"
           onClick={handleConfirm}
           disabled={isSaving}
-          className="flex-1 rounded-xl border-3 border-black bg-[#52C41A] px-4 py-3 text-center font-extrabold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+          className="flex-1 rounded-xl border-3 border-black bg-[#52C41A] px-4 py-3 text-center font-extrabold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] disabled:opacity-70 disabled:cursor-not-allowed dark:border-border-color dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
         >
           {isSaving ? (
             <span className="inline-flex items-center gap-2">

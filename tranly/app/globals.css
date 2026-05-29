@@ -1,26 +1,53 @@
 @import "tailwindcss";
+@config "../tailwind.config.ts";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card-bg: #ffffff;
+  --text-primary: #000000;
+  --text-secondary: rgba(0, 0, 0, 0.5);
+  --border-color: #000000;
+  --shadow-color: #000000;
+  --accent-green: #52c41a;
+  --accent-pink-bg: #fff0f6;
+}
+
+.dark {
+  --background: #1a1a2e;
+  --foreground: #ffffff;
+  --card-bg: #2d2d44;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --border-color: #4a4a6a;
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --accent-green: #52c41a;
+  --accent-pink-bg: #3d2d44;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card-bg: var(--card-bg);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border-color: var(--border-color);
+  --color-shadow-color: var(--shadow-color);
+  --color-accent-green: var(--accent-green);
+  --color-accent-pink-bg: var(--accent-pink-bg);
   --font-sans: var(--font-outfit);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-outfit), sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }

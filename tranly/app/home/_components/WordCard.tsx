@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { SoundOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
 import type { FeedWordRecord } from "../_lib/types";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
+import { useTTS } from "@/app/chat/_lib/useTTS";
 
 interface WordCardProps {
   word: FeedWordRecord;
@@ -13,66 +14,54 @@ interface WordCardProps {
 /**
  * Displays a single Korean vocabulary word card with:
  * - Hangul word, Thai pronunciation, romanization, English definition, Thai translation
- * - Audio button (Web Speech API) for Korean pronunciation
+ * - Audio button (cloud TTS with Web Speech fallback) for Korean pronunciation
  * - Bookmark toggle button with visual indicator
  *
  * Styled with Neobrutalist design system.
  */
 export default function WordCard({ word, onToggleBookmark }: WordCardProps) {
-  const [speechAvailable, setSpeechAvailable] = useState(false);
   const { language } = useLanguagePreference();
-
-  useEffect(() => {
-    setSpeechAvailable(
-      typeof window !== "undefined" && "speechSynthesis" in window
-    );
-  }, []);
+  const { speak, isSupported } = useTTS("ko-KR");
 
   const handlePlayAudio = useCallback(() => {
-    if (!speechAvailable) return;
-
-    const utterance = new SpeechSynthesisUtterance(word.korean);
-    utterance.lang = "ko-KR";
-    utterance.rate = 0.8;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  }, [word.korean, speechAvailable]);
+    if (word.korean) speak(word.korean);
+  }, [word.korean, speak]);
 
   const handleToggleBookmark = useCallback(() => {
     onToggleBookmark(word.id);
   }, [word.id, onToggleBookmark]);
 
   return (
-    <div className="w-full rounded-2xl border-3 border-black bg-white p-4 shadow-[4px_4px_0_#000000]">
+    <div className="w-full rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
       {/* Korean word (Hangul) */}
-      <p className="text-3xl font-bold text-black text-center mb-2">
+      <p className="text-3xl font-bold text-black dark:text-white text-center mb-2">
         {word.korean}
       </p>
 
       {/* Romanization */}
-      <p className="text-sm text-gray-500 text-center mb-3 italic">
+      <p className="text-sm text-gray-500 dark:text-white/50 text-center mb-3 italic">
         {word.romanization}
       </p>
 
       {/* Translation — language based on user preference */}
       {language === 'thai' ? (
         <>
-          <p className="text-lg text-gray-700 text-center mb-1">{word.reading}</p>
-          <p className="text-base text-gray-700 text-center mb-4">{word.thai}</p>
+          <p className="text-lg text-gray-700 dark:text-white/70 text-center mb-1">{word.reading}</p>
+          <p className="text-base text-gray-700 dark:text-white/70 text-center mb-4">{word.thai}</p>
         </>
       ) : (
-        <p className="text-base text-black text-center font-medium mb-4">{word.english}</p>
+        <p className="text-base text-black dark:text-white text-center font-medium mb-4">{word.english}</p>
       )}
 
       {/* Action buttons */}
       <div className="flex items-center justify-center gap-4">
-        {/* Audio button — hidden if SpeechSynthesis unavailable */}
-        {speechAvailable && (
+        {/* Audio button — hidden only if the runtime can't play audio at all */}
+        {isSupported && (
           <button
             type="button"
             onClick={handlePlayAudio}
             aria-label="Play Korean pronunciation"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black bg-[#4096FF] text-white shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#4096FF] text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
           >
             <SoundOutlined style={{ fontSize: 18 }} />
           </button>
@@ -83,10 +72,10 @@ export default function WordCard({ word, onToggleBookmark }: WordCardProps) {
           type="button"
           onClick={handleToggleBookmark}
           aria-label={word.bookmarked ? "Remove bookmark" : "Add bookmark"}
-          className={`flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer ${
+          className={`flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer ${
             word.bookmarked
               ? "bg-[#FAAD14] text-white"
-              : "bg-white text-black"
+              : "bg-white dark:bg-[#2d2d44] text-black dark:text-white"
           }`}
         >
           {word.bookmarked ? (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LoadingOutlined, ReloadOutlined } from "@ant-design/icons";
+import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
 import type { FeedWordRecord } from "../_lib/types";
 import { useFeedStorage } from "../_lib/useFeedStorage";
 import { useExclusionList } from "../_lib/useExclusionList";
@@ -63,7 +64,10 @@ export default function WordFeed() {
     const exclusionList = await getExclusionList();
     const response = await fetch("/api/feed", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getCustomAIHeaders(),
+      },
       body: JSON.stringify({ excludeWords: exclusionList, count: 1 }),
     });
 
@@ -234,8 +238,8 @@ export default function WordFeed() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3">
-        <LoadingOutlined className="text-3xl text-black animate-spin" />
-        <p className="text-sm text-gray-600 font-medium">Loading word...</p>
+        <LoadingOutlined className="text-3xl text-black dark:text-white animate-spin" />
+        <p className="text-sm text-gray-600 dark:text-white/60 font-medium">Loading word...</p>
       </div>
     );
   }
@@ -243,17 +247,13 @@ export default function WordFeed() {
   if (error && !word) {
     return (
       <div
-        className="mx-4 mt-4 p-6 rounded-2xl text-center"
-        style={{
-          border: "3px solid #FA5252",
-          backgroundColor: "#FFF0F6",
-        }}
+        className="mx-4 mt-4 p-6 rounded-2xl text-center border-3 border-[#FA5252] bg-[#FFF0F6] dark:bg-[#3d2d44]"
       >
         <p className="text-base text-[#FA5252] font-bold mb-4">{error}</p>
         <button
           type="button"
           onClick={advance}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-3 border-black bg-white font-bold text-sm shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] font-bold text-sm text-black dark:text-white shadow-[3px_3px_0_#000000] dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
         >
           <ReloadOutlined />
           Try again
@@ -284,7 +284,7 @@ export default function WordFeed() {
           }}
         >
           <WordCard word={word} onToggleBookmark={handleToggleBookmark} />
-          <p className="text-center text-xs text-black/40 font-bold mt-4 select-none">
+          <p className="text-center text-xs text-black/40 dark:text-white/40 font-bold mt-4 select-none">
             ↑ Swipe up for next word
           </p>
         </div>
@@ -292,18 +292,14 @@ export default function WordFeed() {
 
       {advancing && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-          <LoadingOutlined className="text-2xl text-black animate-spin" />
-          <p className="text-sm text-gray-600 font-medium">Loading next word...</p>
+          <LoadingOutlined className="text-2xl text-black dark:text-white animate-spin" />
+          <p className="text-sm text-gray-600 dark:text-white/60 font-medium">Loading next word...</p>
         </div>
       )}
 
       {error && word && (
         <div
-          className="mt-4 p-4 rounded-2xl text-center"
-          style={{
-            border: "3px solid #FA5252",
-            backgroundColor: "#FFF0F6",
-          }}
+          className="mt-4 p-4 rounded-2xl text-center border-3 border-[#FA5252] bg-[#FFF0F6] dark:bg-[#3d2d44]"
         >
           <p className="text-sm text-[#FA5252] font-bold">{error}</p>
         </div>

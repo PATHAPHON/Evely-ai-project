@@ -74,8 +74,12 @@ export async function POST(
 
   const { excludeWords, count } = input;
 
-  // Read API key from environment
-  const apiKey = process.env.KKU_API_KEY;
+  // Read custom API key and model from request headers (user-provided config)
+  const customApiKey = request.headers.get('x-custom-api-key');
+  const customModel = request.headers.get('x-custom-model');
+
+  // Use custom API key if provided, otherwise fall back to environment variable
+  const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 502);
   }
@@ -86,9 +90,12 @@ export async function POST(
       ? `Do NOT include any of these words: ${excludeWords.join(', ')}. `
       : '';
 
+  // Use custom model if provided, otherwise fall back to default
+  const model = customModel || 'gemini-3.1-flash-lite';
+
   // Construct KKU IntelSphere API request
   const requestBody = {
-    model: 'gemini-3.1-flash-lite',
+    model,
     messages: [
       {
         role: 'user' as const,

@@ -46,8 +46,8 @@ export default function ErrorOverlay({
       role="alert"
       aria-live="assertive"
     >
-      <div className="w-full max-w-sm rounded-xl border-3 border-black bg-white p-6 shadow-[6px_6px_0_#000000]">
-        <p className="mb-6 text-center text-lg font-semibold text-black">
+      <div className="w-full max-w-sm rounded-xl border-3 border-black bg-white p-6 shadow-[6px_6px_0_#000000] dark:border-border-color dark:bg-card-bg dark:shadow-[6px_6px_0_rgba(0,0,0,0.4)]">
+        <p className="mb-6 text-center text-lg font-semibold text-black dark:text-text-primary">
           {message}
         </p>
 
@@ -55,7 +55,7 @@ export default function ErrorOverlay({
           <button
             type="button"
             onClick={onRetry}
-            className="w-full rounded-lg border-3 border-black bg-[#52C41A] px-4 py-3 text-base font-bold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] cursor-pointer"
+            className="w-full rounded-lg border-3 border-black bg-[#52C41A] px-4 py-3 text-base font-bold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:border-border-color dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
           >
             Try again
           </button>
@@ -63,7 +63,7 @@ export default function ErrorOverlay({
           <button
             type="button"
             onClick={onDismiss}
-            className="w-full rounded-lg border-3 border-black bg-[#FF4D4F] px-4 py-3 text-base font-bold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] cursor-pointer"
+            className="w-full rounded-lg border-3 border-black bg-[#FF4D4F] px-4 py-3 text-base font-bold text-white shadow-[4px_4px_0_#000000] transition-all duration-100 active:translate-y-[2px] active:shadow-[2px_2px_0_#000000] dark:border-border-color dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)] cursor-pointer"
           >
             Dismiss
           </button>

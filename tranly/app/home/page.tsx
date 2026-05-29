@@ -69,7 +69,7 @@ export default function HomePage() {
       `}</style>
 
       {/* Container matches the absolute screen viewport of the mobile app */}
-      <div className="w-full h-dvh bg-white text-[#2C2C2C] flex flex-col relative overflow-hidden font-sans select-none">
+      <div className="w-full h-dvh bg-white dark:bg-[#1a1a2e] text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
         
         {/* Dynamic Meteor Shower - Animated Spinning Icons (Z-0) */}
         <div className="icon-meteor text-[#FFD93D] text-2xl" style={{ top: '8%', right: '5%', animationDelay: '0s', animationDuration: '6s' }}><StarOutlined /></div>
@@ -138,12 +138,12 @@ export default function HomePage() {
             <div className="flex items-start justify-between pt-[10px]">
               <div>
                 <div 
-                  className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-black"
+                  className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-black dark:text-white"
                   style={{ fontFamily: "var(--font-outfit), sans-serif" }}
                 >
                   안녕하세요! 👋
                 </div>
-                <div className="text-black text-sm mt-1 font-bold">
+                <div className="text-black dark:text-white/80 text-sm mt-1 font-bold">
                   Ready to learn Korean today?
                 </div>
               </div>
@@ -152,10 +152,10 @@ export default function HomePage() {
               <Avatar 
                 size={44}
                 style={{ 
-                  backgroundColor: '#FFF0F6', 
-                  color: '#000000', 
-                  border: '3px solid #000000',
-                  boxShadow: '2.5px 2.5px 0 #000000',
+                  backgroundColor: 'var(--accent-pink-bg)', 
+                  color: 'var(--text-primary)', 
+                  border: '3px solid var(--border-color)',
+                  boxShadow: '2.5px 2.5px 0 var(--shadow-color)',
                   fontSize: '15px',
                   fontWeight: 900,
                   display: 'grid',
@@ -175,16 +175,16 @@ export default function HomePage() {
 
         {/* Tabbar Navigation styled with high contrast border-t */}
         <div 
-          className="absolute left-4 right-4 h-[80px] bg-white border-3 border-black p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000]"
+          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]"
           style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
         >
           
           {/* Tab: Home */}
           <a 
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Home" ? "text-black" : "text-black/40"}`}
+            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Home" ? "text-text-primary" : "text-text-secondary"}`}
             onClick={() => setActiveTab("Home")}
           >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Home" ? "bg-[#FFF0F6] border-3 border-black shadow-[2px 2px 0_#000000]" : "bg-transparent"}`}>
+            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Home" ? "bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]" : "bg-transparent"}`}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
               </svg>
@@ -194,13 +194,13 @@ export default function HomePage() {
 
           {/* Tab: Learn */}
           <a
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Learn" ? "text-black" : "text-black/40"}`}
+            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Learn" ? "text-text-primary" : "text-text-secondary"}`}
             onClick={() => {
               setActiveTab("Learn");
               router.push("/learn");
             }}
           >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Learn" ? "bg-[#FFF0F6] border-3 border-black shadow-[2px 2px 0_#000000]" : "bg-transparent"}`}>
+            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Learn" ? "bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]" : "bg-transparent"}`}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="4 7 4 4 20 4 20 7" />
                 <line x1="9" y1="20" x2="15" y2="20" />
@@ -215,13 +215,13 @@ export default function HomePage() {
 
           {/* Tab: AI */}
           <a
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "AI" ? "text-black" : "text-black/40"}`}
+            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "AI" ? "text-text-primary" : "text-text-secondary"}`}
             onClick={() => {
               setActiveTab("AI");
               router.push("/chat");
             }}
           >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "AI" ? "bg-[#FFF0F6] border-3 border-black shadow-[2px 2px 0_#000000]" : "bg-transparent"}`}>
+            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "AI" ? "bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]" : "bg-transparent"}`}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3v2" />
                 <path d="M12 19v2" />
@@ -239,10 +239,10 @@ export default function HomePage() {
 
           {/* Tab: Profile */}
           <a
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Profile" ? "text-black" : "text-black/40"}`}
+            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Profile" ? "text-text-primary" : "text-text-secondary"}`}
             onClick={() => { setActiveTab("Profile"); router.push("/profile"); }}
           >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Profile" ? "bg-[#FFF0F6] border-3 border-black shadow-[2px 2px 0_#000000]" : "bg-transparent"}`}>
+            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Profile" ? "bg-accent-pink-bg border-3 border-border-color shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)]" : "bg-transparent"}`}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M20 21a8 8 0 0 0-16 0" />

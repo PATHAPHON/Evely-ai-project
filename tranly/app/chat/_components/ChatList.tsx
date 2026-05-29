@@ -49,7 +49,7 @@ export default function ChatList({
       aria-label="Conversation messages"
     >
       {messages.length === 0 && !isLoading && !error && (
-        <p className="text-center text-gray-400 mt-8">
+        <p className="text-center text-text-secondary mt-8">
           Type a message below to start the conversation
         </p>
       )}
@@ -81,23 +81,23 @@ function AIMessage({
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl border-3 border-black bg-white p-4 shadow-[4px_4px_0_#000000]">
+      <div className="max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
         {/* Korean text */}
-        <p className="text-2xl font-bold text-black mb-1">{message.korean}</p>
+        <p className="text-2xl font-bold text-text-primary mb-1">{message.korean}</p>
 
         {/* Romanization */}
-        <p className="text-sm text-gray-500 italic mb-1">
+        <p className="text-sm text-text-secondary italic mb-1">
           {message.romanization}
         </p>
 
         {/* Translation — language based on user preference */}
         {language === 'thai' ? (
           <>
-            <p className="text-base text-gray-700 mb-0.5">{message.reading}</p>
-            <p className="text-base text-gray-600">{message.translation}</p>
+            <p className="text-base text-text-secondary mb-0.5">{message.reading}</p>
+            <p className="text-base text-text-secondary">{message.translation}</p>
           </>
         ) : (
-          <p className="text-base text-gray-600">{message.english}</p>
+          <p className="text-base text-text-secondary">{message.english}</p>
         )}
 
         {/* Audio button */}
@@ -105,7 +105,7 @@ function AIMessage({
           type="button"
           onClick={() => onSpeak(message.id)}
           aria-label="Play Korean pronunciation"
-          className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-black bg-[#4096FF] text-white shadow-[2px_2px_0_#000000] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+          className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
         >
           <SoundOutlined style={{ fontSize: 14 }} />
         </button>
@@ -123,28 +123,28 @@ function UserMessage({
 }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[75%] rounded-2xl border-3 border-black bg-[#E6F4FF] p-3 shadow-[4px_4px_0_#000000]">
+      <div className="max-w-[75%] rounded-2xl border-3 border-border-color bg-[#E6F4FF] dark:bg-[#1a3a5c] p-3 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
         {message.korean ? (
           <>
-            <p className="text-2xl font-bold text-black mb-1">{message.korean}</p>
+            <p className="text-2xl font-bold text-text-primary mb-1">{message.korean}</p>
             {message.reading && (
-              <p className="text-sm text-gray-600 mb-0.5">{message.reading}</p>
+              <p className="text-sm text-text-secondary mb-0.5">{message.reading}</p>
             )}
             {message.romanization && (
-              <p className="text-xs text-gray-400 italic mb-1">{message.romanization}</p>
+              <p className="text-xs text-text-secondary italic mb-1">{message.romanization}</p>
             )}
-            <p className="text-xs text-gray-400 mt-1">{message.rawText}</p>
+            <p className="text-xs text-text-secondary mt-1">{message.rawText}</p>
             <button
               type="button"
               onClick={() => onSpeak(message.id)}
               aria-label="Play Korean pronunciation"
-              className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-black bg-[#4096FF] text-white shadow-[2px_2px_0_#000000] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+              className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
             >
               <SoundOutlined style={{ fontSize: 14 }} />
             </button>
           </>
         ) : (
-          <p className="text-base text-black">{message.rawText}</p>
+          <p className="text-base text-text-primary">{message.rawText}</p>
         )}
       </div>
     </div>
@@ -154,8 +154,8 @@ function UserMessage({
 function LoadingBubble() {
   return (
     <div className="flex justify-start">
-      <div className="rounded-2xl border-3 border-black bg-white p-4 shadow-[4px_4px_0_#000000]">
-        <div className="flex items-center gap-2 text-gray-500">
+      <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-[4px_4px_0_#000000] dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]">
+        <div className="flex items-center gap-2 text-text-secondary">
           <LoadingOutlined style={{ fontSize: 18 }} spin />
           <span className="text-sm">Generating response...</span>
         </div>
@@ -173,19 +173,19 @@ function ErrorBanner({
 }) {
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl border-3 border-red-500 bg-red-50 p-4 shadow-[4px_4px_0_#EF4444]">
+      <div className="max-w-[85%] rounded-2xl border-3 border-red-500 bg-red-50 dark:bg-red-900/30 p-4 shadow-[4px_4px_0_#EF4444]">
         <div className="flex items-start gap-2">
           <ExclamationCircleOutlined
             className="text-red-500 mt-0.5"
             style={{ fontSize: 16 }}
           />
           <div>
-            <p className="text-sm text-red-700">{error}</p>
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             <button
               type="button"
               onClick={onRetry}
               aria-label="Retry sending message"
-              className="mt-2 rounded-lg border-2 border-black bg-white px-3 py-1 text-sm font-medium shadow-[2px_2px_0_#000000] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+              className="mt-2 rounded-lg border-2 border-border-color bg-card-bg px-3 py-1 text-sm font-medium text-text-primary shadow-[2px_2px_0_#000000] dark:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:active:shadow-[1px_1px_0_rgba(0,0,0,0.4)] cursor-pointer"
             >
               Try again
             </button>

@@ -141,8 +141,12 @@ export async function POST(
 
   const { messages, proficiencyLevel, topic, wordContext } = input;
 
-  // Read API key from environment
-  const apiKey = process.env.KKU_API_KEY;
+  // Read custom API key and model from request headers (user-provided config)
+  const customApiKey = request.headers.get('x-custom-api-key');
+  const customModel = request.headers.get('x-custom-model');
+
+  // Use custom API key if provided, otherwise fall back to environment variable
+  const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 502);
   }
@@ -191,7 +195,7 @@ export async function POST(
     : [{ role: 'user' as const, content: [{ type: 'text' as const, text: systemPrompt + '\n\nStart the conversation.' }] }];
 
   const requestBody = {
-    model: 'gemini-3.1-flash-lite',
+    model: customModel || 'gemini-3.1-flash-lite',
     messages: apiMessages,
     max_tokens: 1024,
   };

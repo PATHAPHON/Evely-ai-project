@@ -80,7 +80,7 @@ export default function ScanPage() {
         type="button"
         aria-label="ปิดกล้อง"
         onClick={handleClose}
-        className="absolute top-4 left-4 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-3 border-black bg-white/90 shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] cursor-pointer"
+        className="absolute top-4 left-4 z-10 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-3 border-black bg-white/90 shadow-[3px_3px_0_#000000] transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_#000000] dark:border-border-color dark:bg-card-bg/90 dark:shadow-[3px_3px_0_rgba(0,0,0,0.4)] cursor-pointer"
       >
         <svg
           width="20"
@@ -142,15 +142,16 @@ function CaptureButton({
         transition-transform duration-150 ease-in-out
         active:scale-90
         disabled:opacity-50 disabled:cursor-not-allowed
+        dark:border-border-color dark:bg-card-bg dark:shadow-[4px_4px_0_rgba(0,0,0,0.4)]
         cursor-pointer
       `}
     >
       {disabled ? (
         /* Loading spinner during capture */
-        <div className="h-6 w-6 animate-spin rounded-full border-3 border-black border-t-transparent" />
+        <div className="h-6 w-6 animate-spin rounded-full border-3 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
       ) : (
         /* Inner circle indicator */
-        <div className="h-[52px] w-[52px] rounded-full border-3 border-black bg-[#FF4D4F]" />
+        <div className="h-[52px] w-[52px] rounded-full border-3 border-black bg-[#FF4D4F] dark:border-border-color" />
       )}
     </button>
   );
