@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FLASHCARD_SETS_STORE, openDatabase } from '@/app/_lib/db';
+import { FLASHCARD_SETS_STORE, openDatabase, queryByLanguage } from '@/app/_lib/db';
+import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 export interface FlashcardSet {
   id: string;
+  language: TargetLanguage;
   name: string;
   wordIds: string[];
   createdAt: number;
@@ -17,6 +20,7 @@ export interface UseFlashcardSetsReturn {
 }
 
 export function useFlashcardSets(): UseFlashcardSetsReturn {
+  const { activeLanguage } = useActiveLanguage();
   const [sets, setSets] = useState<FlashcardSet[] | null>(null);
   const dbRef = useRef<IDBDatabase | null>(null);
 
@@ -29,15 +33,14 @@ export function useFlashcardSets(): UseFlashcardSetsReturn {
 
   const refresh = useCallback(async () => {
     const db = await getDb();
-    const records = await new Promise<FlashcardSet[]>((resolve, reject) => {
-      const tx = db.transaction(FLASHCARD_SETS_STORE, 'readonly');
-      const req = tx.objectStore(FLASHCARD_SETS_STORE).getAll();
-      req.onsuccess = () => resolve(req.result as FlashcardSet[]);
-      req.onerror = () => reject(req.error);
-    });
+    const records = await queryByLanguage<FlashcardSet>(
+      db,
+      FLASHCARD_SETS_STORE,
+      activeLanguage
+    );
     records.sort((a, b) => b.createdAt - a.createdAt);
     setSets(records);
-  }, [getDb]);
+  }, [getDb, activeLanguage]);
 
   useEffect(() => {
     refresh().catch(() => setSets([]));
@@ -48,6 +51,7 @@ export function useFlashcardSets(): UseFlashcardSetsReturn {
       const db = await getDb();
       const record: FlashcardSet = {
         id: crypto.randomUUID(),
+        language: activeLanguage,
         name,
         wordIds,
         createdAt: Date.now(),
@@ -60,7 +64,7 @@ export function useFlashcardSets(): UseFlashcardSetsReturn {
       });
       await refresh();
     },
-    [getDb, refresh]
+    [getDb, refresh, activeLanguage]
   );
 
   const removeSet = useCallback(

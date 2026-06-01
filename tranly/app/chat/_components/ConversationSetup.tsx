@@ -6,6 +6,8 @@ import type { ProficiencyLevel, SavedWord, SessionConfig } from '../_lib/types';
 import { validateTopic } from '../_lib/validateTopic';
 import { validateSessionConfig } from '../_lib/validateSessionConfig';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
+import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
+import { LANGUAGE_DISPLAY } from '@/app/_lib/languageDisplay';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 
 interface ConversationSetupProps {
@@ -43,6 +45,7 @@ export default function ConversationSetup({
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false);
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
+  const { activeLanguage } = useActiveLanguage();
 
   const isTopicValid = validateTopic(topic);
   const isFormValid =
@@ -56,8 +59,17 @@ export default function ConversationSetup({
       proficiencyLevel,
       wordContext: selectedWords,
       goal: goal.trim(),
+      language: activeLanguage,
     });
-  }, [isFormValid, proficiencyLevel, topic, selectedWords, goal, onStart]);
+  }, [
+    isFormValid,
+    proficiencyLevel,
+    topic,
+    selectedWords,
+    goal,
+    activeLanguage,
+    onStart,
+  ]);
 
   const handleTopicChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,7 +238,7 @@ export default function ConversationSetup({
               }`}
             >
               <span className="font-semibold">{isThai ? option.labelTh : option.labelEn}</span>
-              <span className="ml-2 text-sm opacity-80">({option.description})</span>
+              <span className="ml-2 text-sm opacity-80">({LANGUAGE_DISPLAY[activeLanguage].proficiency[option.value]})</span>
             </button>
           ))}
         </div>

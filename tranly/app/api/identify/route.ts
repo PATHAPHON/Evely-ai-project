@@ -9,9 +9,44 @@ import type {
   IdentifySuccessResponse,
   IdentifyErrorResponse,
 } from '@/app/scan/flashcard/_lib/types';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const MAX_LABEL_LENGTH = 100;
+
+/**
+ * Language-specific prompt configurations for the AI model.
+ */
+const LANGUAGE_PROMPTS: Record<TargetLanguage, { prompt: string; example: string; fields: string[] }> = {
+  korean: {
+    prompt:
+      'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
+      'Schema: {"korean":"<Korean word in Hangul>","reading":"<Korean pronunciation written in Thai script, e.g. ซากวา>","romanization":"<Korean pronunciation in Revised Romanization, e.g. sagwa>","english":"<English word>","thai":"<Thai word>"}. ',
+    example: 'Example for an apple: {"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล"}. ',
+    fields: ['korean', 'reading', 'romanization', 'english', 'thai'],
+  },
+  japanese: {
+    prompt:
+      'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
+      'Schema: {"kanji":"<Japanese word in Kanji>","hiragana":"<Hiragana reading>","romaji":"<Romaji pronunciation>","english":"<English word>","thai":"<Thai word>"}. ',
+    example: 'Example for an apple: {"kanji":"林檎","hiragana":"りんご","romaji":"ringo","english":"apple","thai":"แอปเปิ้ล"}. ',
+    fields: ['kanji', 'hiragana', 'romaji', 'english', 'thai'],
+  },
+  chinese: {
+    prompt:
+      'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
+      'Schema: {"hanzi":"<Chinese word in Hanzi>","pinyin":"<Pinyin with tone marks or tone numbers>","english":"<English word>","thai":"<Thai word>"}. ',
+    example: 'Example for an apple: {"hanzi":"苹果","pinyin":"píngguǒ","english":"apple","thai":"แอปเปิ้ล"}. ',
+    fields: ['hanzi', 'pinyin', 'english', 'thai'],
+  },
+  english: {
+    prompt:
+      'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
+      'Schema: {"word":"<English word>","ipa":"<IPA phonetic transcription>","thai":"<Thai word>"}. ',
+    example: 'Example for an apple: {"word":"apple","ipa":"/ˈæp.əl/","thai":"แอปเปิ้ล"}. ',
+    fields: ['word', 'ipa', 'thai'],
+  },
+};
 
 /**
  * KKU's backend occasionally returns a SQL error response whose `sql` string
@@ -41,19 +76,6 @@ function extractLabelFromKkuSqlError(body: string): string | null {
   return raw.trim() || null;
 }
 
-/**
- * Pull a {korean, reading, english, thai} JSON object out of the model's
- * response. The model sometimes wraps JSON in markdown fences or includes
- * extra prose, so we extract the first {...} block before parsing.
- */
-type ParsedIdentify = {
-  label: string;
-  korean: string;
-  reading: string;
-  romanization: string;
-  english: string;
-};
-
 function tryParseJson(s: string): Record<string, unknown> | null {
   try {
     const v = JSON.parse(s);
@@ -66,13 +88,9 @@ function tryParseJson(s: string): Record<string, unknown> | null {
 }
 
 /**
- * Pull a {korean, reading, romanization, english, thai} JSON object out of
- * the model's response. Handles markdown code fences, surrounding prose,
- * and common formatting quirks. As a last resort, falls back to treating
- * the raw content as a Thai label so the user still gets *something*.
+ * Extract a string field from raw text using regex (fallback when JSON parsing fails).
  */
 function extractStringField(src: string, key: string): string {
-  // Match  "key" : "value"  where value may contain escaped quotes (\")
   const re = new RegExp(
     `"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`,
     'i'
@@ -80,14 +98,19 @@ function extractStringField(src: string, key: string): string {
   const m = src.match(re);
   if (!m) return '';
   try {
-    // Decode JSON string escapes (\\n, \\", \\u…) by wrapping in quotes.
     return JSON.parse(`"${m[1]}"`).trim();
   } catch {
     return m[1].trim();
   }
 }
 
-function parseIdentifyContent(content: string): ParsedIdentify | null {
+/**
+ * Parse the AI model's response content into a structured object based on the target language.
+ */
+function parseIdentifyContent(
+  content: string,
+  language: TargetLanguage
+): IdentifySuccessResponse | null {
   let trimmed = content.trim();
 
   // Strip ```json ... ``` or ``` ... ``` fences.
@@ -95,8 +118,6 @@ function parseIdentifyContent(content: string): ParsedIdentify | null {
   if (fenceMatch) trimmed = fenceMatch[1].trim();
 
   // KKU API sometimes returns content with backslash-escaped quotes
-  // (i.e., the model output was passed through an extra JSON-encode layer
-  // before being assigned to choices[0].message.content). Detect and unescape.
   if (/\\"/.test(trimmed) && !/[^\\]"/.test(trimmed.slice(0, 50))) {
     try {
       const unescaped = JSON.parse(`"${trimmed.replace(/\n/g, '\\n')}"`);
@@ -113,53 +134,54 @@ function parseIdentifyContent(content: string): ParsedIdentify | null {
     if (jsonMatch) obj = tryParseJson(jsonMatch[0]);
   }
 
-  let korean = '';
-  let reading = '';
-  let romanization = '';
-  let english = '';
-  let thai = '';
+  const fields = LANGUAGE_PROMPTS[language].fields;
+  const result: Record<string, string> = {};
 
-  if (obj) {
-    if (typeof obj.korean === 'string') korean = obj.korean.trim();
-    if (typeof obj.reading === 'string') reading = obj.reading.trim();
-    if (typeof obj.romanization === 'string')
-      romanization = obj.romanization.trim();
-    if (typeof obj.english === 'string') english = obj.english.trim();
-    if (typeof obj.thai === 'string') thai = obj.thai.trim();
-  } else {
-    // JSON.parse failed (often because the response was truncated mid-stream).
-    // Fall back to pulling each field out via regex so we still get something.
-    korean = extractStringField(trimmed, 'korean');
-    reading = extractStringField(trimmed, 'reading');
-    romanization = extractStringField(trimmed, 'romanization');
-    english = extractStringField(trimmed, 'english');
-    thai = extractStringField(trimmed, 'thai');
+  for (const field of fields) {
+    if (obj && typeof obj[field] === 'string') {
+      result[field] = (obj[field] as string).trim().slice(0, MAX_LABEL_LENGTH);
+    } else {
+      result[field] = extractStringField(trimmed, field).slice(0, MAX_LABEL_LENGTH);
+    }
   }
 
-  if (!korean && !english && !thai) return null;
+  // Determine label based on language
+  const label = computeLabel(result, language);
+  if (!label) return null;
 
-  const label = (thai || korean || english).slice(0, MAX_LABEL_LENGTH);
-  return {
-    label,
-    korean: korean.slice(0, MAX_LABEL_LENGTH),
-    reading: reading.slice(0, MAX_LABEL_LENGTH),
-    romanization: romanization.slice(0, MAX_LABEL_LENGTH),
-    english: english.slice(0, MAX_LABEL_LENGTH),
-  };
+  return { label, ...result } as unknown as IdentifySuccessResponse;
+}
+
+/**
+ * Compute the label field based on language-specific priority.
+ */
+function computeLabel(fields: Record<string, string>, language: TargetLanguage): string {
+  switch (language) {
+    case 'korean':
+      return (fields.thai || fields.korean || fields.english || '').slice(0, MAX_LABEL_LENGTH);
+    case 'japanese':
+      return (fields.thai || fields.kanji || fields.english || '').slice(0, MAX_LABEL_LENGTH);
+    case 'chinese':
+      return (fields.thai || fields.hanzi || fields.english || '').slice(0, MAX_LABEL_LENGTH);
+    case 'english':
+      return (fields.thai || fields.word || '').slice(0, MAX_LABEL_LENGTH);
+  }
 }
 
 function isValidBase64(str: string): boolean {
   if (str.length === 0) return false;
   try {
-    // Check if the string matches base64 pattern
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
     if (!base64Regex.test(str)) return false;
-    // Attempt to decode to verify validity
     atob(str);
     return true;
   } catch {
     return false;
   }
+}
+
+function isValidLanguage(lang: unknown): lang is TargetLanguage {
+  return typeof lang === 'string' && ['english', 'japanese', 'korean', 'chinese'].includes(lang);
 }
 
 function errorResponse(
@@ -194,6 +216,10 @@ export async function POST(
   }
 
   const image = (body as Record<string, unknown>).image as string;
+  const languageParam = (body as Record<string, unknown>).language;
+
+  // Determine target language (default to 'korean' for backward compatibility)
+  const language: TargetLanguage = isValidLanguage(languageParam) ? languageParam : 'korean';
 
   // Validate base64 format
   if (!isValidBase64(image)) {
@@ -202,7 +228,6 @@ export async function POST(
 
   // Check decoded image size does not exceed 20MB
   const decodedSize = (image.length * 3) / 4;
-  // Account for padding
   const paddingChars = image.endsWith('==') ? 2 : image.endsWith('=') ? 1 : 0;
   const actualSize = decodedSize - paddingChars;
 
@@ -219,6 +244,9 @@ export async function POST(
     return errorResponse('api_error', 401);
   }
 
+  // Get language-specific prompt configuration
+  const langConfig = LANGUAGE_PROMPTS[language];
+
   // Construct KKU IntelSphere API request
   const dataUrl = `data:image/jpeg;base64,${image}`;
   const requestBody = {
@@ -229,11 +257,7 @@ export async function POST(
         content: [
           {
             type: 'text' as const,
-            text:
-              'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
-              'Schema: {"korean":"<Korean word in Hangul>","reading":"<Korean pronunciation written in Thai script, e.g. ซากวา>","romanization":"<Korean pronunciation in Revised Romanization, e.g. sagwa>","english":"<English word>","thai":"<Thai word>"}. ' +
-              'Example for an apple: {"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล"}. ' +
-              'Return ONLY the JSON object and nothing else.',
+            text: langConfig.prompt + langConfig.example + 'Return ONLY the JSON object and nothing else.',
           },
           {
             type: 'image_url' as const,
@@ -252,6 +276,7 @@ export async function POST(
   try {
     console.log('Sending request to KKU API...');
     console.log('Model:', requestBody.model);
+    console.log('Language:', language);
     console.log('API Key (first 10 chars):', apiKey.slice(0, 10) + '...');
 
     const response = await fetch(KKU_API_URL, {
@@ -273,7 +298,7 @@ export async function POST(
 
       const recovered = extractLabelFromKkuSqlError(errorBody);
       if (recovered) {
-        const parsed = parseIdentifyContent(recovered);
+        const parsed = parseIdentifyContent(recovered, language);
         if (parsed) return NextResponse.json(parsed, { status: 200 });
       }
 
@@ -310,9 +335,9 @@ export async function POST(
       return errorResponse('api_error', 502);
     }
 
-    const parsed = parseIdentifyContent(content);
+    const parsed = parseIdentifyContent(content, language);
     if (!parsed) {
-      console.error('Failed to parse Korean/English JSON from content:', content);
+      console.error('Failed to parse language-specific JSON from content:', content);
       return errorResponse('api_error', 502);
     }
 

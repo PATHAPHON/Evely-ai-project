@@ -1,6 +1,7 @@
 'use client';
 
 import { useLanguagePreference, type TranslationLanguage } from '@/app/_lib/useLanguagePreference';
+import { useStrings } from '@/app/_lib/strings';
 
 const LANGUAGE_OPTIONS: { value: TranslationLanguage; label: string; description: string }[] = [
   { value: 'thai', label: 'Thai', description: 'Show Thai translation & pronunciation' },
@@ -9,10 +10,13 @@ const LANGUAGE_OPTIONS: { value: TranslationLanguage; label: string; description
 
 export default function LanguageSelector() {
   const { language, setLanguage } = useLanguagePreference();
+  const t = useStrings();
 
   return (
-    <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
-      <p className="text-sm font-semibold text-text-primary mb-3">Translation Language</p>
+    <div className="w-full">
+      <p className="text-sm font-semibold text-text-primary mb-3">
+        {t.profile.translationLanguage}
+      </p>
       <div className="flex flex-col gap-2">
         {LANGUAGE_OPTIONS.map((option) => {
           const isActive = language === option.value;

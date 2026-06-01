@@ -1,6 +1,7 @@
 'use client';
 
 import { useTheme } from '../_lib/useTheme';
+import { useStrings } from '@/app/_lib/strings';
 
 /**
  * Neobrutalist toggle switch for switching between light and dark mode.
@@ -8,12 +9,13 @@ import { useTheme } from '../_lib/useTheme';
  */
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const t = useStrings();
   const isDark = theme === 'dark';
 
   return (
     <div className="flex items-center justify-between">
       <span className="text-sm font-semibold text-text-primary">
-        Dark Mode
+        {t.profile.darkMode}
       </span>
       <button
         type="button"

@@ -4,8 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import type { WordRecord } from "../_lib/useWordStorage";
 import { useFlashcardSets, type FlashcardSet } from "../_lib/useFlashcardSets";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
+import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
 import { useTTS } from "@/app/chat/_lib/useTTS";
 import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  english: 'English',
+  japanese: '日本語',
+  korean: '한국어',
+  chinese: '中文',
+};
 
 interface FlashcardModeProps {
   words: WordRecord[];
@@ -25,6 +33,7 @@ type SubView =
  */
 export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
   const { sets, createSet, removeSet } = useFlashcardSets();
+  const { activeLanguage } = useActiveLanguage();
   const [view, setView] = useState<SubView>({ kind: "list" });
 
   // Word ids already used in any existing set — the AI picker avoids these.
@@ -89,7 +98,7 @@ export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
         type="button"
         onClick={() => setView({ kind: "create" })}
         disabled={words.length === 0}
-        className="flex items-center justify-center gap-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-green px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-40"
       >
         <span className="text-xl leading-none">＋</span> สร้าง Flashcard
       </button>
@@ -102,7 +111,7 @@ export function FlashcardMode({ words, onStudyingChange }: FlashcardModeProps) {
 
       {sets !== null && sets.length === 0 && (
         <p className="mt-8 text-center text-base font-bold text-black/60 dark:text-white/60">
-          ยังไม่มี Flashcard
+          ยังไม่มี Flashcard สำหรับ {LANGUAGE_NAMES[activeLanguage] ?? activeLanguage}
           <br />
           โปรดสร้าง Flashcard
         </p>
@@ -240,14 +249,14 @@ function CreateSet({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-3 py-1.5 text-xs font-extrabold text-black dark:text-white shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
+          className="rounded-lg border-3 border-border-color bg-card-bg px-3 py-1.5 text-xs font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
         >
           ← ยกเลิก
         </button>
         <button
           type="button"
           onClick={toggleAll}
-          className="rounded-lg border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-3 py-1.5 text-xs font-extrabold text-black dark:text-white shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
+          className="rounded-lg border-3 border-border-color bg-card-bg px-3 py-1.5 text-xs font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
         >
           {allSelected ? "ล้างทั้งหมด" : "เลือกทั้งหมด"}
         </button>
@@ -258,25 +267,25 @@ function CreateSet({
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="ชื่อชุด Flashcard"
-        className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] px-4 py-3 text-base font-bold text-black dark:text-white shadow-nb-sm outline-none placeholder:text-black/30 dark:placeholder:text-white/30"
+        className="rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base font-bold text-text-primary shadow-nb-sm outline-none placeholder:text-text-secondary"
       />
 
       <button
         type="button"
         onClick={handleAiPick}
         disabled={aiLoading}
-        className="flex items-center justify-center gap-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#9775FA] px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-yellow px-5 py-3 font-extrabold text-black shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-60"
       >
         {aiLoading ? "กำลังให้ AI เลือก..." : "✨ ให้ AI เลือกให้"}
       </button>
 
       {aiError && (
-        <p className="rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#FFF0F0] dark:bg-[#3d2020] px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 shadow-nb-sm">
+        <p className="rounded-xl border-3 border-accent-red bg-card-bg px-4 py-2 text-sm font-bold text-accent-red shadow-nb-sm">
           {aiError}
         </p>
       )}
 
-      <p className="text-sm font-bold text-black/60 dark:text-white/60">
+      <p className="text-sm font-bold text-text-secondary">
         เลือกคำ ({selected.size}/{words.length})
       </p>
 
@@ -289,23 +298,23 @@ function CreateSet({
             key={w.id}
             type="button"
             onClick={() => toggle(w.id)}
-            className={`flex items-center gap-3 rounded-2xl border-3 border-black dark:border-[#4a4a6a] p-3 text-left shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm ${
-              isOn ? "bg-accent-pink-bg" : "bg-white dark:bg-[#2d2d44]"
+            className={`flex items-center gap-3 rounded-2xl border-3 border-border-color p-3 text-left shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm ${
+              isOn ? "bg-accent-pink-bg" : "bg-card-bg"
             }`}
           >
             <span
-              className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border-3 border-black dark:border-[#4a4a6a] font-extrabold ${
-                isOn ? "bg-accent-green text-white" : "bg-white dark:bg-[#1a1a2e]"
+              className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border-3 border-border-color font-extrabold ${
+                isOn ? "bg-accent-green text-white" : "bg-card-bg"
               }`}
             >
               {isOn ? "✓" : ""}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-base font-extrabold text-black dark:text-white">
+              <span className="block truncate text-base font-extrabold text-text-primary">
                 {main}
               </span>
               {korean && w.label && w.label !== korean && (
-                <span className="block truncate text-sm font-bold text-black/60 dark:text-white/60">
+                <span className="block truncate text-sm font-bold text-text-secondary">
                   {w.label}
                 </span>
               )}
@@ -318,7 +327,7 @@ function CreateSet({
         type="button"
         onClick={handleSave}
         disabled={!canSave}
-        className="mt-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-2 rounded-xl border-3 border-border-color bg-accent-green px-5 py-3 font-extrabold text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-40"
       >
         {saving ? "กำลังบันทึก..." : `บันทึกชุด (${selected.size})`}
       </button>

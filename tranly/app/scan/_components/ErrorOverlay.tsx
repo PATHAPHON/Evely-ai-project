@@ -1,16 +1,7 @@
 "use client";
 
 import { CameraError } from "../_lib/types";
-
-/**
- * Maps CameraError types to Thai user-facing messages.
- */
-const ERROR_MESSAGES: Record<CameraError["type"], string> = {
-  permission_denied: "Please allow camera access in your device settings.",
-  not_found: "No camera found on this device.",
-  stream_interrupted: "Camera connection lost.",
-  capture_failed: "Capture failed. Please try again.",
-};
+import { useStrings } from "@/app/_lib/strings";
 
 /**
  * Error types that allow retrying the camera stream.
@@ -27,7 +18,7 @@ interface ErrorOverlayProps {
 }
 
 /**
- * Full-screen overlay displaying contextual Thai error messages
+ * Full-screen overlay displaying contextual Thai/English error messages
  * with retry or dismiss actions based on the error type.
  *
  * Requirements: 1.3, 2.5, 5.4
@@ -37,6 +28,15 @@ export default function ErrorOverlay({
   onRetry,
   onDismiss,
 }: ErrorOverlayProps) {
+  const t = useStrings();
+
+  const ERROR_MESSAGES: Record<CameraError["type"], string> = {
+    permission_denied: t.scan.errPermissionDenied,
+    not_found: t.scan.errNotFound,
+    stream_interrupted: t.scan.errStreamInterrupted,
+    capture_failed: t.scan.errCaptureFailed,
+  };
+
   const message = ERROR_MESSAGES[error.type];
   const isRetryable = RETRYABLE_ERRORS.includes(error.type);
 
@@ -57,7 +57,7 @@ export default function ErrorOverlay({
             onClick={onRetry}
             className="w-full rounded-lg border-3 border-black bg-accent-green px-4 py-3 text-base font-bold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-nb-sm dark:border-border-color cursor-pointer"
           >
-            Try again
+            {t.scan.btnTryAgain}
           </button>
         ) : (
           <button
@@ -65,7 +65,7 @@ export default function ErrorOverlay({
             onClick={onDismiss}
             className="w-full rounded-lg border-3 border-black bg-accent-red px-4 py-3 text-base font-bold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-nb-sm dark:border-border-color cursor-pointer"
           >
-            Dismiss
+            {t.scan.btnDismiss}
           </button>
         )}
       </div>

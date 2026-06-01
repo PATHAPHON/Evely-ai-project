@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   LoadingOutlined,
   SoundOutlined,
@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import type { ChatMessage } from '../_lib/types';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
+import Mascot from './Mascot';
 
 interface ChatListProps {
   messages: ChatMessage[];
@@ -34,11 +35,15 @@ export default function ChatList({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new message or loading state change
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading, error]);
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading, error, scrollToBottom]);
 
   return (
     <div
@@ -54,14 +59,27 @@ export default function ChatList({
         </p>
       )}
 
-      {messages.map((message) => {
-        if (message.status === 'pending') return null;
-        return message.role === 'assistant' ? (
-          <AIMessage key={message.id} message={message} onSpeak={onSpeak} />
-        ) : (
-          <UserMessage key={message.id} message={message} onSpeak={onSpeak} />
-        );
-      })}
+      {(() => {
+        // The freshest AI reply gets the happy hop; older ones idle.
+        let lastAssistantId: string | null = null;
+        for (const m of messages) {
+          if (m.role === 'assistant' && m.status !== 'pending') lastAssistantId = m.id;
+        }
+        return messages.map((message) => {
+          if (message.status === 'pending') return null;
+          return message.role === 'assistant' ? (
+            <AIMessage
+              key={message.id}
+              message={message}
+              onSpeak={onSpeak}
+              isLatest={message.id === lastAssistantId}
+              onType={scrollToBottom}
+            />
+          ) : (
+            <UserMessage key={message.id} message={message} onSpeak={onSpeak} />
+          );
+        });
+      })()}
 
       {isLoading && <LoadingBubble />}
 
@@ -73,42 +91,74 @@ export default function ChatList({
 function AIMessage({
   message,
   onSpeak,
+  isLatest = false,
+  onType,
 }: {
   message: ChatMessage;
   onSpeak: (messageId: string) => void;
+  isLatest?: boolean;
+  onType?: () => void;
 }) {
   const { language } = useLanguagePreference();
 
-  return (
-    <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
-        {/* Korean text */}
-        <p className="text-2xl font-bold text-text-primary mb-1">{message.korean}</p>
+  // Determine if this is a brand new message requiring typewriter animation
+  const isRecent = new Date().getTime() - new Date(message.timestamp).getTime() < 10000;
+  const shouldAnimate = isLatest && isRecent;
+  const chars = Array.from(message.korean);
+  const [shown, setShown] = useState(shouldAnimate ? 0 : chars.length);
 
-        {/* Romanization */}
-        <p className="text-sm text-text-secondary italic mb-1">
-          {message.romanization}
+  useEffect(() => {
+    if (!shouldAnimate) return;
+    if (shown >= chars.length) return;
+    const t = setTimeout(() => {
+      setShown((n) => n + 1);
+      onType?.();
+    }, 25); // 25ms per character reveal
+    return () => clearTimeout(t);
+  }, [shown, chars.length, shouldAnimate, onType]);
+
+  const isDone = !shouldAnimate || shown >= chars.length;
+
+  return (
+    <div className="flex justify-start items-end gap-2">
+      <Mascot state={isLatest ? (isDone ? 'happy' : 'thinking') : 'idle'} size={40} />
+      <div className="max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md transition-all duration-300">
+        {/* Korean text */}
+        <p className="text-2xl font-bold text-text-primary mb-1">
+          {shouldAnimate ? chars.slice(0, shown).join('') : message.korean}
         </p>
 
-        {/* Translation — language based on user preference */}
-        {language === 'thai' ? (
-          <>
-            <p className="text-base text-text-secondary mb-0.5">{message.reading}</p>
-            <p className="text-base text-text-secondary">{message.translation}</p>
-          </>
-        ) : (
-          <p className="text-base text-text-secondary">{message.english}</p>
-        )}
-
-        {/* Audio button */}
-        <button
-          type="button"
-          onClick={() => onSpeak(message.id)}
-          aria-label="Play Korean pronunciation"
-          className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
+        {/* Translation & auxiliary info (fades/expands in smoothly) */}
+        <div
+          className={`transition-all duration-300 ease-out origin-top ${
+            isDone ? 'opacity-100 max-h-[500px]' : 'opacity-0 max-h-0 overflow-hidden'
+          }`}
         >
-          <SoundOutlined style={{ fontSize: 14 }} />
-        </button>
+          {/* Romanization */}
+          <p className="text-sm text-text-secondary italic mb-1 mt-1">
+            {message.romanization}
+          </p>
+
+          {/* Translation — language based on user preference */}
+          {language === 'thai' ? (
+            <div className="mt-1">
+              <p className="text-base text-text-secondary mb-0.5">{message.reading}</p>
+              <p className="text-base text-text-secondary">{message.translation}</p>
+            </div>
+          ) : (
+            <p className="text-base text-text-secondary mt-1">{message.english}</p>
+          )}
+
+          {/* Audio button */}
+          <button
+            type="button"
+            onClick={() => onSpeak(message.id)}
+            aria-label="Play Korean pronunciation"
+            className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
+          >
+            <SoundOutlined style={{ fontSize: 14 }} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -153,7 +203,8 @@ function UserMessage({
 
 function LoadingBubble() {
   return (
-    <div className="flex justify-start">
+    <div className="flex justify-start items-end gap-2">
+      <Mascot state="thinking" size={40} />
       <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
         <div className="flex items-center gap-2 text-text-secondary">
           <LoadingOutlined style={{ fontSize: 18 }} spin />

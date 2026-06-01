@@ -1,647 +1,312 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowLeftOutlined,
-  HistoryOutlined,
-  PlusOutlined,
-  StopOutlined,
-} from '@ant-design/icons';
+import { CameraOutlined, MessageOutlined, BookOutlined } from '@ant-design/icons';
 import { message as antdMessage } from 'antd';
-import ScanButton from '@/app/scan/_components/ScanButton';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
+import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
+import { LANGUAGE_DISPLAY } from '@/app/_lib/languageDisplay';
 import { useStrings } from '@/app/_lib/strings';
-import ConversationSetup from './_components/ConversationSetup';
-import WordSelector from './_components/WordSelector';
-import ChatList from './_components/ChatList';
-import ChatInput from './_components/ChatInput';
-import ReplySuggestions from './_components/ReplySuggestions';
-import SessionHistory from './_components/SessionHistory';
-import LessonSetup from './_components/LessonSetup';
-import LessonPlayer from './_components/LessonPlayer';
-import LessonComplete from './_components/LessonComplete';
-import LessonHistory from './_components/LessonHistory';
-import { useConversationSession } from './_lib/useConversationSession';
-import { useConversationHistory } from './_lib/useConversationHistory';
-import { useLessonSession } from './_lib/useLessonSession';
-import { useLessonHistory } from './_lib/useLessonHistory';
-import { useTTS } from './_lib/useTTS';
-import { useSTT } from './_lib/useSTT';
 import { useWordContext } from './_lib/useWordContext';
-import type { ChatMessage, SavedWord, SessionConfig } from './_lib/types';
-import type { LessonConfig, LessonRecord } from './_lib/lessonTypes';
+import { setCapturedImage } from '@/app/scan/_lib/capturedImageStore';
+import Mascot from './_components/Mascot';
 
-type ViewState = 'setup' | 'active-chat' | 'history' | 'view-session';
-type ChatMode = 'chat' | 'lesson';
-
-export default function ChatPage() {
+/**
+ * The "AI Scan" hub. It is purely a launchpad: a card for the camera scan, and
+ * cards that navigate to the dedicated AI Tutor (`/tutor`) and Flashcard
+ * (`/flashcard`) routes. The actual tutor and flashcard experiences live on
+ * those routes.
+ */
+export default function ChatHubPage() {
   const router = useRouter();
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
+  const { activeLanguage } = useActiveLanguage();
+  const langDisplay = LANGUAGE_DISPLAY[activeLanguage];
   const t = useStrings();
   const [messageApi, navMessageHolder] = antdMessage.useMessage();
-  const [mode, setMode] = useState<ChatMode>('chat');
-  const [view, setView] = useState<ViewState>('setup');
-  const [showWordSelector, setShowWordSelector] = useState(false);
-  const [selectedWords, setSelectedWords] = useState<SavedWord[]>([]);
-  const [showEndConfirm, setShowEndConfirm] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [viewedMessages, setViewedMessages] = useState<ChatMessage[]>([]);
-  const [viewedTopic, setViewedTopic] = useState<string>('');
-
-  // Hooks
-  const {
-    messages,
-    sendMessage,
-    retryLastMessage,
-    isLoading: isSessionLoading,
-    error: sessionError,
-    sessionConfig,
-    isEnded,
-    startSession,
-    endSession,
-  } = useConversationSession();
-
-  const {
-    sessions,
-    loadSessions,
-    loadSessionMessages,
-    deleteSession,
-    isLoading: isHistoryLoading,
-    error: historyError,
-  } = useConversationHistory();
-
-  const { speak, stop: stopTTS } = useTTS('ko-KR');
-
-  const {
-    startListening,
-    stopListening,
-    isListening,
-    transcript,
-    isSupported: sttSupported,
-  } = useSTT();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasGetUserMedia, setHasGetUserMedia] = useState(false);
 
   const { savedWords, loadSavedWords } = useWordContext();
 
-  const lesson = useLessonSession();
-  const {
-    lessons: savedLessons,
-    loadLessons,
-    deleteLesson,
-  } = useLessonHistory();
-  const [lessonHistoryOpen, setLessonHistoryOpen] = useState(false);
-  const [showQuitLessonConfirm, setShowQuitLessonConfirm] = useState(false);
+  const [greetingPhase, setGreetingPhase] = useState<'dots' | 'typing' | 'done'>('dots');
+  const [shownChars, setShownChars] = useState(0);
+  const [cardsLoading, setCardsLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
-  // Load saved words on mount
+  // Load saved words on mount (drives the flashcard word-count badge / gating).
   useEffect(() => {
     loadSavedWords();
   }, [loadSavedWords]);
 
-  // Handle starting a new session from setup
-  const handleStartSession = useCallback(
-    (config: SessionConfig) => {
-      startSession(config);
-      setView('active-chat');
-    },
-    [startSession],
-  );
+  const welcomeText = isThai
+    ? `${langDisplay.greeting}! 👋 ยินดีต้อนรับสู่โซนเรียนรู้เชิงรุก วันนี้อยากฝึกภาษา${langDisplay.nameTh}แบบไหนดีจ๊ะ?`
+    : `${langDisplay.greeting}! 👋 Welcome to active learning! How would you like to practice ${langDisplay.nameEn} today?`;
 
-  // Handle starting a lesson from lesson setup
-  const handleStartLesson = useCallback(
-    (config: LessonConfig) => {
-      void lesson.startLesson(config);
-    },
-    [lesson],
-  );
-
-  // Open the saved-lessons list
-  const handleShowLessonHistory = useCallback(() => {
-    void loadLessons();
-    setLessonHistoryOpen(true);
-  }, [loadLessons]);
-
-  // Replay a saved lesson (no API call)
-  const handleReplayLesson = useCallback(
-    (record: LessonRecord) => {
-      lesson.replayLesson(record);
-      setLessonHistoryOpen(false);
-    },
-    [lesson],
-  );
-
-  // Delete a saved lesson
-  const handleDeleteLesson = useCallback(
-    async (lessonId: string) => {
-      try {
-        await deleteLesson(lessonId);
-      } catch {
-        // Error surfaced by the history hook
-      }
-    },
-    [deleteLesson],
-  );
-
-  // Start a fresh lesson from the history view
-  const handleNewLessonFromHistory = useCallback(() => {
-    lesson.reset();
-    setLessonHistoryOpen(false);
-  }, [lesson]);
-
-  // Quit an in-progress lesson (with confirmation)
-  const handleQuitLessonTap = useCallback(() => {
-    setShowQuitLessonConfirm(true);
-  }, []);
-
-  const handleConfirmQuitLesson = useCallback(() => {
-    lesson.reset();
-    setShowQuitLessonConfirm(false);
-  }, [lesson]);
-
-  const handleCancelQuitLesson = useCallback(() => {
-    setShowQuitLessonConfirm(false);
-  }, []);
-
-  // The learner is locked into an active session — navigation away (tabbar)
-  // and switching modes are disabled until they finish or quit it. This applies
-  // to both an in-progress lesson and an in-progress chat conversation; the
-  // only way out is to complete it or end/quit it explicitly.
-  const navLocked =
-    (mode === 'lesson' && lesson.status === 'active') ||
-    (mode === 'chat' &&
-      view === 'active-chat' &&
-      sessionConfig !== null &&
-      !isEnded);
-
-  // Guarded navigation: while locked into an active session, explain *why* the
-  // tabs don't respond instead of silently no-opping, and point at End/Quit.
-  const handleNav = useCallback(
-    (path: string) => {
-      if (navLocked) {
-        messageApi.open({ key: 'nav-locked', type: 'info', content: t.chat.navLockedHint });
-        return;
-      }
-      router.push(path);
-    },
-    [navLocked, router, messageApi, t],
-  );
-
-  // Reply suggestions for the latest AI message — shown only when it's the
-  // user's turn (the last message is the assistant's) so they have hints on
-  // what to say next.
-  const lastMessage = messages[messages.length - 1];
-  const currentSuggestions =
-    lastMessage && lastMessage.role === 'assistant'
-      ? lastMessage.suggestions ?? []
-      : [];
-
-  // Handle speaking a message (TTS)
-  const handleSpeak = useCallback(
-    (messageId: string) => {
-      const message = messages.find((m: ChatMessage) => m.id === messageId);
-      if (message && message.korean) {
-        speak(message.korean);
-      }
-    },
-    [messages, speak],
-  );
-
-  // Handle speaking a viewed (past) message
-  const handleSpeakViewed = useCallback(
-    (messageId: string) => {
-      const message = viewedMessages.find((m) => m.id === messageId);
-      if (message && message.korean) {
-        speak(message.korean);
-      }
-    },
-    [viewedMessages, speak],
-  );
-
-  // Handle sending a message
-  const handleSendMessage = useCallback(
-    (text: string) => {
-      sendMessage(text);
-    },
-    [sendMessage],
-  );
-
-  // Handle removing a word from context tags in ChatInput
-  const handleRemoveWord = useCallback(
-    (wordId: string) => {
-      setSelectedWords((prev) => prev.filter((w) => w.id !== wordId));
-    },
-    [],
-  );
-
-  // Navigate to history view
-  const handleShowHistory = useCallback(() => {
-    loadSessions();
-    setView('history');
-  }, [loadSessions]);
-
-  // Handle selecting a past session from history — open a read-only view of
-  // the saved messages so the user can review what was said.
-  const handleSelectSession = useCallback(
-    async (sessionId: string) => {
-      try {
-        const msgs = await loadSessionMessages(sessionId);
-        const session = sessions.find((s) => s.id === sessionId);
-        setViewedMessages(msgs);
-        setViewedTopic(session?.topic ?? '');
-        setView('view-session');
-      } catch {
-        // Error is handled by the history hook
-      }
-    },
-    [loadSessionMessages, sessions],
-  );
-
-  // Return from the read-only session view back to the history list
-  const handleBackToHistory = useCallback(() => {
-    setViewedMessages([]);
-    setViewedTopic('');
-    setView('history');
-  }, []);
-
-  // Handle deleting a session
-  const handleDeleteSession = useCallback(
-    async (sessionId: string) => {
-      try {
-        await deleteSession(sessionId);
-      } catch {
-        // Error is handled by the history hook
-      }
-    },
-    [deleteSession],
-  );
-
-  // Handle new conversation button
-  const handleNewConversation = useCallback(async () => {
-    setSaveError(null);
-
-    // If there's an active session, save it first
-    if (sessionConfig) {
-      try {
-        await endSession();
-      } catch {
-        setSaveError('Failed to save session. Please try again.');
-        return; // Remain on current view on save failure
-      }
+  // Start welcome bubble typing animation immediately on mount
+  useEffect(() => {
+    if (greetingPhase === 'dots') {
+      const timer = setTimeout(() => {
+        setGreetingPhase('typing');
+      }, 700); // 700ms loading dots
+      return () => clearTimeout(timer);
     }
+  }, [greetingPhase]);
 
-    // Reset state and navigate to setup
-    setSelectedWords([]);
-    setShowEndConfirm(false);
-    setView('setup');
-  }, [sessionConfig, endSession]);
-
-  // Handle end conversation button tap
-  const handleEndConversationTap = useCallback(() => {
-    setShowEndConfirm(true);
-  }, []);
-
-  // Handle confirming end conversation
-  const handleConfirmEnd = useCallback(async () => {
-    setSaveError(null);
-    try {
-      await endSession();
-      setShowEndConfirm(false);
-      setSelectedWords([]);
-      setView('setup');
-    } catch {
-      setSaveError('บันทึกเซสชันไม่สำเร็จ กรุณาลองอีกครั้ง');
-      setShowEndConfirm(false);
-      // Remain on current view on save failure
+  // Stream characters typewriter-style
+  useEffect(() => {
+    if (greetingPhase !== 'typing') return;
+    const chars = Array.from(welcomeText);
+    if (shownChars >= chars.length) {
+      setGreetingPhase('done');
+      return;
     }
-  }, [endSession]);
+    const timer = setTimeout(() => {
+      setShownChars((n) => n + 1);
+    }, 18); // 18ms per character for natural typing pace
+    return () => clearTimeout(timer);
+  }, [greetingPhase, shownChars, welcomeText]);
 
-  // Handle canceling end conversation
-  const handleCancelEnd = useCallback(() => {
-    setShowEndConfirm(false);
+  // Once greeting finishes typing, show cards skeleton loader for 800ms, then show actual cards
+  useEffect(() => {
+    if (greetingPhase === 'done') {
+      setShowSkeleton(true);
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+        setCardsLoading(false);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [greetingPhase]);
+
+
+  useEffect(() => {
+    const supported = !!(
+      navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+    );
+    setHasGetUserMedia(supported);
   }, []);
 
-  // Handle STT start
-  const handleStartListening = useCallback(() => {
-    startListening('ko-KR');
-  }, [startListening]);
+  const handleCameraScanClick = () => {
+    if (hasGetUserMedia) {
+      router.push('/scan');
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCapturedImage(file);
+      router.push('/scan/preview');
+    }
+  };
+
+  const wordCount = (savedWords || []).length;
 
   return (
     <div className="flex flex-col h-dvh bg-background relative">
       {navMessageHolder}
-      {/* Header */}
-      <div className="p-[20px_16px_0]">
-        <div className="flex items-start justify-between pt-[10px]">
-          <div>
-            <div
-              className="font-extrabold text-[28px] tracking-tight leading-[1.1] text-text-primary"
-              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
-            >
-              AI Chat
-            </div>
-            <div className="text-text-primary text-sm mt-1 font-bold">
-              Practice Korean with AI
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {mode === 'chat' && view === 'view-session' && (
-              <button
-                type="button"
-                onClick={handleBackToHistory}
-                aria-label="Back to history"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer text-text-primary"
-              >
-                <ArrowLeftOutlined style={{ fontSize: 18 }} />
-              </button>
-            )}
-            {mode === 'chat' && (view === 'setup' || view === 'active-chat') && (
-              <button
-                type="button"
-                onClick={handleShowHistory}
-                aria-label="View conversation history"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer text-text-primary"
-              >
-                <HistoryOutlined style={{ fontSize: 18 }} />
-              </button>
-            )}
-            {mode === 'chat' && (view === 'history' || view === 'active-chat') && (
-              <button
-                type="button"
-                onClick={handleNewConversation}
-                aria-label="Start new conversation"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-green text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-              >
-                <PlusOutlined style={{ fontSize: 18 }} />
-              </button>
-            )}
-            {mode === 'chat' && view === 'active-chat' && sessionConfig && (
-              <button
-                type="button"
-                onClick={handleEndConversationTap}
-                aria-label="End conversation"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-red text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-              >
-                <StopOutlined style={{ fontSize: 18 }} />
-              </button>
-            )}
-            {mode === 'lesson' &&
-              !lessonHistoryOpen &&
-              (lesson.status === 'idle' || lesson.status === 'complete') && (
-                <button
-                  type="button"
-                  onClick={handleShowLessonHistory}
-                  aria-label="View saved lessons"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer text-text-primary"
-                >
-                  <HistoryOutlined style={{ fontSize: 18 }} />
-                </button>
-              )}
-            {mode === 'lesson' && lessonHistoryOpen && (
-              <button
-                type="button"
-                onClick={handleNewLessonFromHistory}
-                aria-label="Start new lesson"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-green text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-              >
-                <PlusOutlined style={{ fontSize: 18 }} />
-              </button>
-            )}
-            {mode === 'lesson' &&
-              !lessonHistoryOpen &&
-              lesson.status === 'active' && (
-                <button
-                  type="button"
-                  onClick={handleQuitLessonTap}
-                  aria-label="Quit lesson"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-red text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-                >
-                  <StopOutlined style={{ fontSize: 18 }} />
-                </button>
-              )}
-          </div>
-        </div>
 
-        {/* Mode toggle: Chat vs Lessons */}
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border-3 border-border-color bg-card-bg p-1.5 shadow-nb-sm">
-          <button
-            type="button"
-            onClick={() => setMode('chat')}
-            disabled={navLocked}
-            className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
-              navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-            } ${
-              mode === 'chat'
-                ? 'bg-accent-green text-white'
-                : 'bg-transparent text-text-secondary'
-            }`}
-          >
-            {isThai ? 'แชท' : 'Chat'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('lesson')}
-            disabled={navLocked}
-            className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
-              navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-            } ${
-              mode === 'lesson'
-                ? 'bg-accent-green text-white'
-                : 'bg-transparent text-text-secondary'
-            }`}
-          >
-            {isThai ? 'บทเรียน' : 'Lessons'}
-          </button>
-        </div>
-      </div>
-
-      {/* Save error banner */}
-      {saveError && (
-        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border-b-3 border-red-500">
-          <p className="text-sm text-red-700 dark:text-red-300 font-medium">{saveError}</p>
-        </div>
-      )}
+      {/* Local styles for premium silky page-load transitions */}
+      <style>{`
+        @keyframes cardFadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-card-fade-in {
+          animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+        }
+      `}</style>
 
       {/* Main content area */}
       <main className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}>
-        {/* ===== Chat mode ===== */}
-        {mode === 'chat' && view === 'setup' && (
-          <div className="flex-1 overflow-y-auto">
-            <ConversationSetup
-              onStart={handleStartSession}
-              savedWords={savedWords}
-              onOpenWordSelector={() => setShowWordSelector(true)}
-              selectedWords={selectedWords}
+        <div className="flex flex-col gap-3 p-4 overflow-y-auto">
+          {/* Welcome Mascot Speech Bubble (Always visible immediately on mount!) */}
+          <div className="flex max-w-[85%] items-end gap-2 self-start mb-2 mt-1">
+            <Mascot 
+              size={52} 
+              state={greetingPhase === 'done' ? 'happy' : 'thinking'} 
             />
-          </div>
-        )}
-
-        {/* Active chat view */}
-        {mode === 'chat' && view === 'active-chat' && (
-          <>
-            {sessionConfig?.goal && (
-              <div className="px-4 pt-3">
-                <span className="inline-flex items-center gap-1 rounded-lg border-2 border-border-color bg-accent-yellow px-2 py-0.5 text-xs font-bold text-black">
-                  {isThai ? '🎯 เป้าหมาย: ' : '🎯 Goal: '}
-                  {sessionConfig.goal}
+            <div className="rounded-2xl rounded-tl-md border-3 border-border-color bg-accent-pink-bg px-4 py-3 text-sm font-black text-text-primary shadow-nb-sm min-h-[48px] flex items-center">
+              {greetingPhase === 'dots' ? (
+                <span className="flex gap-1 py-1 px-2">
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-text-primary [animation-delay:-0.3s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-text-primary [animation-delay:-0.15s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-text-primary" />
                 </span>
-              </div>
-            )}
-            <ChatList
-              messages={messages}
-              isLoading={isSessionLoading}
-              error={sessionError}
-              onRetry={retryLastMessage}
-              onSpeak={handleSpeak}
-            />
-            <div className="border-t-3 border-border-color bg-card-bg">
-              {isEnded ? (
-                <div className="p-4 text-center">
-                  <p className="text-base font-extrabold text-[#389E0D]">
-                    {isThai ? 'บทสนทนาจบแล้ว 🎉' : 'Conversation complete 🎉'}
-                  </p>
-                  <p className="mt-1 mb-3 text-sm text-text-secondary">
-                    {isThai
-                      ? 'บรรลุเป้าหมายแล้ว บันทึกลงประวัติเรียบร้อย'
-                      : 'Goal reached — saved to your history.'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleNewConversation}
-                    className="w-full rounded-xl border-3 border-border-color bg-accent-green py-3 text-base font-bold uppercase tracking-wider text-white shadow-nb-md transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm cursor-pointer"
-                  >
-                    {isThai ? 'เริ่มใหม่' : 'New Conversation'}
-                  </button>
-                </div>
               ) : (
-                <>
-                  {!isSessionLoading && (
-                    <ReplySuggestions
-                      suggestions={currentSuggestions}
-                      onSelect={handleSendMessage}
-                      disabled={isSessionLoading}
-                    />
-                  )}
-                  <div className="p-3">
-                    <ChatInput
-                      onSend={handleSendMessage}
-                      isLoading={isSessionLoading}
-                      sttSupported={sttSupported}
-                      isListening={isListening}
-                      onStartListening={handleStartListening}
-                      onStopListening={stopListening}
-                      transcript={transcript}
-                      selectedWords={selectedWords}
-                      onRemoveWord={handleRemoveWord}
-                    />
-                  </div>
-                </>
+                <span>
+                  {greetingPhase === 'typing' 
+                    ? Array.from(welcomeText).slice(0, shownChars).join('') 
+                    : welcomeText}
+                </span>
               )}
             </div>
-          </>
-        )}
-
-        {/* History view */}
-        {mode === 'chat' && view === 'history' && (
-          <SessionHistory
-            sessions={sessions}
-            onSelectSession={handleSelectSession}
-            onDeleteSession={handleDeleteSession}
-            onNewConversation={handleNewConversation}
-          />
-        )}
-
-        {/* Read-only view of a past conversation */}
-        {mode === 'chat' && view === 'view-session' && (
-          <>
-            {viewedTopic && (
-              <div className="px-4 pt-3">
-                <p className="text-sm font-bold text-text-secondary">
-                  {isThai ? 'หัวข้อ: ' : 'Topic: '}
-                  <span className="text-text-primary">{viewedTopic}</span>
-                </p>
-              </div>
-            )}
-            <ChatList
-              messages={viewedMessages}
-              isLoading={false}
-              error={null}
-              onRetry={() => {}}
-              onSpeak={handleSpeakViewed}
-            />
-          </>
-        )}
-
-        {/* ===== Lesson mode ===== */}
-        {mode === 'lesson' && lessonHistoryOpen && (
-          <LessonHistory
-            lessons={savedLessons}
-            onSelectLesson={handleReplayLesson}
-            onDeleteLesson={handleDeleteLesson}
-            onNewLesson={handleNewLessonFromHistory}
-          />
-        )}
-
-        {mode === 'lesson' && !lessonHistoryOpen && lesson.status === 'idle' && (
-          <div className="flex-1 overflow-y-auto">
-            <LessonSetup
-              onStart={handleStartLesson}
-              savedWords={savedWords}
-              selectedWords={selectedWords}
-              onOpenWordSelector={() => setShowWordSelector(true)}
-            />
           </div>
-        )}
 
-        {mode === 'lesson' &&
-          !lessonHistoryOpen &&
-          (lesson.status === 'loading' ||
-            lesson.status === 'active' ||
-            lesson.status === 'error') && (
-            <LessonPlayer
-              exercise={lesson.currentExercise}
-              currentIndex={lesson.currentIndex}
-              total={lesson.total}
-              isLoading={lesson.status === 'loading'}
-              error={lesson.status === 'error' ? lesson.error : null}
-              onAnswer={lesson.submitAnswer}
-              onNext={lesson.nextExercise}
-              onRetry={lesson.retry}
-            />
+          {/* Cards Section: Skeletons shown ONLY after typing completes */}
+          {showSkeleton && (
+            <div className="flex flex-col gap-3">
+              {/* Injected CSS for Neobrutalist elastic staggered animations */}
+              <style>{`
+                @keyframes skeletonSlideUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-stagger-1 {
+                  animation: skeletonSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                  animation-delay: 80ms;
+                  opacity: 0;
+                }
+                .animate-stagger-2 {
+                  animation: skeletonSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                  animation-delay: 160ms;
+                  opacity: 0;
+                }
+                .animate-stagger-3 {
+                  animation: skeletonSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                  animation-delay: 240ms;
+                  opacity: 0;
+                }
+              `}</style>
+
+              {/* 3 Card Skeletons */}
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className={`rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md flex items-center gap-4 ${
+                    i === 1 ? 'animate-stagger-1' : i === 2 ? 'animate-stagger-2' : 'animate-stagger-3'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl border-3 border-border-color bg-gray-200 dark:bg-[#3d3d5c] shrink-0 animate-pulse flex items-center justify-center shadow-nb-sm" />
+                  <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                    <div className="w-1/3 h-[18px] rounded bg-gray-200 dark:bg-[#3d3d5c] animate-pulse" />
+                    <div className="flex flex-col gap-1 w-full">
+                      <div className="w-[90%] h-3 rounded bg-gray-200 dark:bg-[#3d3d5c] animate-pulse" />
+                      <div className="w-[70%] h-3 rounded bg-gray-200 dark:bg-[#3d3d5c] animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
-        {mode === 'lesson' &&
-          !lessonHistoryOpen &&
-          lesson.status === 'complete' && (
-            <LessonComplete
-              score={lesson.score}
-              total={lesson.total}
-              onNewLesson={lesson.reset}
-            />
+          {/* Real Content Section: Fades in smoothly after skeletons complete */}
+          {!cardsLoading && (
+            <div className="flex flex-col gap-3 animate-card-fade-in">
+              {/* 1. Camera Scan Card */}
+              <div
+                onClick={handleCameraScanClick}
+                className="rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all"
+              >
+                <span className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-green text-white shadow-nb-sm group-active:translate-y-[1px]">
+                  <CameraOutlined style={{ fontSize: 24 }} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-black text-text-primary">
+                    {isThai ? 'กล้องสแกนอัจฉริยะ' : 'Smart Camera Scan'}
+                  </h3>
+                  <p className="text-xs font-semibold text-text-secondary mt-0.5">
+                    {isThai
+                      ? 'ถ่ายรูปสิ่งของ ป้าย หรือข้อความ เพื่อแปลและวิเคราะห์ศัพท์ทันที!'
+                      : 'Snap objects, signs or books to instantly translate & extract vocab!'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 2. AI Tutor Chat Card */}
+              <div
+                onClick={() => router.push('/tutor')}
+                className="rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all"
+              >
+                <span className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-blue text-white shadow-nb-sm group-active:translate-y-[1px]">
+                  <MessageOutlined style={{ fontSize: 24 }} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-black text-text-primary">
+                    {isThai ? 'แชทติวเตอร์ & บทเรียน' : 'AI Tutor & Custom Lessons'}
+                  </h3>
+                  <p className="text-xs font-semibold text-text-secondary mt-0.5">
+                    {isThai
+                      ? 'ฝึกแชทบทสนทนาจำลอง หรือสร้างบทเรียนส่วนตัวแบบจับคู่จับประโยค!'
+                      : 'Interactive role-plays or dynamic grammar and vocabulary matching!'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 3. Play Flashcards Card */}
+              <div
+                onClick={() => {
+                  if (wordCount === 0) {
+                    messageApi.info(isThai ? 'กรุณาสแกนคำศัพท์เข้าคลังก่อนเริ่มเล่นบัตรคำนะจ๊ะ!' : 'Please scan and save some words first!');
+                    return;
+                  }
+                  router.push('/flashcard');
+                }}
+                className={`rounded-2xl border-3 border-border-color p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all bg-white dark:bg-[#2d2d44] ${
+                  wordCount === 0 ? 'opacity-60' : ''
+                }`}
+              >
+                <span className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-yellow text-black shadow-nb-sm group-active:translate-y-[1px]">
+                  <BookOutlined style={{ fontSize: 24 }} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-black text-text-primary flex items-center gap-2">
+                    <span>{isThai ? 'เล่นทวนบัตรคำศัพท์' : 'Play Flashcards'}</span>
+                    <span className="inline-block rounded-md border border-border-color bg-accent-pink-bg px-1.5 py-0.2 text-[10px] font-black text-text-primary">
+                      {wordCount} {isThai ? 'คำ' : 'words'}
+                    </span>
+                  </h3>
+                  <p className="text-xs font-semibold text-text-secondary mt-0.5">
+                    {isThai
+                      ? 'ทบทวนคำศัพท์ที่บันทึกมาด้วยแฟลชการ์ดสุ่มคำศัพท์สนุกสนาน!'
+                      : 'Master your saved vocabulary bank through spaced flipping card tests!'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Hidden file input for non-secure context fallback */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+                aria-hidden="true"
+              />
+            </div>
           )}
+        </div>
       </main>
-
-      {/* Word selector modal */}
-      {showWordSelector && (
-        <WordSelector
-          savedWords={savedWords}
-          selectedWords={selectedWords}
-          onSelectionChange={setSelectedWords}
-          onClose={() => setShowWordSelector(false)}
-        />
-      )}
 
       {/* Bottom nav bar */}
       <div
-        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-nb-md"
+        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-4 z-40 rounded-2xl shadow-nb-md"
         style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
       >
+        {/* Tab 1: Home */}
         <a
-          className={`flex flex-col items-center gap-1 text-text-secondary ${
-            navLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-          }`}
-          aria-disabled={navLocked}
-          onClick={() => handleNav("/home")}
+          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
+          onClick={() => router.push("/home")}
         >
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl">
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
             </svg>
@@ -649,50 +314,46 @@ export default function ChatPage() {
           <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
         </a>
 
+        {/* Tab 2: Library */}
         <a
-          className={`flex flex-col items-center gap-1 text-text-secondary ${
-            navLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-          }`}
-          aria-disabled={navLocked}
-          onClick={() => handleNav("/learn")}
+          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
+          onClick={() => router.push("/library")}
         >
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl">
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="4 7 4 4 20 4 20 7" />
               <line x1="9" y1="20" x2="15" y2="20" />
               <line x1="12" y1="4" x2="12" y2="20" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">{t.common.tabWord}</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabLibrary}</span>
         </a>
 
-        <ScanButton disabled={navLocked} />
-
-        <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3v2" />
-              <path d="M12 19v2" />
-              <path d="M5 12H3" />
-              <path d="M21 12h-2" />
-              <path d="M6.3 6.3 4.9 4.9" />
-              <path d="M19.1 19.1 17.7 17.7" />
-              <path d="M6.3 17.7 4.9 19.1" />
-              <path d="M19.1 4.9 17.7 6.3" />
-              <circle cx="12" cy="12" r="4" />
+        {/* Tab 3: AI Scan (ACTIVE) */}
+        <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary transition-colors">
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm transition-all">
+            <svg width="22" height="22" viewBox="0 0 18 18" shapeRendering="crispEdges" style={{ display: 'block' }}>
+              <rect x="6" y="1" width="1" height="2" fill="currentColor" />
+              <rect x="11" y="1" width="1" height="2" fill="currentColor" />
+              <rect x="1" y="6" width="3" height="6" fill="currentColor" />
+              <rect x="14" y="6" width="3" height="6" fill="currentColor" />
+              <rect x="4" y="3" width="10" height="10" fill="currentColor" />
+              <rect x="8" y="13" width="2" height="4" fill="currentColor" />
+              <rect x="5" y="13" width="2" height="2" fill="currentColor" />
+              <rect x="11" y="13" width="2" height="2" fill="currentColor" />
+              <rect x="7" y="7" width="1" height="2" fill="#0b3d66" />
+              <rect x="10" y="7" width="1" height="2" fill="#0b3d66" />
             </svg>
           </span>
-          <span className="text-[11px] font-bold tracking-wider">{t.common.tabAI}</span>
+          <span className="text-[11px] font-bold tracking-wider">{t.common.tabAIScan}</span>
         </a>
 
+        {/* Tab 4: Profile */}
         <a
-          className={`flex flex-col items-center gap-1 text-text-secondary ${
-            navLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-          }`}
-          aria-disabled={navLocked}
-          onClick={() => handleNav("/profile")}
+          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
+          onClick={() => router.push("/profile")}
         >
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl">
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <circle cx="12" cy="8" r="4" />
               <path d="M20 21a8 8 0 0 0-16 0" />
@@ -701,68 +362,6 @@ export default function ChatPage() {
           <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
         </a>
       </div>
-
-      {/* End conversation confirmation modal */}
-      {showEndConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-nb-lg">
-            <h2 className="text-lg font-bold text-text-primary mb-2">
-              End Conversation?
-            </h2>
-            <p className="text-sm text-text-secondary mb-5">
-              This conversation will be saved to your history.
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleCancelEnd}
-                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmEnd}
-                className="flex-1 rounded-xl border-3 border-border-color bg-accent-red py-3 text-sm font-bold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-              >
-                End
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quit lesson confirmation modal */}
-      {showQuitLessonConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-nb-lg">
-            <h2 className="text-lg font-bold text-text-primary mb-2">
-              {isThai ? 'ยกเลิกการเรียน?' : 'Quit lesson?'}
-            </h2>
-            <p className="text-sm text-text-secondary mb-5">
-              {isThai
-                ? 'บทเรียนนี้ถูกบันทึกไว้แล้ว คุณกลับมาเรียนซ้ำได้จากประวัติบทเรียน'
-                : 'This lesson is saved — you can replay it anytime from your saved lessons.'}
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleCancelQuitLesson}
-                className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-3 text-sm font-bold text-text-primary shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-              >
-                {isThai ? 'เรียนต่อ' : 'Keep learning'}
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmQuitLesson}
-                className="flex-1 rounded-xl border-3 border-border-color bg-accent-red py-3 text-sm font-bold text-white shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-              >
-                {isThai ? 'ยกเลิก' : 'Quit'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

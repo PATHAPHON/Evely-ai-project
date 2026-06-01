@@ -3,7 +3,9 @@
 import { useCallback, useState } from 'react';
 import { SoundOutlined } from '@ant-design/icons';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
+import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import { useTTS } from '../_lib/useTTS';
+import { speechLangForLanguage } from '../_lib/speechLangForLanguage';
 import type { LessonExercise } from '../_lib/lessonTypes';
 import ChoiceExercise from './ChoiceExercise';
 import MatchingExercise from './MatchingExercise';
@@ -36,7 +38,8 @@ export default function LessonPlayer({
 }: LessonPlayerProps) {
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
-  const { speak } = useTTS('ko-KR');
+  const { activeLanguage } = useActiveLanguage();
+  const { speak } = useTTS(speechLangForLanguage(activeLanguage));
 
   // Feedback is keyed to the exercise id so it resets automatically when the
   // exercise changes — no effect needed.

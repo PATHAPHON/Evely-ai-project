@@ -1,4 +1,5 @@
-import type { FeedWord } from '@/app/home/_lib/types';
+import type { FeedWord, KoreanFeedWord, JapaneseFeedWord, ChineseFeedWord, EnglishFeedWord } from '@/app/home/_lib/types';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 /**
  * Attempt to parse a string as JSON. Returns null on failure.
@@ -27,57 +28,91 @@ function extractStringField(src: string, key: string): string {
 }
 
 /**
- * Validate that an object has all required FeedWord fields as non-empty strings.
+ * Required fields for each language's feed word.
  */
-function isValidFeedWord(obj: unknown): obj is FeedWord {
+const REQUIRED_FIELDS: Record<TargetLanguage, string[]> = {
+  korean: ['korean', 'reading', 'romanization', 'english', 'thai'],
+  japanese: ['kanji', 'hiragana', 'romaji', 'thai'],
+  chinese: ['hanzi', 'pinyin', 'thai'],
+  english: ['word', 'ipa', 'thai'],
+};
+
+/**
+ * Validate that an object has all required fields for the given language as non-empty strings.
+ */
+function isValidFeedWordForLanguage(obj: unknown, language: TargetLanguage): boolean {
   if (typeof obj !== 'object' || obj === null) return false;
   const record = obj as Record<string, unknown>;
-  return (
-    typeof record.korean === 'string' &&
-    record.korean.trim().length > 0 &&
-    typeof record.reading === 'string' &&
-    record.reading.trim().length > 0 &&
-    typeof record.romanization === 'string' &&
-    record.romanization.trim().length > 0 &&
-    typeof record.english === 'string' &&
-    record.english.trim().length > 0 &&
-    typeof record.thai === 'string' &&
-    record.thai.trim().length > 0
+  const requiredFields = REQUIRED_FIELDS[language];
+  return requiredFields.every(
+    (field) => typeof record[field] === 'string' && (record[field] as string).trim().length > 0
   );
 }
 
 /**
- * Try to extract a FeedWord from a raw object by trimming string fields.
+ * Try to extract a FeedWord from a raw object by trimming string fields,
+ * based on the target language.
  */
-function extractFeedWord(obj: Record<string, unknown>): FeedWord | null {
-  const word: FeedWord = {
-    korean: typeof obj.korean === 'string' ? obj.korean.trim() : '',
-    reading: typeof obj.reading === 'string' ? obj.reading.trim() : '',
-    romanization:
-      typeof obj.romanization === 'string' ? obj.romanization.trim() : '',
-    english: typeof obj.english === 'string' ? obj.english.trim() : '',
-    thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
-  };
-  return isValidFeedWord(word) ? word : null;
+function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage): FeedWord | null {
+  switch (language) {
+    case 'korean': {
+      const word: KoreanFeedWord = {
+        language: 'korean',
+        korean: typeof obj.korean === 'string' ? obj.korean.trim() : '',
+        reading: typeof obj.reading === 'string' ? obj.reading.trim() : '',
+        romanization: typeof obj.romanization === 'string' ? obj.romanization.trim() : '',
+        english: typeof obj.english === 'string' ? obj.english.trim() : '',
+        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+      };
+      return isValidFeedWordForLanguage(word, language) ? word : null;
+    }
+    case 'japanese': {
+      const word: JapaneseFeedWord = {
+        language: 'japanese',
+        kanji: typeof obj.kanji === 'string' ? obj.kanji.trim() : '',
+        hiragana: typeof obj.hiragana === 'string' ? obj.hiragana.trim() : '',
+        romaji: typeof obj.romaji === 'string' ? obj.romaji.trim() : '',
+        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+      };
+      return isValidFeedWordForLanguage(word, language) ? word : null;
+    }
+    case 'chinese': {
+      const word: ChineseFeedWord = {
+        language: 'chinese',
+        hanzi: typeof obj.hanzi === 'string' ? obj.hanzi.trim() : '',
+        pinyin: typeof obj.pinyin === 'string' ? obj.pinyin.trim() : '',
+        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+      };
+      return isValidFeedWordForLanguage(word, language) ? word : null;
+    }
+    case 'english': {
+      const word: EnglishFeedWord = {
+        language: 'english',
+        word: typeof obj.word === 'string' ? obj.word.trim() : '',
+        ipa: typeof obj.ipa === 'string' ? obj.ipa.trim() : '',
+        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+      };
+      return isValidFeedWordForLanguage(word, language) ? word : null;
+    }
+  }
 }
 
 /**
  * Try to extract a FeedWord from a raw string chunk using regex field extraction.
  * Used as a fallback when JSON parsing fails for individual objects.
  */
-function extractFeedWordFromString(src: string): FeedWord | null {
-  const word: FeedWord = {
-    korean: extractStringField(src, 'korean'),
-    reading: extractStringField(src, 'reading'),
-    romanization: extractStringField(src, 'romanization'),
-    english: extractStringField(src, 'english'),
-    thai: extractStringField(src, 'thai'),
-  };
-  return isValidFeedWord(word) ? word : null;
+function extractFeedWordFromString(src: string, language: TargetLanguage): FeedWord | null {
+  const fields = REQUIRED_FIELDS[language];
+  const extracted: Record<string, string> = {};
+  for (const field of fields) {
+    extracted[field] = extractStringField(src, field);
+  }
+  return extractFeedWord(extracted as Record<string, unknown>, language);
 }
 
 /**
- * Parse the KKU API response content string and extract an array of FeedWord objects.
+ * Parse the KKU API response content string and extract an array of FeedWord objects
+ * for the specified target language.
  *
  * Handles:
  * - Markdown code fences (```json ... ```)
@@ -86,7 +121,7 @@ function extractFeedWordFromString(src: string): FeedWord | null {
  * - Malformed JSON with partial field extraction via regex
  * - Both array format and individual objects
  */
-export function parseFeedResponse(content: string): FeedWord[] {
+export function parseFeedResponse(content: string, language: TargetLanguage = 'korean'): FeedWord[] {
   if (!content || content.trim().length === 0) return [];
 
   let trimmed = content.trim();
@@ -112,7 +147,7 @@ export function parseFeedResponse(content: string): FeedWord[] {
     // Direct array of word objects
     const words: FeedWord[] = [];
     for (const item of parsed) {
-      const word = extractFeedWord(item as Record<string, unknown>);
+      const word = extractFeedWord(item as Record<string, unknown>, language);
       if (word) words.push(word);
     }
     if (words.length > 0) return words;
@@ -124,13 +159,13 @@ export function parseFeedResponse(content: string): FeedWord[] {
     if (Array.isArray(record.words)) {
       const words: FeedWord[] = [];
       for (const item of record.words) {
-        const word = extractFeedWord(item as Record<string, unknown>);
+        const word = extractFeedWord(item as Record<string, unknown>, language);
         if (word) words.push(word);
       }
       if (words.length > 0) return words;
     }
     // Single object — try to extract as one word
-    const single = extractFeedWord(record);
+    const single = extractFeedWord(record, language);
     if (single) return [single];
   }
 
@@ -141,7 +176,7 @@ export function parseFeedResponse(content: string): FeedWord[] {
     if (Array.isArray(arrParsed)) {
       const words: FeedWord[] = [];
       for (const item of arrParsed) {
-        const word = extractFeedWord(item as Record<string, unknown>);
+        const word = extractFeedWord(item as Record<string, unknown>, language);
         if (word) words.push(word);
       }
       if (words.length > 0) return words;
@@ -156,14 +191,14 @@ export function parseFeedResponse(content: string): FeedWord[] {
       // Try JSON parse first
       const obj = tryParseJson(block);
       if (obj && typeof obj === 'object') {
-        const word = extractFeedWord(obj as Record<string, unknown>);
+        const word = extractFeedWord(obj as Record<string, unknown>, language);
         if (word) {
           words.push(word);
           continue;
         }
       }
       // Fall back to regex extraction
-      const word = extractFeedWordFromString(block);
+      const word = extractFeedWordFromString(block, language);
       if (word) words.push(word);
     }
     if (words.length > 0) return words;

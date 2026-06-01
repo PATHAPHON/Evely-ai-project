@@ -1,3 +1,4 @@
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import type { ChatErrorType, ProficiencyLevel, SavedWord } from './types';
 
 export type ExerciseType =
@@ -35,12 +36,16 @@ export interface LessonConfig {
   topic: string;
   proficiencyLevel: ProficiencyLevel;
   wordContext: SavedWord[];
+  /** Learning language the lesson should be generated in. */
+  language: TargetLanguage;
 }
 
 export interface LessonRequest {
   topic: string;
   proficiencyLevel: ProficiencyLevel;
   wordContext?: string[];
+  /** Learning language the lesson should be generated in (defaults to Korean). */
+  language?: TargetLanguage;
 }
 
 export interface LessonSuccessResponse {

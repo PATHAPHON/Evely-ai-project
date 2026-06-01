@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { parseFeedResponse } from './parseFeedResponse';
-import type { FeedWord } from '@/app/home/_lib/types';
+import type { FeedWord, KoreanFeedWord, JapaneseFeedWord, ChineseFeedWord, EnglishFeedWord } from '@/app/home/_lib/types';
 
-const validWord: FeedWord = {
+const validWord: KoreanFeedWord = {
+  language: 'korean',
   korean: '사과',
   reading: 'ซากวา',
   romanization: 'sagwa',
@@ -10,7 +11,8 @@ const validWord: FeedWord = {
   thai: 'แอปเปิ้ล',
 };
 
-const validWord2: FeedWord = {
+const validWord2: KoreanFeedWord = {
+  language: 'korean',
   korean: '바나나',
   reading: 'บานานา',
   romanization: 'banana',
@@ -18,79 +20,118 @@ const validWord2: FeedWord = {
   thai: 'กล้วย',
 };
 
+const validJapaneseWord: JapaneseFeedWord = {
+  language: 'japanese',
+  kanji: '猫',
+  hiragana: 'ねこ',
+  romaji: 'neko',
+  thai: 'แมว',
+};
+
+const validChineseWord: ChineseFeedWord = {
+  language: 'chinese',
+  hanzi: '猫',
+  pinyin: 'māo',
+  thai: 'แมว',
+};
+
+const validEnglishWord: EnglishFeedWord = {
+  language: 'english',
+  word: 'cat',
+  ipa: '/kæt/',
+  thai: 'แมว',
+};
+
 describe('parseFeedResponse', () => {
-  it('parses a valid JSON array of words', () => {
-    const content = JSON.stringify([validWord, validWord2]);
-    const result = parseFeedResponse(content);
+  // --- Korean language tests (default) ---
+  it('parses a valid JSON array of Korean words', () => {
+    const content = JSON.stringify([
+      { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' },
+      { korean: '바나나', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย' },
+    ]);
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord, validWord2]);
   });
 
   it('parses a JSON array wrapped in markdown code fences', () => {
-    const content = '```json\n' + JSON.stringify([validWord]) + '\n```';
-    const result = parseFeedResponse(content);
+    const content = '```json\n' + JSON.stringify([{ korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' }]) + '\n```';
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord]);
   });
 
   it('parses a JSON array wrapped in plain code fences', () => {
-    const content = '```\n' + JSON.stringify([validWord, validWord2]) + '\n```';
-    const result = parseFeedResponse(content);
+    const rawWords = [
+      { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' },
+      { korean: '바나나', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย' },
+    ];
+    const content = '```\n' + JSON.stringify(rawWords) + '\n```';
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord, validWord2]);
   });
 
   it('parses a { words: [...] } wrapper object', () => {
-    const content = JSON.stringify({ words: [validWord, validWord2] });
-    const result = parseFeedResponse(content);
+    const rawWords = [
+      { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' },
+      { korean: '바나나', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย' },
+    ];
+    const content = JSON.stringify({ words: rawWords });
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord, validWord2]);
   });
 
   it('handles extra prose before and after JSON', () => {
+    const rawWord = { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' };
     const content =
       'Here are the words:\n' +
-      JSON.stringify([validWord]) +
+      JSON.stringify([rawWord]) +
       '\nHope this helps!';
-    const result = parseFeedResponse(content);
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord]);
   });
 
   it('handles extra prose with markdown fences', () => {
+    const rawWords = [
+      { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' },
+      { korean: '바나나', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย' },
+    ];
     const content =
       'Here are 5 Korean words:\n```json\n' +
-      JSON.stringify([validWord, validWord2]) +
+      JSON.stringify(rawWords) +
       '\n```\nLet me know if you need more.';
-    const result = parseFeedResponse(content);
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord, validWord2]);
   });
 
   it('skips invalid word objects missing required fields', () => {
     const incomplete = { korean: '사과', reading: 'ซากวา' };
-    const content = JSON.stringify([incomplete, validWord]);
-    const result = parseFeedResponse(content);
+    const rawValid = { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' };
+    const content = JSON.stringify([incomplete, rawValid]);
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord]);
   });
 
   it('skips word objects with empty string fields', () => {
-    const emptyField = { ...validWord, thai: '' };
-    const content = JSON.stringify([emptyField, validWord2]);
-    const result = parseFeedResponse(content);
+    const emptyField = { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: '' };
+    const rawValid2 = { korean: '바나나', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย' };
+    const content = JSON.stringify([emptyField, rawValid2]);
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord2]);
   });
 
   it('returns empty array for empty input', () => {
-    expect(parseFeedResponse('')).toEqual([]);
-    expect(parseFeedResponse('   ')).toEqual([]);
+    expect(parseFeedResponse('', 'korean')).toEqual([]);
+    expect(parseFeedResponse('   ', 'korean')).toEqual([]);
   });
 
   it('returns empty array for completely invalid content', () => {
-    expect(parseFeedResponse('hello world')).toEqual([]);
-    expect(parseFeedResponse('not json at all')).toEqual([]);
+    expect(parseFeedResponse('hello world', 'korean')).toEqual([]);
+    expect(parseFeedResponse('not json at all', 'korean')).toEqual([]);
   });
 
   it('handles malformed JSON by extracting fields via regex', () => {
-    // Simulate truncated/malformed JSON where individual objects are parseable
     const content =
       '[{"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล"}, {"korean":"바나나","reading":"บานานา","romanization":"banana","english":"banana","thai":"กล้วย"';
-    const result = parseFeedResponse(content);
-    // Should at least extract the first valid word via individual block parsing
+    const result = parseFeedResponse(content, 'korean');
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result[0]).toEqual(validWord);
   });
@@ -104,21 +145,78 @@ describe('parseFeedResponse', () => {
       thai: '  แอปเปิ้ล  ',
     };
     const content = JSON.stringify([wordWithSpaces]);
-    const result = parseFeedResponse(content);
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord]);
   });
 
   it('handles a single word object (not in array)', () => {
-    const content = JSON.stringify(validWord);
-    const result = parseFeedResponse(content);
+    const rawWord = { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' };
+    const content = JSON.stringify(rawWord);
+    const result = parseFeedResponse(content, 'korean');
     expect(result).toEqual([validWord]);
   });
 
   it('handles double-encoded JSON (backslash-escaped)', () => {
-    const inner = JSON.stringify([validWord]);
-    // Double-encode: escape the quotes
+    const rawWord = { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' };
+    const inner = JSON.stringify([rawWord]);
     const doubleEncoded = inner.replace(/"/g, '\\"');
-    const result = parseFeedResponse(doubleEncoded);
+    const result = parseFeedResponse(doubleEncoded, 'korean');
+    expect(result).toEqual([validWord]);
+  });
+
+  // --- Japanese language tests ---
+  it('parses Japanese feed words', () => {
+    const rawWord = { kanji: '猫', hiragana: 'ねこ', romaji: 'neko', thai: 'แมว' };
+    const content = JSON.stringify([rawWord]);
+    const result = parseFeedResponse(content, 'japanese');
+    expect(result).toEqual([validJapaneseWord]);
+  });
+
+  it('skips Japanese words missing required fields', () => {
+    const incomplete = { kanji: '猫', hiragana: 'ねこ' };
+    const rawValid = { kanji: '猫', hiragana: 'ねこ', romaji: 'neko', thai: 'แมว' };
+    const content = JSON.stringify([incomplete, rawValid]);
+    const result = parseFeedResponse(content, 'japanese');
+    expect(result).toEqual([validJapaneseWord]);
+  });
+
+  // --- Chinese language tests ---
+  it('parses Chinese feed words', () => {
+    const rawWord = { hanzi: '猫', pinyin: 'māo', thai: 'แมว' };
+    const content = JSON.stringify([rawWord]);
+    const result = parseFeedResponse(content, 'chinese');
+    expect(result).toEqual([validChineseWord]);
+  });
+
+  it('skips Chinese words missing required fields', () => {
+    const incomplete = { hanzi: '猫' };
+    const rawValid = { hanzi: '猫', pinyin: 'māo', thai: 'แมว' };
+    const content = JSON.stringify([incomplete, rawValid]);
+    const result = parseFeedResponse(content, 'chinese');
+    expect(result).toEqual([validChineseWord]);
+  });
+
+  // --- English language tests ---
+  it('parses English feed words', () => {
+    const rawWord = { word: 'cat', ipa: '/kæt/', thai: 'แมว' };
+    const content = JSON.stringify([rawWord]);
+    const result = parseFeedResponse(content, 'english');
+    expect(result).toEqual([validEnglishWord]);
+  });
+
+  it('skips English words missing required fields', () => {
+    const incomplete = { word: 'cat' };
+    const rawValid = { word: 'cat', ipa: '/kæt/', thai: 'แมว' };
+    const content = JSON.stringify([incomplete, rawValid]);
+    const result = parseFeedResponse(content, 'english');
+    expect(result).toEqual([validEnglishWord]);
+  });
+
+  // --- Default language behavior ---
+  it('defaults to korean when no language is specified', () => {
+    const rawWord = { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' };
+    const content = JSON.stringify([rawWord]);
+    const result = parseFeedResponse(content);
     expect(result).toEqual([validWord]);
   });
 });

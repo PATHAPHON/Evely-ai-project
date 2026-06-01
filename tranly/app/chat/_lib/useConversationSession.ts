@@ -119,6 +119,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         topic: sessionConfig.topic,
         wordContext: sessionConfig.wordContext.map((w) => w.korean),
         goal: sessionConfig.goal,
+        language: sessionConfig.language,
       };
 
       const response = await fetch('/api/chat', {

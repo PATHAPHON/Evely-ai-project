@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
+import AppProviders from "./_components/AppProviders";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -75,7 +76,9 @@ export default function RootLayout({
         )}
       </head>
       <body className="min-h-full flex flex-col">
-        <AntdRegistry>{children}</AntdRegistry>
+        <AntdRegistry>
+          <AppProviders>{children}</AppProviders>
+        </AntdRegistry>
       </body>
     </html>
   );

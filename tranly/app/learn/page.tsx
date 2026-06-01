@@ -10,9 +10,9 @@ import {
   type WordRecord,
 } from "./_lib/useWordStorage";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
+import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
 import { useStrings } from "@/app/_lib/strings";
 import { useTTS } from "@/app/chat/_lib/useTTS";
-import PageHeader from "@/app/_components/PageHeader";
 import { FlashcardMode } from "./_components/FlashcardMode";
 
 type ViewMode = "words" | "flashcard";
@@ -147,8 +147,9 @@ export default function LearnPage() {
   const configProps = useIllustrationTheme();
   const router = useRouter();
   const t = useStrings();
+  const { activeLanguage } = useActiveLanguage();
   const [messageApi, contextHolder] = message.useMessage();
-  const { list, remove, save } = useWordStorage();
+  const { list, listByLanguage, remove, save } = useWordStorage();
   const [words, setWords] = useState<WordRecord[] | null>(null);
   const [mode, setMode] = useState<ViewMode>("words");
   const [flashcardStudying, setFlashcardStudying] = useState(false);
@@ -158,17 +159,20 @@ export default function LearnPage() {
   const pendingDeletes = useRef(new Map<string, () => void>());
 
   useEffect(() => {
+    router.replace("/library");
+  }, [router]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
-      let records = await list();
-
       // Remove any older sample records (label "แอปเปิ้ล" with missing Korean
       // fields) leftover from earlier seed versions, then seed the latest
       // sample if this seed version hasn't run yet.
       if (!localStorage.getItem(SAMPLE_SEED_FLAG)) {
         try {
-          const stale = records.filter(
+          const allRecords = await list();
+          const stale = allRecords.filter(
             (r) => r.label === 'แอปเปิ้ล' && !r.korean
           );
           for (const s of stale) {
@@ -185,12 +189,14 @@ export default function LearnPage() {
               english: 'apple',
             });
             localStorage.setItem(SAMPLE_SEED_FLAG, '1');
-            records = await list();
           }
         } catch {
           // ignore seed failure
         }
       }
+
+      // Load only words for the active language
+      const records = await listByLanguage();
       if (!cancelled) setWords(records);
     };
 
@@ -201,7 +207,7 @@ export default function LearnPage() {
     return () => {
       cancelled = true;
     };
-  }, [list, save, remove]);
+  }, [list, listByLanguage, save, remove, activeLanguage]);
 
   // Commit any deletes still inside their Undo window when leaving the screen,
   // so a soft-deleted word doesn't silently reappear on the next visit.
@@ -274,10 +280,7 @@ export default function LearnPage() {
           className="flex-1 overflow-y-auto"
           style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
         >
-          <PageHeader
-            title={t.learn.title}
-            subtitle={t.learn.subtitle}
-          >
+          <div className="px-4 pt-6">
             {/* Mode toggle switch: All words ↔ Flashcard.
                 Hidden while studying so the user must finish or cancel first. */}
             {!flashcardStudying && (
@@ -306,7 +309,7 @@ export default function LearnPage() {
               </button>
             </div>
             )}
-          </PageHeader>
+          </div>
 
           <div className="px-4 mt-6 flex flex-col gap-3">
             {words === null && (

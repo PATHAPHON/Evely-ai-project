@@ -23,8 +23,8 @@ describe("WordSelector", () => {
     vi.clearAllMocks();
   });
 
-  it("renders saved words with Korean text, reading, and translation", () => {
-    const words = [makeWord("1", "사과"), makeWord("2", "바나나")];
+  it("renders saved words with Korean text and correct translation language rendering", () => {
+    const words = [makeWord("1", "사과"), makeWord("2", "바นานา")];
     render(
       <WordSelector
         savedWords={words}
@@ -34,9 +34,9 @@ describe("WordSelector", () => {
       />
     );
     expect(screen.getByText("사과")).toBeInTheDocument();
-    expect(screen.getByText("바나나")).toBeInTheDocument();
-    expect(screen.getByText("อ่าน1")).toBeInTheDocument();
-    expect(screen.getByText("meaning1")).toBeInTheDocument();
+    expect(screen.getByText("바นานา")).toBeInTheDocument();
+    expect(screen.getByText("ไทย1")).toBeInTheDocument();
+    expect(screen.getByText("ไทย2")).toBeInTheDocument();
   });
 
   it("shows selected count as 0/10 when nothing selected", () => {

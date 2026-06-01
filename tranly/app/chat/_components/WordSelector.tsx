@@ -127,8 +127,20 @@ export default function WordSelector({
           )}
         </div>
 
-        {/* Footer with done button */}
-        <div className="border-t-3 border-border-color p-4">
+        {/* Footer with done / skip buttons */}
+        <div className="flex flex-col gap-2 border-t-3 border-border-color p-4">
+          {/* Opt out of using saved words entirely — clears any selection then
+              closes, which advances the guide just like finishing. */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectionChange([]);
+              onClose();
+            }}
+            className="w-full rounded-xl border-3 border-border-color bg-card-bg py-3 text-base font-bold text-text-primary shadow-nb-md transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
+          >
+            {isThai ? 'ไม่ใช้คำศัพท์' : "Don't use words"}
+          </button>
           <button
             type="button"
             onClick={onClose}

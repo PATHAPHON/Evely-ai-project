@@ -1,25 +1,76 @@
-export interface FeedWord {
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
+
+// --- Multi-language Feed Word interfaces ---
+
+export interface BaseFeedWord {
+  language: TargetLanguage;
+  thai: string;
+}
+
+export interface JapaneseFeedWord extends BaseFeedWord {
+  language: 'japanese';
+  kanji: string;
+  hiragana: string;
+  romaji: string;
+}
+
+export interface KoreanFeedWord extends BaseFeedWord {
+  language: 'korean';
   korean: string;
   reading: string;
   romanization: string;
   english: string;
-  thai: string;
 }
+
+export interface ChineseFeedWord extends BaseFeedWord {
+  language: 'chinese';
+  hanzi: string;
+  pinyin: string;
+}
+
+export interface EnglishFeedWord extends BaseFeedWord {
+  language: 'english';
+  word: string;
+  ipa: string;
+}
+
+export type FeedWord =
+  | JapaneseFeedWord
+  | KoreanFeedWord
+  | ChineseFeedWord
+  | EnglishFeedWord;
+
+// --- Feed Word Record (stored in IndexedDB) ---
 
 export interface FeedWordRecord {
   id: string;
-  korean: string;
-  reading: string;
-  romanization: string;
-  english: string;
-  thai: string;
+  language: TargetLanguage;
   generatedDate: string;
+  thai: string;
   bookmarked: boolean;
   imageBlob: Blob | null;
   createdAt: number;
+  // Japanese fields
+  kanji?: string;
+  hiragana?: string;
+  romaji?: string;
+  // Korean fields
+  korean?: string;
+  reading?: string;
+  romanization?: string;
+  english?: string;
+  // Chinese fields
+  hanzi?: string;
+  pinyin?: string;
+  // English fields
+  word?: string;
+  ipa?: string;
 }
 
+// --- API types ---
+
 export interface FeedRequest {
+  language: TargetLanguage;
   excludeWords: string[];
   count: number;
 }

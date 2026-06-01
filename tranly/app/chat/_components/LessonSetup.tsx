@@ -3,6 +3,8 @@
 import { useCallback, useState } from 'react';
 import { BookOutlined, ReadOutlined } from '@ant-design/icons';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
+import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
+import { LANGUAGE_DISPLAY } from '@/app/_lib/languageDisplay';
 import { validateTopic } from '../_lib/validateTopic';
 import type { ProficiencyLevel, SavedWord } from '../_lib/types';
 import type { LessonConfig } from '../_lib/lessonTypes';
@@ -42,6 +44,8 @@ export default function LessonSetup({
   const [isGeneratingTopic, setIsGeneratingTopic] = useState(false);
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
+  const { activeLanguage } = useActiveLanguage();
+  const langDisplay = LANGUAGE_DISPLAY[activeLanguage];
 
   const isFormValid = proficiencyLevel !== null && validateTopic(topic);
 
@@ -51,8 +55,16 @@ export default function LessonSetup({
       topic: topic.trim(),
       proficiencyLevel,
       wordContext: selectedWords,
+      language: activeLanguage,
     });
-  }, [isFormValid, proficiencyLevel, topic, selectedWords, onStart]);
+  }, [
+    isFormValid,
+    proficiencyLevel,
+    topic,
+    selectedWords,
+    activeLanguage,
+    onStart,
+  ]);
 
   const handleSuggestTopic = useCallback(async () => {
     if (selectedWords.length === 0 || isGeneratingTopic) return;
@@ -152,7 +164,7 @@ export default function LessonSetup({
           type="text"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
-          placeholder={isThai ? 'เช่น อาหารเกาหลี, การทักทาย, ตัวเลข...' : 'e.g. Korean food, Greetings, Numbers...'}
+          placeholder={isThai ? `เช่น ${langDisplay.topicExampleTh}, การทักทาย, ตัวเลข...` : `e.g. ${langDisplay.topicExampleEn}, Greetings, Numbers...`}
           maxLength={100}
           className="w-full rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base text-text-primary shadow-nb-md outline-none placeholder:text-text-secondary focus:shadow-nb-sm dark:focus:shadow-nb-sm focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
         />
@@ -188,7 +200,7 @@ export default function LessonSetup({
               }`}
             >
               <span className="font-semibold">{isThai ? option.labelTh : option.labelEn}</span>
-              <span className="ml-2 text-sm opacity-80">({option.description})</span>
+              <span className="ml-2 text-sm opacity-80">({langDisplay.proficiency[option.value]})</span>
             </button>
           ))}
         </div>

@@ -85,4 +85,21 @@ describe('useAIConfig', () => {
 
     expect(result.current.maskedKey).toBe(DOTS + 'mnop');
   });
+
+  it('manages and simulates AI usage correctly', () => {
+    const { result } = renderHook(() => useAIConfig());
+    
+    expect(result.current.callsMax).toBe(100);
+    
+    const initialUsed = result.current.callsUsed;
+    act(() => {
+      result.current.simulateUsage();
+    });
+    expect(result.current.callsUsed).toBe(initialUsed + 5);
+
+    act(() => {
+      result.current.resetUsage();
+    });
+    expect(result.current.callsUsed).toBe(0);
+  });
 });

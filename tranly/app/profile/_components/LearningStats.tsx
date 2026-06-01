@@ -1,11 +1,11 @@
 'use client';
 
-import { useLearningStats } from '../_lib/useLearningStats';
+import { useLanguageLearningStats } from '../_lib/useLearningStats';
 
 const STAT_CARDS = [
   { key: 'words', label: 'Words', emoji: '📚' },
-  { key: 'conversations', label: 'Conversations', emoji: '💬' },
-  { key: 'scans', label: 'Scans', emoji: '📷' },
+  { key: 'flashcards', label: 'Flashcards', emoji: '🃏' },
+  { key: 'sessions', label: 'Sessions', emoji: '📖' },
 ] as const;
 
 function StatSkeleton() {
@@ -19,12 +19,12 @@ function StatSkeleton() {
 }
 
 export default function LearningStats() {
-  const { totalWords, totalConversations, totalScans, isLoading } = useLearningStats();
+  const { wordCount, flashcardSetCount, studySessionCount, isLoading } = useLanguageLearningStats();
 
   const statValues: Record<string, number> = {
-    words: totalWords,
-    conversations: totalConversations,
-    scans: totalScans,
+    words: wordCount,
+    flashcards: flashcardSetCount,
+    sessions: studySessionCount,
   };
 
   if (isLoading) {

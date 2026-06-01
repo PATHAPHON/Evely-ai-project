@@ -84,6 +84,7 @@ export function useLessonSession(): UseLessonSessionReturn {
             topic: config.topic,
             proficiencyLevel: config.proficiencyLevel,
             wordContext: config.wordContext.map((w) => w.korean),
+            language: config.language,
           }),
         });
 

@@ -1,12 +1,15 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { WORDS_STORE, openDatabase } from '@/app/_lib/db';
+import { WORDS_STORE, openDatabase, queryByLanguage } from '@/app/_lib/db';
+import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 export interface WordRecord {
   id: string;
   imageBlob: Blob;
   label: string;
+  language?: TargetLanguage;
   korean?: string;
   reading?: string;
   romanization?: string;
@@ -25,12 +28,14 @@ export interface SaveWordInput {
 export interface UseWordStorageReturn {
   save: (imageBlob: Blob, input: SaveWordInput | string) => Promise<string>;
   list: () => Promise<WordRecord[]>;
+  listByLanguage: () => Promise<WordRecord[]>;
   remove: (id: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
 
 export function useWordStorage(): UseWordStorageReturn {
+  const { activeLanguage } = useActiveLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dbRef = useRef<IDBDatabase | null>(null);
@@ -58,6 +63,7 @@ export function useWordStorage(): UseWordStorageReturn {
           id,
           imageBlob,
           label: normalized.label,
+          language: activeLanguage,
           korean: normalized.korean,
           reading: normalized.reading,
           romanization: normalized.romanization,
@@ -84,7 +90,7 @@ export function useWordStorage(): UseWordStorageReturn {
         throw err;
       }
     },
-    [getDb]
+    [getDb, activeLanguage]
   );
 
   const list = useCallback(async (): Promise<WordRecord[]> => {
@@ -111,6 +117,28 @@ export function useWordStorage(): UseWordStorageReturn {
     }
   }, [getDb]);
 
+  /**
+   * List only words belonging to the current active language.
+   * Uses the IndexedDB 'language' index for efficient filtering.
+   */
+  const listByLanguage = useCallback(async (): Promise<WordRecord[]> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const db = await getDb();
+      const records = await queryByLanguage<WordRecord>(db, WORDS_STORE, activeLanguage);
+      records.sort((a, b) => b.createdAt - a.createdAt);
+      setIsLoading(false);
+      return records;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to load word.';
+      setError(message);
+      setIsLoading(false);
+      throw err;
+    }
+  }, [getDb, activeLanguage]);
+
   const remove = useCallback(
     async (id: string): Promise<void> => {
       const db = await getDb();
@@ -124,5 +152,5 @@ export function useWordStorage(): UseWordStorageReturn {
     [getDb]
   );
 
-  return { save, list, remove, isLoading, error };
+  return { save, list, listByLanguage, remove, isLoading, error };
 }

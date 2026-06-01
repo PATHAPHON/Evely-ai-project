@@ -42,7 +42,7 @@ export function useExclusionList(): UseExclusionListReturn {
       const req = store.getAll();
       req.onsuccess = () => {
         const records = req.result as FeedWordRecord[];
-        resolve(records.map((r) => r.korean));
+        resolve(records.map((r) => r.korean).filter((k): k is string => !!k));
       };
       req.onerror = () => reject(req.error);
     });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseChatResponse } from './parseChatResponse';
 import { buildContext } from './buildContext';
+import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/languagePrompt';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import type {
   ChatRequest,
   ChatSuccessResponse,
@@ -44,11 +46,14 @@ function buildSystemPrompt(
   topic: string,
   level: ProficiencyLevel,
   wordContext: string[],
-  goal: string
+  goal: string,
+  language: TargetLanguage
 ): string {
+  const lang = LANG_PROMPT[language];
+
   const levelInstructions: Record<ProficiencyLevel, string> = {
     beginner:
-      'Speak like a friendly person texting — very short (1–2 sentences max), simple words, basic grammar (은/는, 이/가, 을/를, present tense). No long explanations.',
+      'Speak like a friendly person texting — very short (1–2 sentences max), simple words, basic grammar, present tense. No long explanations.',
     intermediate:
       'Speak naturally like a real conversation — 1–3 short sentences, casual or polite tone, normal everyday expressions. No lengthy responses.',
     advanced:
@@ -57,7 +62,7 @@ function buildSystemPrompt(
 
   const wordInstruction =
     wordContext.length > 0
-      ? `When it fits naturally, weave in these Korean words: ${wordContext.join(', ')}.`
+      ? `When it fits naturally, weave in these ${lang.label} words: ${wordContext.join(', ')}.`
       : '';
 
   const goalInstruction =
@@ -66,20 +71,21 @@ function buildSystemPrompt(
       : `There is no goal for this chat — always set "ended" to false and keep the conversation going.`;
 
   return (
-    `You are a Korean friend having an ongoing, casual text chat with the user. The conversation topic is "${topic}".\n\n` +
+    `You are a ${lang.label} friend having an ongoing, casual text chat with the user. The conversation topic is "${topic}".\n\n` +
     `CONTEXT IS CRITICAL: The messages above are the real conversation so far. Read ALL of them and reply DIRECTLY to the user's most recent message. Acknowledge what they just said, answer their questions, and keep the dialogue flowing on this topic. Never ignore their message, never change the subject randomly, and never repeat one of your earlier replies.\n\n` +
-    `The user may write in Korean, Thai, or English — understand their meaning either way, but ALWAYS reply in Korean.\n\n` +
+    `The user may write in ${lang.label}, Thai, or English — understand their meaning either way, but ALWAYS reply in ${lang.label}.\n\n` +
     `${levelInstructions[level]} ${wordInstruction} Keep each reply SHORT — 1-2 sentences, like real texting.\n\n` +
     `${goalInstruction}\n\n` +
-    `Also provide "suggestions": 2-3 short, natural replies (in Korean) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction). When "ended" is true you may use an empty suggestions array.\n\n` +
+    `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction). When "ended" is true you may use an empty suggestions array.\n\n` +
     `Respond with ONLY a valid JSON object — no prose, no markdown, no code fences, no text before or after it. Exactly this structure:\n` +
-    `{"korean":"<your reply in Hangul>","reading":"<your Korean reply's pronunciation in Thai-script karaoke, e.g. อันนยองฮาเซโย for 안녕하세요 — NOT the Thai meaning>","romanization":"<Revised Romanization>","translation":"<Thai meaning of your reply>","english":"<English meaning of your reply>","suggestions":[{"korean":"<a reply the user could send, in Hangul>","translation":"<its Thai meaning>"},{"korean":"<another option>","translation":"<its Thai meaning>"}],"ended":false}\n\n` +
+    `{"korean":"<your reply in ${lang.script}>","reading":"<${lang.readingDesc}, e.g. ${lang.readingExample}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai meaning of your reply>","english":"<English meaning of your reply>","suggestions":[{"korean":"<a reply the user could send, in ${lang.script}>","translation":"<its Thai meaning>"},{"korean":"<another option>","translation":"<its Thai meaning>"}],"ended":false}\n\n` +
     `RULES:\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
+    `- The "korean" field always holds your ${lang.label} reply text, regardless of its key name\n` +
     `- "ended" is a boolean: true ONLY when the conversation's goal has been achieved and you are closing the chat\n` +
-    `- The top-level "korean"/"reading"/"romanization"/"translation"/"english" fields describe YOUR Korean reply, not the user's message\n` +
-    `- "suggestions" are replies for the USER to choose from (Korean + Thai meaning), NOT your reply\n` +
-    `- "reading" = the Korean pronunciation written in Thai characters (karaoke), NOT a translation\n` +
+    `- The top-level "korean"/"reading"/"romanization"/"translation"/"english" fields describe YOUR ${lang.label} reply, not the user's message\n` +
+    `- "suggestions" are replies for the USER to choose from (${lang.label} + Thai meaning), NOT your reply\n` +
+    `- "reading" = ${lang.readingDesc}, NOT a translation\n` +
     `- Do NOT add any text before or after the JSON`
   );
 }
@@ -136,12 +142,18 @@ function validateInput(body: unknown): ChatRequest | null {
     }
   }
 
+  // language is optional; default to Korean for back-compat with older clients.
+  const language: TargetLanguage = isValidTargetLanguage(record.language)
+    ? record.language
+    : 'korean';
+
   return {
     messages: record.messages as ChatRequest['messages'],
     proficiencyLevel: record.proficiencyLevel as ProficiencyLevel,
     topic: trimmedTopic,
     wordContext,
     goal,
+    language,
   };
 }
 
@@ -162,7 +174,8 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { messages, proficiencyLevel, topic, wordContext, goal } = input;
+  const { messages, proficiencyLevel, topic, wordContext, goal, language } =
+    input;
 
   // Read custom API key and model from request headers (user-provided config).
   const customApiKey = request.headers.get('x-custom-api-key');
@@ -178,7 +191,8 @@ export async function POST(
     topic,
     proficiencyLevel,
     wordContext ?? [],
-    goal ?? ''
+    goal ?? '',
+    language ?? 'korean'
   );
 
   // Build conversation context from messages (up to 20 most recent)

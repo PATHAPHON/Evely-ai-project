@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ConfigProvider, Avatar } from "antd";
+import { ConfigProvider } from "antd";
 import { 
   SmileOutlined, 
   HeartOutlined, 
@@ -22,13 +22,15 @@ import {
 import useIllustrationTheme from "@/app/theme/illustrationTheme";
 import ScanButton from "@/app/scan/_components/ScanButton";
 import WordFeed from "@/app/home/_components/WordFeed";
-import PageHeader from "@/app/_components/PageHeader";
 import { useStrings } from "@/app/_lib/strings";
+import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
 
 export default function HomePage() {
   const configProps = useIllustrationTheme();
   const router = useRouter();
   const t = useStrings();
+  const { language } = useLanguagePreference();
+  const isThai = language === "thai";
   const [activeTab, setActiveTab] = useState("Home");
 
   return (
@@ -69,6 +71,19 @@ export default function HomePage() {
         .animate-float-1 { animation: floatAndFade1 9s infinite ease-in-out; }
         .animate-float-2 { animation: floatAndFade2 12s infinite ease-in-out; }
         .animate-float-3 { animation: floatAndFade3 10s infinite ease-in-out; }
+        @keyframes cardFadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-card-fade-in {
+          animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+        }
         /* Respect users who prefer reduced motion: stop all decorative
            animation and hide the purely-ornamental icons entirely. */
         @media (prefers-reduced-motion: reduce) {
@@ -144,48 +159,21 @@ export default function HomePage() {
           className="flex-1 overflow-y-auto flex flex-col"
           style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
         >
-          {/* Head Section */}
-          <PageHeader
-            title="안녕하세요! 👋"
-            subtitle={t.home.greetingSubtitle}
-            action={
-              /* Avatar Pill styled with design.md Neobrutalist theme */
-              <Avatar
-                size={44}
-                style={{
-                  backgroundColor: 'var(--accent-pink-bg)',
-                  color: 'var(--text-primary)',
-                  border: '3px solid var(--border-color)',
-                  boxShadow: '2px 2px 0 var(--shadow-color)',
-                  fontSize: '15px',
-                  fontWeight: 900,
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
-                ปา
-              </Avatar>
-            }
-          />
-
-          {/* Word Feed */}
-          <div className="flex-1 mt-2 relative z-10 flex flex-col min-h-0">
+          /* Word Feed */
+          <div className="flex-1 mt-2 relative z-10 flex flex-col min-h-0 animate-card-fade-in">
             <WordFeed />
           </div>
         </div>
 
         {/* Tabbar Navigation styled with high contrast border-t */}
         <div 
-          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-nb-md"
+          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-4 z-40 rounded-2xl shadow-nb-md"
           style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
         >
           
-          {/* Tab: Home */}
-          <a 
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Home" ? "text-text-primary" : "text-text-secondary"}`}
-            onClick={() => setActiveTab("Home")}
-          >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Home" ? "bg-accent-pink-bg border-3 border-border-color shadow-nb-sm" : "bg-transparent"}`}>
+          {/* Tab: Home (ACTIVE) */}
+          <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary transition-colors">
+            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm transition-all">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
               </svg>
@@ -193,57 +181,49 @@ export default function HomePage() {
             <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
           </a>
 
-          {/* Tab: Learn */}
+          {/* Tab: Library */}
           <a
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Learn" ? "text-text-primary" : "text-text-secondary"}`}
-            onClick={() => {
-              setActiveTab("Learn");
-              router.push("/learn");
-            }}
+            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
+            onClick={() => router.push("/library")}
           >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Learn" ? "bg-accent-pink-bg border-3 border-border-color shadow-nb-sm" : "bg-transparent"}`}>
+            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="4 7 4 4 20 4 20 7" />
                 <line x1="9" y1="20" x2="15" y2="20" />
                 <line x1="12" y1="4" x2="12" y2="20" />
               </svg>
             </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabWord}</span>
+            <span className="text-[11px] font-bold tracking-wider">{t.common.tabLibrary}</span>
           </a>
 
-          {/* Tab: Scan (Camera / File input fallback) */}
-          <ScanButton />
-
-          {/* Tab: AI */}
+          {/* Tab: AI Scan */}
           <a
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "AI" ? "text-text-primary" : "text-text-secondary"}`}
-            onClick={() => {
-              setActiveTab("AI");
-              router.push("/chat");
-            }}
+            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
+            onClick={() => router.push("/chat")}
           >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "AI" ? "bg-accent-pink-bg border-3 border-border-color shadow-nb-sm" : "bg-transparent"}`}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3v2" />
-                <path d="M12 19v2" />
-                <path d="M5 12H3" />
-                <path d="M21 12h-2" />
-                <path d="M6.3 6.3 4.9 4.9" />
-                <path d="M19.1 19.1 17.7 17.7" />
-                <path d="M6.3 17.7 4.9 19.1" />
-                <path d="M19.1 4.9 17.7 6.3" />
-                <circle cx="12" cy="12" r="4" />
+            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
+              <svg width="22" height="22" viewBox="0 0 18 18" shapeRendering="crispEdges" style={{ display: 'block' }}>
+                <rect x="6" y="1" width="1" height="2" fill="currentColor" />
+                <rect x="11" y="1" width="1" height="2" fill="currentColor" />
+                <rect x="1" y="6" width="3" height="6" fill="currentColor" />
+                <rect x="14" y="6" width="3" height="6" fill="currentColor" />
+                <rect x="4" y="3" width="10" height="10" fill="currentColor" />
+                <rect x="8" y="13" width="2" height="4" fill="currentColor" />
+                <rect x="5" y="13" width="2" height="2" fill="currentColor" />
+                <rect x="11" y="13" width="2" height="2" fill="currentColor" />
+                <rect x="7" y="7" width="1" height="2" fill="#0b3d66" />
+                <rect x="10" y="7" width="1" height="2" fill="#0b3d66" />
               </svg>
             </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabAI}</span>
+            <span className="text-[11px] font-bold tracking-wider">{t.common.tabAIScan}</span>
           </a>
 
           {/* Tab: Profile */}
           <a
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${activeTab === "Profile" ? "text-text-primary" : "text-text-secondary"}`}
-            onClick={() => { setActiveTab("Profile"); router.push("/profile"); }}
+            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
+            onClick={() => router.push("/profile")}
           >
-            <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "Profile" ? "bg-accent-pink-bg border-3 border-border-color shadow-nb-sm" : "bg-transparent"}`}>
+            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M20 21a8 8 0 0 0-16 0" />

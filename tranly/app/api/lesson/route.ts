@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseLessonResponse } from './parseLessonResponse';
+import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/languagePrompt';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import type {
   LessonRequest,
   LessonSuccessResponse,
@@ -41,48 +43,49 @@ function errorResponse(
 function buildLessonSystemPrompt(
   topic: string,
   level: ProficiencyLevel,
-  wordContext: string[]
+  wordContext: string[],
+  language: TargetLanguage
 ): string {
+  const lang = LANG_PROMPT[language];
+
   const levelInstructions: Record<ProficiencyLevel, string> = {
     beginner:
-      'Keep vocabulary and grammar very simple (TOPIK 1-2): basic words, short phrases, present tense.',
+      'Keep vocabulary and grammar very simple (CEFR A1-A2): basic words, short phrases, present tense.',
     intermediate:
-      'Use everyday vocabulary and common grammar (TOPIK 3-4): natural sentences, polite/casual forms.',
+      'Use everyday vocabulary and common grammar (CEFR B1-B2): natural sentences, polite/casual forms.',
     advanced:
-      'Use richer vocabulary and varied grammar (TOPIK 5-6): idioms, nuanced expressions, longer sentences.',
+      'Use richer vocabulary and varied grammar (CEFR C1-C2): idioms, nuanced expressions, longer sentences.',
   };
 
   const wordInstruction =
     wordContext.length > 0
-      ? `Build the lesson around these Korean words the learner is studying — make sure each one appears in at least one exercise: ${wordContext.join(', ')}. `
+      ? `Build the lesson around these ${lang.label} words the learner is studying — make sure each one appears in at least one exercise: ${wordContext.join(', ')}. `
       : '';
 
   return (
     `IMPORTANT: You must respond with ONLY a valid JSON object. No prose, no markdown, no explanation — just raw JSON.\n\n` +
-    `You are a Korean language teacher creating a short Duolingo-style lesson for a Thai learner. ` +
+    `You are a ${lang.label} language teacher creating a short Duolingo-style lesson for a Thai learner. ` +
     `Topic: "${topic}". ${levelInstructions[level]} ${wordInstruction}\n\n` +
     `Create exactly 6 exercises that mix ALL of these four "type" values (at least one of each): ` +
     `"multiple_choice", "fill_blank", "matching", "listening".\n\n` +
     `Your entire response must be exactly this JSON structure and nothing else:\n` +
     `{"exercises":[\n` +
-    `  {"type":"multiple_choice","prompt":"<question/instruction in Thai, e.g., 'เลือกคำแปลที่ถูกต้องของ...' หรือ 'คำใดคือ...'>","korean":"<Korean word/phrase being asked about>","reading":"<Korean sounds in Thai-script karaoke (NOT the translation/meaning)>","romanization":"<Revised Romanization>","translation":"<Thai translation/meaning>","options":["<choice1>","<choice2>","<choice3>","<choice4>"],"answerIndex":0},\n` +
-    `  {"type":"fill_blank","prompt":"<instruction in Thai>","korean":"<Korean sentence with ___ for the blank>","reading":"<karaoke pronunciation (NOT the translation/meaning)>","romanization":"<romanization>","translation":"<Thai translation/meaning>","options":["<choice1>","<choice2>","<choice3>"],"answerIndex":0},\n` +
-    `  {"type":"matching","prompt":"<instruction in Thai, e.g., 'จับคู่คำเกาหลีกับคำแปลภาษาไทย'>","pairs":[{"korean":"<Korean>","thai":"<Thai translation/meaning>"},{"korean":"<Korean>","thai":"<Thai translation/meaning>"},{"korean":"<Korean>","thai":"<Thai translation/meaning>"}]},\n` +
-    `  {"type":"listening","prompt":"<instruction in Thai, e.g., 'ฟังแล้วเลือกคำที่ได้ยิน'>","korean":"<Korean to be spoken aloud>","reading":"<karaoke pronunciation (NOT the translation/meaning)>","romanization":"<romanization>","translation":"<Thai translation/meaning>","options":["<Korean choice1>","<Korean choice2>","<Korean choice3>"],"answerIndex":0}\n` +
+    `  {"type":"multiple_choice","prompt":"<question/instruction in Thai, e.g., 'เลือกคำแปลที่ถูกต้องของ...' หรือ 'คำใดคือ...'>","korean":"<${lang.label} word/phrase being asked about, in ${lang.script}>","reading":"<${lang.readingDesc}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai translation/meaning>","options":["<choice1>","<choice2>","<choice3>","<choice4>"],"answerIndex":0},\n` +
+    `  {"type":"fill_blank","prompt":"<instruction in Thai>","korean":"<${lang.label} sentence with ___ for the blank>","reading":"<${lang.readingDesc}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai translation/meaning>","options":["<choice1>","<choice2>","<choice3>"],"answerIndex":0},\n` +
+    `  {"type":"matching","prompt":"<instruction in Thai, e.g., 'จับคู่คำกับคำแปลภาษาไทย'>","pairs":[{"korean":"<${lang.label} text>","thai":"<Thai translation/meaning>"},{"korean":"<${lang.label} text>","thai":"<Thai translation/meaning>"},{"korean":"<${lang.label} text>","thai":"<Thai translation/meaning>"}]},\n` +
+    `  {"type":"listening","prompt":"<instruction in Thai, e.g., 'ฟังแล้วเลือกคำที่ได้ยิน'>","korean":"<${lang.label} text to be spoken aloud, in ${lang.script}>","reading":"<${lang.readingDesc}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai translation/meaning>","options":["<${lang.label} choice1>","<${lang.label} choice2>","<${lang.label} choice3>"],"answerIndex":0}\n` +
     `]}\n\n` +
     `RULES:\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
+    `- The "korean" field always holds the ${lang.label} text, regardless of its key name.\n` +
     `- "answerIndex" is the 0-based index of the correct entry in "options"\n` +
-    `- For "multiple_choice" and "fill_blank", "options" hold the answer choices (Thai meanings or Korean words as appropriate)\n` +
-    `- For "listening", "options" must all be Korean words/phrases (the learner picks the one they heard)\n` +
-    `- For "matching", provide 2-4 "pairs" that match Korean words/phrases with their correct Thai translations/meanings.\n` +
-    `- STRICTOR RULE FOR "reading": The "reading" field must strictly contain ONLY the Korean pronunciation written in Thai characters (karaoke), e.g. "ซากวา". It must NOT contain the Thai translation/meaning (e.g. do NOT put "แอปเปิ้ล" in the reading field).\n` +
-    `- The "translation" field must contain the Thai translation/meaning of the Korean word/sentence.\n` +
-    `- RULE FOR PRONUNCIATION IN TEXT STRINGS: Whenever you output a Korean word/phrase/sentence inside the "prompt" (โจทย์), the "options" (except for listening options), or the "korean" field in "matching" pairs, you MUST always append its pronunciation in Thai-script karaoke in parentheses next to it. For example:\n` +
-    `  * prompt: "เลือกคำแปลที่ถูกต้องของ 사과 (ซากวา)"\n` +
-    `  * options (if Korean): ["사과 (ซากวา)", "바นานา (พานานา)", "오렌지 (โอเรนจี)"]\n` +
-    `  * pairs (matching): [{"korean": "사과 (ซากวา)", "thai": "แอปเปิ้ล"}]\n` +
-    `  * listening options: Do NOT append pronunciation in the "listening" options (keep them as plain Korean, e.g. ["사과", "바นานา"], so it remains a pure listening test), but provide the correct pronunciation in the separate "reading" field.\n` +
+    `- For "multiple_choice" and "fill_blank", "options" hold the answer choices (Thai meanings or ${lang.label} words as appropriate)\n` +
+    `- For "listening", "options" must all be ${lang.label} words/phrases (the learner picks the one they heard)\n` +
+    `- For "matching", provide 2-4 "pairs" that match ${lang.label} words/phrases with their correct Thai translations/meanings.\n` +
+    `- STRICT RULE FOR "reading": The "reading" field must strictly contain ONLY ${lang.readingDesc}. It must NOT contain the Thai translation/meaning.\n` +
+    `- The "translation" field must contain the Thai translation/meaning of the ${lang.label} word/sentence.\n` +
+    `- RULE FOR PRONUNCIATION IN TEXT STRINGS: Whenever you output a ${lang.label} word/phrase/sentence inside the "prompt" (โจทย์), the "options" (except for listening options), or the "korean" field in "matching" pairs, you MUST always append its pronunciation in Thai-script karaoke in parentheses next to it (e.g. ${lang.readingExample}).\n` +
+    `  * For "listening" options, do NOT append pronunciation (keep them as plain ${lang.label} so it stays a pure listening test); provide the pronunciation only in the separate "reading" field.\n` +
     `- All instructions/prompts must be in Thai\n` +
     `- Do NOT add any text before or after the JSON`
   );
@@ -118,10 +121,15 @@ function validateInput(body: unknown): LessonRequest | null {
     wordContext = record.wordContext as string[];
   }
 
+  const language: TargetLanguage = isValidTargetLanguage(record.language)
+    ? record.language
+    : 'korean';
+
   return {
     topic: trimmedTopic,
     proficiencyLevel: record.proficiencyLevel as ProficiencyLevel,
     wordContext,
+    language,
   };
 }
 
@@ -140,7 +148,7 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { topic, proficiencyLevel, wordContext } = input;
+  const { topic, proficiencyLevel, wordContext, language } = input;
 
   // Read custom API key and model from request headers (user-provided config).
   const customApiKey = request.headers.get('x-custom-api-key');
@@ -154,7 +162,8 @@ export async function POST(
   const prompt = buildLessonSystemPrompt(
     topic,
     proficiencyLevel,
-    wordContext ?? []
+    wordContext ?? [],
+    language ?? 'korean'
   );
 
   // KKU has no system role — send the prompt as a single user message.

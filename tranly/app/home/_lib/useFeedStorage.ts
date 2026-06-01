@@ -3,10 +3,11 @@
 import { useCallback, useRef, useState } from 'react';
 import { FEED_WORDS_STORE, openDatabase } from '@/app/_lib/db';
 import type { FeedWord, FeedWordRecord } from './types';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 export interface UseFeedStorageReturn {
-  loadTodayWords: () => Promise<FeedWordRecord[]>;
-  saveWords: (words: FeedWord[]) => Promise<void>;
+  loadTodayWords: (language: TargetLanguage) => Promise<FeedWordRecord[]>;
+  saveWords: (words: FeedWord[], language: TargetLanguage) => Promise<void>;
   updateImage: (wordId: string, imageBlob: Blob) => Promise<void>;
   toggleBookmark: (wordId: string) => Promise<void>;
   removeWord: (wordId: string) => Promise<void>;
@@ -35,7 +36,7 @@ export function useFeedStorage(): UseFeedStorageReturn {
     return db;
   }, []);
 
-  const loadTodayWords = useCallback(async (): Promise<FeedWordRecord[]> => {
+  const loadTodayWords = useCallback(async (language: TargetLanguage): Promise<FeedWordRecord[]> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -44,8 +45,8 @@ export function useFeedStorage(): UseFeedStorageReturn {
       const records = await new Promise<FeedWordRecord[]>((resolve, reject) => {
         const tx = db.transaction(FEED_WORDS_STORE, 'readonly');
         const store = tx.objectStore(FEED_WORDS_STORE);
-        const index = store.index('generatedDate');
-        const req = index.getAll(todayKey);
+        const index = store.index('language_date');
+        const req = index.getAll(IDBKeyRange.only([language, todayKey]));
         req.onsuccess = () => resolve(req.result as FeedWordRecord[]);
         req.onerror = () => reject(req.error);
       });
@@ -62,7 +63,7 @@ export function useFeedStorage(): UseFeedStorageReturn {
   }, [getDb]);
 
   const saveWords = useCallback(
-    async (words: FeedWord[]): Promise<void> => {
+    async (words: FeedWord[], language: TargetLanguage): Promise<void> => {
       setIsLoading(true);
       setError(null);
       try {
@@ -74,15 +75,32 @@ export function useFeedStorage(): UseFeedStorageReturn {
           for (const word of words) {
             const record: FeedWordRecord = {
               id: crypto.randomUUID(),
-              korean: word.korean,
-              reading: word.reading,
-              romanization: word.romanization,
-              english: word.english,
-              thai: word.thai,
+              language,
               generatedDate: todayKey,
               bookmarked: false,
               imageBlob: null,
               createdAt: Date.now(),
+              thai: word.thai,
+              // Spread language-specific fields from the FeedWord
+              ...(word.language === 'korean' && {
+                korean: word.korean,
+                reading: word.reading,
+                romanization: word.romanization,
+                english: word.english,
+              }),
+              ...(word.language === 'japanese' && {
+                kanji: word.kanji,
+                hiragana: word.hiragana,
+                romaji: word.romaji,
+              }),
+              ...(word.language === 'chinese' && {
+                hanzi: word.hanzi,
+                pinyin: word.pinyin,
+              }),
+              ...(word.language === 'english' && {
+                word: word.word,
+                ipa: word.ipa,
+              }),
             };
             store.put(record);
           }
@@ -203,7 +221,7 @@ export function useFeedStorage(): UseFeedStorageReturn {
         const req = store.getAll();
         req.onsuccess = () => {
           const records = req.result as FeedWordRecord[];
-          resolve(records.map((r) => r.korean));
+          resolve(records.map((r) => r.korean).filter((k): k is string => !!k));
         };
         req.onerror = () => reject(req.error);
       });

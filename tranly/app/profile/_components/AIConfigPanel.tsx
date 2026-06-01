@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAIConfig } from "../_lib/useAIConfig";
+import { useStrings } from "@/app/_lib/strings";
 
 const MODEL_OPTIONS = [
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
@@ -12,10 +13,21 @@ const MODEL_OPTIONS = [
 ];
 
 export default function AIConfigPanel() {
-  const { apiKey, model, maskedKey, saveConfig, clearConfig } = useAIConfig();
+  const { 
+    apiKey, 
+    model, 
+    maskedKey, 
+    saveConfig, 
+    clearConfig, 
+    callsUsed, 
+    callsMax, 
+    simulateUsage, 
+    resetUsage 
+  } = useAIConfig();
   const [showKey, setShowKey] = useState(false);
   const [inputKey, setInputKey] = useState("");
   const [selectedModel, setSelectedModel] = useState(model);
+  const t = useStrings();
 
   // Sync selectedModel when hook value loads from localStorage
   useEffect(() => {
@@ -37,10 +49,46 @@ export default function AIConfigPanel() {
   };
 
   const displayValue = showKey ? (apiKey ?? "") : (maskedKey ?? "");
+  const percent = Math.round((callsUsed / callsMax) * 100);
 
   return (
-    <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
-      <p className="text-sm font-semibold text-text-primary mb-3">AI Configuration</p>
+    <div className="w-full">
+      <p className="text-sm font-semibold text-text-primary mb-3">{t.profile.aiSection}</p>
+
+      {/* AI Usage Meter */}
+      <div className="mb-5 p-3 rounded-xl border-3 border-border-color bg-[#FFF9F0] dark:bg-[#1a1a2e] flex flex-col gap-2 shadow-nb-sm">
+        <div className="flex justify-between items-center text-xs font-bold text-text-secondary">
+          <span>AI Usage (API Calls)</span>
+          <span>{callsUsed} / {callsMax} calls ({percent}%)</span>
+        </div>
+        
+        {/* Sleek Neobrutalist Progress Bar */}
+        <div className="w-full h-4 rounded-full border-3 border-border-color bg-white dark:bg-[#2d2d44] overflow-hidden shadow-nb-sm relative">
+          <div 
+            className="h-full bg-accent-blue border-r-3 border-border-color transition-all duration-300"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+
+        {/* Interactive controls for simulation/reset */}
+        <div className="flex justify-end gap-3 text-[10px] font-bold text-text-meta mt-1">
+          <button 
+            type="button"
+            onClick={simulateUsage} 
+            className="hover:underline cursor-pointer transition-colors"
+          >
+            + Simulate Call
+          </button>
+          <span>•</span>
+          <button 
+            type="button"
+            onClick={resetUsage} 
+            className="hover:underline cursor-pointer text-red-500 transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
 
       {/* API Key Input */}
       <div className="mb-3">

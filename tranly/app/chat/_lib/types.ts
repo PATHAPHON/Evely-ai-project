@@ -1,6 +1,8 @@
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
+
 export type ProficiencyLevel = 'beginner' | 'intermediate' | 'advanced';
 
-export type SpeechLang = 'ko-KR' | 'th-TH' | 'en-US';
+export type SpeechLang = 'ko-KR' | 'th-TH' | 'en-US' | 'ja-JP' | 'zh-CN';
 
 export type ChatErrorType =
   | 'invalid_input'
@@ -64,6 +66,8 @@ export interface SessionConfig {
   wordContext: SavedWord[];
   /** Optional goal/objective; when set, the AI ends the chat once it's reached. */
   goal: string;
+  /** Learning language the AI should converse in. */
+  language: TargetLanguage;
 }
 
 export interface SavedWord {
@@ -82,6 +86,8 @@ export interface ChatRequest {
   topic: string;
   wordContext?: string[];
   goal?: string;
+  /** Learning language the AI should converse in (defaults to Korean). */
+  language?: TargetLanguage;
 }
 
 export interface ChatMessagePayload {

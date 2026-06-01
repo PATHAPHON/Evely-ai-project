@@ -4,9 +4,12 @@ import type {
   FeedSuccessResponse,
   FeedErrorResponse,
 } from '@/app/home/_lib/types';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
+
+const VALID_LANGUAGES: TargetLanguage[] = ['english', 'japanese', 'korean', 'chinese'];
 
 type FeedErrorType = FeedErrorResponse['error']['type'];
 
@@ -30,15 +33,20 @@ function errorResponse(
 
 /**
  * Validate that the request body has the expected shape:
+ * - language: TargetLanguage
  * - excludeWords: string[]
  * - count: positive integer
  */
 function validateInput(
   body: unknown
-): { excludeWords: string[]; count: number } | null {
+): { language: TargetLanguage; excludeWords: string[]; count: number } | null {
   if (typeof body !== 'object' || body === null) return null;
 
   const record = body as Record<string, unknown>;
+
+  // language must be a valid TargetLanguage
+  if (typeof record.language !== 'string') return null;
+  if (!VALID_LANGUAGES.includes(record.language as TargetLanguage)) return null;
 
   // excludeWords must be an array of strings
   if (!Array.isArray(record.excludeWords)) return null;
@@ -50,9 +58,54 @@ function validateInput(
   if (!Number.isInteger(record.count) || record.count <= 0) return null;
 
   return {
+    language: record.language as TargetLanguage,
     excludeWords: record.excludeWords as string[],
     count: record.count,
   };
+}
+
+/**
+ * Build a language-specific prompt for vocabulary generation.
+ */
+function buildPrompt(language: TargetLanguage, count: number, exclusionText: string): string {
+  switch (language) {
+    case 'korean':
+      return (
+        `Generate ${count} Korean vocabulary words for a language learner. ` +
+        exclusionText +
+        'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
+        'Each element must have this schema: {"korean":"<Korean word in Hangul>","reading":"<Korean pronunciation written in Thai script>","romanization":"<Korean pronunciation in Revised Romanization>","english":"<English translation>","thai":"<Thai translation>"}. ' +
+        'Example: [{"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล"}]. ' +
+        'Return ONLY the JSON array and nothing else.'
+      );
+    case 'japanese':
+      return (
+        `Generate ${count} Japanese vocabulary words for a language learner. ` +
+        exclusionText +
+        'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
+        'Each element must have this schema: {"kanji":"<word in kanji>","hiragana":"<hiragana reading>","romaji":"<romaji pronunciation>","thai":"<Thai translation>"}. ' +
+        'Example: [{"kanji":"猫","hiragana":"ねこ","romaji":"neko","thai":"แมว"}]. ' +
+        'Return ONLY the JSON array and nothing else.'
+      );
+    case 'chinese':
+      return (
+        `Generate ${count} Chinese vocabulary words for a language learner. ` +
+        exclusionText +
+        'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
+        'Each element must have this schema: {"hanzi":"<word in Chinese characters>","pinyin":"<pinyin with tone marks>","thai":"<Thai translation>"}. ' +
+        'Example: [{"hanzi":"猫","pinyin":"māo","thai":"แมว"}]. ' +
+        'Return ONLY the JSON array and nothing else.'
+      );
+    case 'english':
+      return (
+        `Generate ${count} English vocabulary words for a language learner. ` +
+        exclusionText +
+        'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
+        'Each element must have this schema: {"word":"<English word>","ipa":"<IPA phonetic transcription>","thai":"<Thai translation>"}. ' +
+        'Example: [{"word":"cat","ipa":"/kæt/","thai":"แมว"}]. ' +
+        'Return ONLY the JSON array and nothing else.'
+      );
+  }
 }
 
 export async function POST(
@@ -72,7 +125,7 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { excludeWords, count } = input;
+  const { language, excludeWords, count } = input;
 
   // Read custom API key and model from request headers (user-provided config)
   const customApiKey = request.headers.get('x-custom-api-key');
@@ -93,6 +146,9 @@ export async function POST(
   // Use custom model if provided, otherwise fall back to default
   const model = customModel || 'gemini-3.1-flash-lite';
 
+  // Build language-specific prompt
+  const promptText = buildPrompt(language, count, exclusionText);
+
   // Construct KKU IntelSphere API request
   const requestBody = {
     model,
@@ -102,13 +158,7 @@ export async function POST(
         content: [
           {
             type: 'text' as const,
-            text:
-              `Generate ${count} Korean vocabulary words for a language learner. ` +
-              exclusionText +
-              'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
-              'Each element must have this schema: {"korean":"<Korean word in Hangul>","reading":"<Korean pronunciation written in Thai script>","romanization":"<Korean pronunciation in Revised Romanization>","english":"<English translation>","thai":"<Thai translation>"}. ' +
-              'Example: [{"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล"}]. ' +
-              'Return ONLY the JSON array and nothing else.',
+            text: promptText,
           },
         ],
       },
@@ -166,7 +216,7 @@ export async function POST(
     }
 
     // Parse the feed response content into FeedWord[]
-    const words = parseFeedResponse(content);
+    const words = parseFeedResponse(content, language);
 
     if (words.length === 0) {
       console.error('Failed to parse any words from content:', content);

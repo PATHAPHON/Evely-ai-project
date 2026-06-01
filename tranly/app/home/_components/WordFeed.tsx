@@ -1,20 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LoadingOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined } from "@ant-design/icons";
 import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
+import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
 import type { FeedWordRecord } from "../_lib/types";
 import { useFeedStorage } from "../_lib/useFeedStorage";
 import { useExclusionList } from "../_lib/useExclusionList";
 import { useWordStorage } from "@/app/learn/_lib/useWordStorage";
 import WordCard from "./WordCard";
+import Mascot from "@/app/chat/_components/Mascot";
 
 /**
- * Render the Korean word onto a canvas and return a JPEG Blob — used as
+ * Render the word's native script onto a canvas and return a JPEG Blob — used as
  * a placeholder image when a feed word is bookmarked into the Word page,
  * since feed words don't have an associated photo.
  */
-async function generateWordPlaceholderBlob(korean: string): Promise<Blob | null> {
+async function generateWordPlaceholderBlob(text: string): Promise<Blob | null> {
   if (typeof document === "undefined") return null;
   const size = 256;
   const canvas = document.createElement("canvas");
@@ -26,10 +28,10 @@ async function generateWordPlaceholderBlob(korean: string): Promise<Blob | null>
   ctx.fillStyle = "#FFF0F6";
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = "#000000";
-  ctx.font = "bold 96px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+  ctx.font = "bold 96px 'Apple SD Gothic Neo', 'Noto Sans KR', 'Noto Sans JP', 'Noto Sans SC', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(korean, size / 2, size / 2 + 8);
+  ctx.fillText(text, size / 2, size / 2 + 8);
 
   return new Promise<Blob | null>((resolve) => {
     canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.9);
@@ -37,11 +39,24 @@ async function generateWordPlaceholderBlob(korean: string): Promise<Blob | null>
 }
 
 /**
- * Shows a single Korean word card at a time. Swiping up (TikTok-style)
- * removes the current word from storage and fetches the next one, so
- * storage holds at most one feed word at any time.
+ * Gets the primary display word from a FeedWordRecord based on its language.
+ */
+function getPrimaryWord(word: FeedWordRecord): string {
+  if (word.korean) return word.korean;
+  if (word.kanji) return word.kanji;
+  if (word.hanzi) return word.hanzi;
+  if (word.word) return word.word;
+  return '';
+}
+
+/**
+ * Shows a single word card at a time for the active language.
+ * Swiping up (TikTok-style) removes the current word from storage
+ * and fetches the next one, so storage holds at most one feed word
+ * at any time.
  */
 export default function WordFeed() {
+  const { activeLanguage } = useActiveLanguage();
   const [word, setWord] = useState<FeedWordRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
@@ -68,7 +83,7 @@ export default function WordFeed() {
         "Content-Type": "application/json",
         ...getCustomAIHeaders(),
       },
-      body: JSON.stringify({ excludeWords: exclusionList, count: 1 }),
+      body: JSON.stringify({ language: activeLanguage, excludeWords: exclusionList, count: 1 }),
     });
 
     if (!response.ok) {
@@ -80,14 +95,14 @@ export default function WordFeed() {
     }
 
     const data = await response.json();
-    await saveWords(data.words);
-    const stored = await loadTodayWords();
+    await saveWords(data.words, activeLanguage);
+    const stored = await loadTodayWords(activeLanguage);
     const latest = stored[stored.length - 1];
     if (!latest) throw new Error("ไม่สามารถสร้างคำศัพท์ได้ กรุณาลองอีกครั้ง");
     return latest;
-  }, [getExclusionList, saveWords, loadTodayWords]);
+  }, [getExclusionList, saveWords, loadTodayWords, activeLanguage]);
 
-  // Initial load: use existing stored word, or fetch one.
+  // Initial load and re-load on language switch: use existing stored word, or fetch one.
   useEffect(() => {
     let cancelled = false;
 
@@ -95,7 +110,7 @@ export default function WordFeed() {
       setLoading(true);
       setError(null);
       try {
-        const stored = await loadTodayWords();
+        const stored = await loadTodayWords(activeLanguage);
         if (stored.length > 0) {
           const keep = stored[stored.length - 1];
           for (const w of stored.slice(0, -1)) {
@@ -108,11 +123,15 @@ export default function WordFeed() {
         }
       } catch (err) {
         if (!cancelled) {
+          // On error, retain existing word (don't clear it) and show error message
           setError(
             err instanceof Error
               ? err.message
               : "Failed to load word. Please try again."
           );
+          // If we already have a word displayed, keep it visible
+          // Only set word to null if we had no word before
+          setWord((prev) => prev);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -123,7 +142,7 @@ export default function WordFeed() {
     return () => {
       cancelled = true;
     };
-  }, [fetchOne, loadTodayWords, removeWord]);
+  }, [fetchOne, loadTodayWords, removeWord, activeLanguage]);
 
   const handleToggleBookmark = useCallback(
     async (wordId: string) => {
@@ -136,19 +155,20 @@ export default function WordFeed() {
       );
 
       // On bookmark ON: also persist to the Word page storage so the user
-      // can find it under /learn. Skip if already saved (matching by korean).
+      // can find it under /learn. Skip if already saved.
       if (!wasBookmarked && word) {
         try {
+          const primaryWord = getPrimaryWord(word);
           const existing = await listLearnWords();
-          if (existing.some((w) => w.korean === word.korean)) return;
-          const blob = await generateWordPlaceholderBlob(word.korean);
+          if (existing.some((w) => w.korean === primaryWord)) return;
+          const blob = await generateWordPlaceholderBlob(primaryWord);
           if (!blob) return;
           await saveLearnWord(blob, {
             label: word.thai,
-            korean: word.korean,
-            reading: word.reading,
-            romanization: word.romanization,
-            english: word.english,
+            korean: word.korean || primaryWord,
+            reading: word.reading || '',
+            romanization: word.romanization || '',
+            english: word.english || '',
           });
         } catch {
           // non-blocking — bookmark toggle already succeeded
@@ -171,18 +191,29 @@ export default function WordFeed() {
       setExiting(false);
       setWord(next);
     } catch (err) {
+      // On error, retain existing entries and show error message (Req 3.6)
       setError(
         err instanceof Error
           ? err.message
           : "ไม่สามารถสร้างคำศัพท์ได้ กรุณาลองอีกครั้ง"
       );
-      setWord(null);
+      // Don't clear the word — try to reload from storage
+      try {
+        const stored = await loadTodayWords(activeLanguage);
+        if (stored.length > 0) {
+          setWord(stored[stored.length - 1]);
+        } else {
+          setWord(null);
+        }
+      } catch {
+        setWord(null);
+      }
       setExiting(false);
       setDragY(0);
     } finally {
       setAdvancing(false);
     }
-  }, [word, advancing, removeWord, fetchOne]);
+  }, [word, advancing, removeWord, fetchOne, loadTodayWords, activeLanguage]);
 
   // Touch handlers — track finger drag, commit advance if swiped past threshold.
   const handleTouchStart = useCallback(
@@ -237,19 +268,22 @@ export default function WordFeed() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3">
-        <LoadingOutlined className="text-3xl text-black dark:text-white animate-spin" />
-        <p className="text-sm text-gray-600 dark:text-white/60 font-medium">Loading word...</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <Mascot state="thinking" size={64} />
+        <div className="flex items-center gap-1.5">
+          <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "0ms" }} />
+          <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "200ms" }} />
+          <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "400ms" }} />
+        </div>
       </div>
     );
   }
 
   if (error && !word) {
     return (
-      <div
-        className="mx-4 mt-4 p-6 rounded-2xl text-center border-3 border-accent-red bg-[#FFF0F6] dark:bg-[#3d2d44]"
-      >
-        <p className="text-base text-accent-red font-bold mb-4">{error}</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+        <Mascot size={72} />
+        <p className="text-base text-accent-red font-bold">{error}</p>
         <button
           type="button"
           onClick={advance}
@@ -291,8 +325,13 @@ export default function WordFeed() {
       )}
 
       {advancing && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-          <LoadingOutlined className="text-2xl text-black dark:text-white animate-spin" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none bg-background/80 backdrop-blur-sm">
+          <Mascot state="thinking" size={64} />
+          <div className="flex items-center gap-1.5">
+            <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "0ms" }} />
+            <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "200ms" }} />
+            <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "400ms" }} />
+          </div>
           <p className="text-sm text-gray-600 dark:text-white/60 font-medium">Loading next word...</p>
         </div>
       )}

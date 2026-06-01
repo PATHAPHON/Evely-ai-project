@@ -7,7 +7,9 @@ const VALID_LEVELS: ProficiencyLevel[] = ['beginner', 'intermediate', 'advanced'
  * Validates whether a session configuration is valid.
  * Returns true if the topic is valid (2-100 chars after trim) AND a valid proficiency level is selected.
  */
-export function validateSessionConfig(config: SessionConfig): boolean {
+export function validateSessionConfig(
+  config: Omit<SessionConfig, 'language'> & Partial<Pick<SessionConfig, 'language'>>
+): boolean {
   return (
     validateTopic(config.topic) &&
     VALID_LEVELS.includes(config.proficiencyLevel)
