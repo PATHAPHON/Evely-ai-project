@@ -61,11 +61,61 @@ export interface UIStrings {
     subtitle: string;
     settings: string;
     generalSection: string;
+    generalDesc: string;
     aiSection: string;
+    aiDesc: string;
     dangerZone: string;
+    dangerDesc: string;
+    dangerWarning: string;
     learningLanguage: string;
     translationLanguage: string;
     darkMode: string;
+    /** Header actions + viewer. */
+    editProfile: string;
+    shareProfile: string;
+    shareCopied: string;
+    viewProfileAria: string;
+    settingsAria: string;
+    closeAria: string;
+    account: string;
+    accountItem: string;
+    accountDesc: string;
+    /** Edit-profile form. */
+    changePhoto: string;
+    displayNameLabel: string;
+    handleLabel: string;
+    roleLabel: string;
+    rolePlaceholder: string;
+    bioLabel: string;
+    bioPlaceholder: string;
+    locationLabel: string;
+    locationPlaceholder: string;
+    save: string;
+    cancel: string;
+    saved: string;
+    noBio: string;
+    /** Stat strip. */
+    statWords: string;
+    statFlashcards: string;
+    statSessions: string;
+    statStreak: string;
+    /** Learning heatmap. */
+    heatTitle: (days: number) => string;
+    heatSubtitle: (days: number, period: string) => string;
+    period3m: string;
+    period6m: string;
+    period1y: string;
+    legendLess: string;
+    legendMore: string;
+    heatTapHint: string;
+    heatStudied: (dateStr: string, cards: number) => string;
+    heatRest: (dateStr: string) => string;
+    monthsShort: string[];
+    /** Streak card. */
+    streakTitle: (days: number) => string;
+    streakRecord: (max: number, toBeat: number) => string;
+    streakNew: (days: number) => string;
+    weekdays: string[];
   };
   scan: {
     closeAria: string;
@@ -132,11 +182,64 @@ const en: UIStrings = {
     subtitle: 'Customize your learning experience',
     settings: 'Settings',
     generalSection: 'General & Learning',
+    generalDesc: 'Change learning language, dark mode, and translations',
     aiSection: 'AI Assistant Settings',
+    aiDesc: 'Configure API key and model version for AI assistant',
     dangerZone: 'Danger Zone',
+    dangerDesc: 'Delete or reset all of your learning history data',
+    dangerWarning:
+      'Permanently delete all your learning stats, vocabulary, study sessions, and AI assistant chat transcripts. This action is irreversible.',
     learningLanguage: 'Learning Language',
     translationLanguage: 'Translation Language',
     darkMode: 'Dark Mode',
+    editProfile: 'Edit Profile',
+    shareProfile: 'Share',
+    shareCopied: 'Profile link copied',
+    viewProfileAria: 'View full profile',
+    settingsAria: 'Settings',
+    closeAria: 'Close',
+    account: 'Account',
+    accountItem: 'Account & Profile',
+    accountDesc: 'Manage your personal info',
+    changePhoto: 'Change photo',
+    displayNameLabel: 'Display name',
+    handleLabel: 'Username',
+    roleLabel: 'Status / Learning',
+    rolePlaceholder: 'e.g. Learning Korean N4',
+    bioLabel: 'Bio',
+    bioPlaceholder: 'Tell us a little about yourself',
+    locationLabel: 'Location',
+    locationPlaceholder: 'e.g. Bangkok',
+    save: 'Save',
+    cancel: 'Cancel',
+    saved: 'Profile saved',
+    noBio: 'No bio yet — tap Edit Profile to add one.',
+    statWords: 'Words',
+    statFlashcards: 'Flashcards',
+    statSessions: 'Sessions',
+    statStreak: 'Day streak',
+    heatTitle: (days) => `${days} days studied`,
+    heatSubtitle: (days, period) => `Studied ${days} days in the last ${period}`,
+    period3m: '3mo',
+    period6m: '6mo',
+    period1y: '1yr',
+    legendLess: 'Less',
+    legendMore: 'More',
+    heatTapHint: 'Tap a cell to see that day’s activity',
+    heatStudied: (dateStr, cards) =>
+      `${dateStr} · reviewed ${cards} ${cards === 1 ? 'card' : 'cards'}`,
+    heatRest: (dateStr) => `${dateStr} · rest day, no study`,
+    monthsShort: [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ],
+    streakTitle: (days) => `${days}-day streak`,
+    streakRecord: (max, toBeat) =>
+      toBeat > 0
+        ? `Best ${max} days · ${toBeat} more to beat it!`
+        : `Best ${max} days · new record! 🎉`,
+    streakNew: (days) => `${days} days in a row — keep it up!`,
+    weekdays: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
   },
   scan: {
     closeAria: 'Close camera',
@@ -203,11 +306,63 @@ const th: UIStrings = {
     subtitle: 'ปรับแต่งประสบการณ์การเรียนของคุณ',
     settings: 'การตั้งค่า',
     generalSection: 'ทั่วไปและการเรียนรู้',
+    generalDesc: 'เปลี่ยนภาษาหลัก โหมดมืด และคำแปล',
     aiSection: 'การตั้งค่าปัญญาประดิษฐ์ AI',
+    aiDesc: 'ตั้งค่าคีย์ API และเวอร์ชันโมเดลสำหรับผู้ช่วย AI',
     dangerZone: 'พื้นที่อันตราย',
+    dangerDesc: 'ลบหรือล้างข้อมูลประวัติการเรียนทั้งหมดของคุณ',
+    dangerWarning:
+      'ลบประวัติการเรียนรู้ คำศัพท์ที่บันทึกไว้ทั้งหมด รวมถึงบทสนทนาและประวัติแชทกับ AI (คำเตือน: การกระทำนี้ไม่สามารถย้อนกลับได้)',
     learningLanguage: 'ภาษาหลักที่เรียน',
     translationLanguage: 'ภาษาของคำแปล',
     darkMode: 'โหมดมืด',
+    editProfile: 'แก้ไขโปรไฟล์',
+    shareProfile: 'แชร์',
+    shareCopied: 'คัดลอกลิงก์โปรไฟล์แล้ว',
+    viewProfileAria: 'ดูโปรไฟล์แบบเต็ม',
+    settingsAria: 'ตั้งค่า',
+    closeAria: 'ปิด',
+    account: 'บัญชี',
+    accountItem: 'บัญชีและโปรไฟล์',
+    accountDesc: 'จัดการข้อมูลส่วนตัว',
+    changePhoto: 'เปลี่ยนรูปโปรไฟล์',
+    displayNameLabel: 'ชื่อที่แสดง',
+    handleLabel: 'ชื่อผู้ใช้',
+    roleLabel: 'สถานะ / กำลังเรียน',
+    rolePlaceholder: 'เช่น กำลังเรียนภาษาเกาหลี N4',
+    bioLabel: 'แนะนำตัว',
+    bioPlaceholder: 'เล่าเกี่ยวกับตัวคุณสักนิด',
+    locationLabel: 'ที่อยู่',
+    locationPlaceholder: 'เช่น กรุงเทพฯ',
+    save: 'บันทึก',
+    cancel: 'ยกเลิก',
+    saved: 'บันทึกโปรไฟล์แล้ว',
+    noBio: 'ยังไม่มีคำแนะนำตัว — แตะแก้ไขโปรไฟล์เพื่อเพิ่ม',
+    statWords: 'คำศัพท์',
+    statFlashcards: 'แฟลชการ์ด',
+    statSessions: 'รอบเรียน',
+    statStreak: 'วันต่อเนื่อง',
+    heatTitle: (days) => `${days} วันที่เรียน`,
+    heatSubtitle: (days, period) => `เรียนไป ${days} วันในช่วง ${period}ที่ผ่านมา`,
+    period3m: '3ด.',
+    period6m: '6ด.',
+    period1y: '1ปี',
+    legendLess: 'น้อย',
+    legendMore: 'มาก',
+    heatTapHint: 'แตะที่ช่องเพื่อดูกิจกรรมของวันนั้น',
+    heatStudied: (dateStr, cards) => `${dateStr} · ทบทวนไป ${cards} คำ`,
+    heatRest: (dateStr) => `${dateStr} · หยุดพัก ไม่ได้เรียน`,
+    monthsShort: [
+      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+    ],
+    streakTitle: (days) => `ต่อเนื่อง ${days} วัน`,
+    streakRecord: (max, toBeat) =>
+      toBeat > 0
+        ? `สถิติสูงสุด ${max} วัน · อีก ${toBeat} วันทำลายสถิติ!`
+        : `สถิติสูงสุด ${max} วัน · สถิติใหม่! 🎉`,
+    streakNew: (days) => `ต่อเนื่อง ${days} วันแล้ว — สู้ต่อไป!`,
+    weekdays: ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'],
   },
   scan: {
     closeAria: 'ปิดกล้อง',

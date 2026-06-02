@@ -51,15 +51,7 @@ export default function LibraryPage() {
   const isThai = language === "thai";
   const { activeLanguage } = useActiveLanguage();
   const [messageApi, contextHolder] = message.useMessage();
-  const [isPageLoading, setIsPageLoading] = useState(true);
   const [isTabLoading, setIsTabLoading] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsPageLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<TabType>("words");
@@ -270,7 +262,7 @@ export default function LibraryPage() {
 
   // Render high-fidelity skeleton for words tab
   const renderWordsSkeleton = () => (
-    <div className="px-4 mt-6 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       {[1, 2, 3].map((i, index) => (
         <div 
           key={i}
@@ -300,7 +292,7 @@ export default function LibraryPage() {
 
   // Render high-fidelity skeleton for flashcards tab
   const renderFlashcardsSkeleton = () => (
-    <div className="px-4 mt-6 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       {[1, 2, 3].map((i, index) => (
         <div
           key={i}
@@ -329,7 +321,7 @@ export default function LibraryPage() {
 
   // Render high-fidelity skeleton for lessons tab
   const renderLessonsSkeleton = () => (
-    <div className="px-4 mt-6 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       {[1, 2, 3].map((i, index) => (
         <div
           key={i}
@@ -359,7 +351,7 @@ export default function LibraryPage() {
 
   // Render high-fidelity skeleton for chats tab
   const renderChatsSkeleton = () => (
-    <div className="px-4 mt-6 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       {[1, 2, 3].map((i, index) => (
         <div
           key={i}
@@ -414,8 +406,24 @@ export default function LibraryPage() {
               transform: translateY(0);
             }
           }
+          @keyframes elementFadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(8px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
           .animate-card-fade-in {
             animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) both;
+          }
+          .animate-card-content {
+            animation: elementFadeIn 0.35s cubic-bezier(0.215, 0.61, 0.355, 1) both;
+          }
+          .animate-card-actions {
+            animation: elementFadeIn 0.35s cubic-bezier(0.215, 0.61, 0.355, 1) both;
           }
         `}</style>
         
@@ -424,15 +432,9 @@ export default function LibraryPage() {
           className="flex-1 overflow-y-auto flex flex-col"
           style={{ paddingBottom: "calc(180px + env(safe-area-inset-bottom, 0px))" }}
         >
-          {isPageLoading ? (
-            activeTab === "words" ? renderWordsSkeleton() :
-            activeTab === "flashcards" ? renderFlashcardsSkeleton() :
-            activeTab === "lessons" ? renderLessonsSkeleton() :
-            renderChatsSkeleton()
-          ) : (
-            <div className="flex-1 flex flex-col animate-card-fade-in">
-              {/* Header */}
-              <div className="flex items-center gap-3 p-[20px_16px_0]">
+          <div className="flex-1 flex flex-col animate-card-fade-in">
+            {/* Header */}
+            <div className="flex items-center gap-3 p-[20px_16px_0]">
             {studyingSet && !flashcardStudying && (
               <button
                 type="button"
@@ -500,42 +502,69 @@ export default function LibraryPage() {
                           const romanization = word.romanization || word.reading || word.korean || word.label;
                           const translation = language === "thai" ? word.label : (word.english || "");
                           const hasKorean = Boolean(word.korean);
+                          const baseDelay = Math.min(index, 8) * 60;
 
                           return (
                             <div 
                               key={word.id}
                               className="rounded-2xl border-3 border-border-color bg-card-bg p-3 shadow-nb-md flex gap-3 items-center animate-card-fade-in"
-                              style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+                              style={{ animationDelay: `${baseDelay}ms` }}
                             >
                               {imgUrl ? (
                                 <img
                                   src={imgUrl}
                                   alt={word.korean || word.label}
-                                  className="w-24 h-24 object-cover rounded-xl border-3 border-border-color bg-white"
+                                  className="w-24 h-24 object-cover rounded-xl border-3 border-border-color bg-white animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 60}ms` }}
                                 />
                               ) : (
-                                <div className="w-24 h-24 rounded-xl border-3 border-border-color bg-white flex items-center justify-center text-2xl">
+                                <div 
+                                  className="w-24 h-24 rounded-xl border-3 border-border-color bg-white flex items-center justify-center text-2xl animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 60}ms` }}
+                                >
                                   🍎
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-lg font-extrabold text-text-primary truncate">
+                                <p 
+                                  className="text-lg font-extrabold text-text-primary truncate animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 120}ms` }}
+                                >
                                   {romanization}
                                 </p>
                                 {word.korean && (
-                                  <p className="text-sm font-bold text-text-primary truncate mt-0.5">
+                                  <p 
+                                    className="text-sm font-bold text-text-primary truncate mt-0.5 animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 170}ms` }}
+                                  >
                                     {word.korean}
                                   </p>
                                 )}
                                 {language === "thai" && word.reading && (
-                                  <p className="text-xs font-semibold text-text-secondary truncate mt-0.5">{word.reading}</p>
+                                  <p 
+                                    className="text-xs font-semibold text-text-secondary truncate mt-0.5 animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 210}ms` }}
+                                  >
+                                    {word.reading}
+                                  </p>
                                 )}
-                                <p className="text-xs font-semibold text-text-secondary truncate">{translation}</p>
-                                <p className="text-[10px] font-medium text-text-meta mt-1">
+                                <p 
+                                  className="text-xs font-semibold text-text-secondary truncate animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 250}ms` }}
+                                >
+                                  {translation}
+                                </p>
+                                <p 
+                                  className="text-[10px] font-medium text-text-meta mt-1 animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 290}ms` }}
+                                >
                                   {formatDate(word.createdAt)}
                                 </p>
                               </div>
-                              <div className="flex flex-col gap-2">
+                              <div 
+                                className="flex flex-col gap-2 animate-card-actions"
+                                style={{ animationDelay: `${baseDelay + 340}ms` }}
+                              >
                                 <button
                                   type="button"
                                   onClick={() => hasKorean && speak(word.korean!)}
@@ -575,66 +604,83 @@ export default function LibraryPage() {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-3">
-                        {flashcardSets.map((set, index) => (
-                          <div
-                            key={set.id}
-                            className="rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex justify-between items-start gap-3 animate-card-fade-in"
-                            style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xl">🎴</span>
-                                <h3 className="text-base font-black text-text-primary truncate">
-                                  {set.name}
-                                </h3>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary mt-1.5">
-                                <span className="inline-block rounded-md border-2 border-border-color bg-accent-pink-bg px-2 py-0.5 font-bold text-text-primary">
-                                  {set.wordIds.length} {isThai ? "คำ" : "words"}
-                                </span>
-                                <span className="text-[10px] font-medium text-text-meta">{formatDate(set.createdAt)}</span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2 items-end">
-                              <button
-                                type="button"
-                                onClick={() => setStudyingSet(set)}
-                                className="h-8 rounded-lg border-2 border-border-color bg-accent-green text-white px-3 text-xs font-bold shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] flex items-center gap-1 cursor-pointer"
-                              >
-                                <PlayCircleOutlined />
-                                <span>{t.library.playFlashcard}</span>
-                              </button>
-                              
-                              {confirmDeleteId === set.id ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSet(set.id)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm cursor-pointer"
+                        {flashcardSets.map((set, index) => {
+                          const baseDelay = Math.min(index, 8) * 60;
+                          return (
+                            <div
+                              key={set.id}
+                              className="rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex justify-between items-start gap-3 animate-card-fade-in"
+                              style={{ animationDelay: `${baseDelay}ms` }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span 
+                                    className="text-xl animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 60}ms` }}
                                   >
-                                    ✓
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteId(null)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    🎴
+                                  </span>
+                                  <h3 
+                                    className="text-base font-black text-text-primary truncate animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 120}ms` }}
                                   >
-                                    ✕
-                                  </button>
+                                    {set.name}
+                                  </h3>
                                 </div>
-                              ) : (
+                                <div 
+                                  className="flex flex-wrap items-center gap-2 text-xs text-text-secondary mt-1.5 animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 180}ms` }}
+                                >
+                                  <span className="inline-block rounded-md border-2 border-border-color bg-accent-pink-bg px-2 py-0.5 font-bold text-text-primary">
+                                    {set.wordIds.length} {isThai ? "คำ" : "words"}
+                                  </span>
+                                  <span className="text-[10px] font-medium text-text-meta">{formatDate(set.createdAt)}</span>
+                                </div>
+                              </div>
+
+                              <div 
+                                className="flex flex-col gap-2 items-end animate-card-actions"
+                                style={{ animationDelay: `${baseDelay + 240}ms` }}
+                              >
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmDeleteId(set.id)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm cursor-pointer"
+                                  onClick={() => setStudyingSet(set)}
+                                  className="h-8 rounded-lg border-2 border-border-color bg-accent-green text-white px-3 text-xs font-bold shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] flex items-center gap-1 cursor-pointer"
                                 >
-                                  <DeleteOutlined style={{ fontSize: 12 }} />
+                                  <PlayCircleOutlined />
+                                  <span>{t.library.playFlashcard}</span>
                                 </button>
-                              )}
+                                
+                                {confirmDeleteId === set.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => removeSet(set.id)}
+                                      className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteId(null)}
+                                      className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteId(set.id)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm cursor-pointer"
+                                  >
+                                    <DeleteOutlined style={{ fontSize: 12 }} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </>
@@ -653,72 +699,89 @@ export default function LibraryPage() {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-3">
-                        {lessons.map((lesson, index) => (
-                          <div
-                            key={lesson.id}
-                            className="rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex justify-between items-start gap-3 animate-card-fade-in"
-                            style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <ReadOutlined style={{ fontSize: 16, color: "var(--accent-green)" }} />
-                                <h3 className="text-base font-black text-text-primary truncate">
-                                  {lesson.topic}
-                                </h3>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary mt-1.5">
-                                <span className="inline-block rounded-md border-2 border-border-color bg-gray-100 dark:bg-gray-800 px-2 py-0.5 font-bold text-text-primary">
-                                  {lesson.proficiencyLevel.toUpperCase()}
-                                </span>
-                                {lesson.lastScore !== null && (
-                                  <span className="inline-flex items-center gap-1 rounded-md border-2 border-border-color bg-accent-yellow px-2 py-0.5 font-bold text-black">
-                                    <TrophyOutlined style={{ fontSize: 12 }} />
-                                    {lesson.lastScore}/{lesson.total}
+                        {lessons.map((lesson, index) => {
+                          const baseDelay = Math.min(index, 8) * 60;
+                          return (
+                            <div
+                              key={lesson.id}
+                              className="rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex justify-between items-start gap-3 animate-card-fade-in"
+                              style={{ animationDelay: `${baseDelay}ms` }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span 
+                                    className="inline-block animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 60}ms` }}
+                                  >
+                                    <ReadOutlined style={{ fontSize: 16, color: "var(--accent-green)" }} />
                                   </span>
-                                )}
-                                <span className="text-[10px] font-medium text-text-meta">{formatDate(lesson.createdAt)}</span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2 items-end">
-                              <button
-                                type="button"
-                                onClick={() => handleReplayLesson(lesson)}
-                                className="h-8 rounded-lg border-2 border-border-color bg-accent-green text-white px-3 text-xs font-bold shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] flex items-center gap-1 cursor-pointer"
-                              >
-                                <PlayCircleOutlined />
-                                <span>{t.library.replayLesson}</span>
-                              </button>
-                              
-                              {confirmDeleteId === lesson.id ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteLesson(lesson.id)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm cursor-pointer"
+                                  <h3 
+                                    className="text-base font-black text-text-primary truncate animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 120}ms` }}
                                   >
-                                    ✓
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteId(null)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm cursor-pointer"
-                                  >
-                                    ✕
-                                  </button>
+                                    {lesson.topic}
+                                  </h3>
                                 </div>
-                              ) : (
+                                <div 
+                                  className="flex flex-wrap items-center gap-2 text-xs text-text-secondary mt-1.5 animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 180}ms` }}
+                                >
+                                  <span className="inline-block rounded-md border-2 border-border-color bg-gray-100 dark:bg-gray-800 px-2 py-0.5 font-bold text-text-primary">
+                                    {lesson.proficiencyLevel.toUpperCase()}
+                                  </span>
+                                  {lesson.lastScore !== null && (
+                                    <span className="inline-flex items-center gap-1 rounded-md border-2 border-border-color bg-accent-yellow px-2 py-0.5 font-bold text-black">
+                                      <TrophyOutlined style={{ fontSize: 12 }} />
+                                      {lesson.lastScore}/{lesson.total}
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] font-medium text-text-meta">{formatDate(lesson.createdAt)}</span>
+                                </div>
+                              </div>
+
+                              <div 
+                                className="flex flex-col gap-2 items-end animate-card-actions"
+                                style={{ animationDelay: `${baseDelay + 240}ms` }}
+                              >
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmDeleteId(lesson.id)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm cursor-pointer"
+                                  onClick={() => handleReplayLesson(lesson)}
+                                  className="h-8 rounded-lg border-2 border-border-color bg-accent-green text-white px-3 text-xs font-bold shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] flex items-center gap-1 cursor-pointer"
                                 >
-                                  <DeleteOutlined style={{ fontSize: 12 }} />
+                                  <PlayCircleOutlined />
+                                  <span>{t.library.replayLesson}</span>
                                 </button>
-                              )}
+                                
+                                {confirmDeleteId === lesson.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteLesson(lesson.id)}
+                                      className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteId(null)}
+                                      className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteId(lesson.id)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm cursor-pointer"
+                                  >
+                                    <DeleteOutlined style={{ fontSize: 12 }} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </>
@@ -737,69 +800,89 @@ export default function LibraryPage() {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-3">
-                        {conversations.map((session, index) => (
-                          <div
-                            key={session.id}
-                            className="rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex justify-between items-start gap-3 animate-card-fade-in"
-                            style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <MessageOutlined style={{ fontSize: 16, color: "var(--accent-blue)" }} />
-                                <h3 className="text-base font-black text-text-primary truncate">
-                                  {session.topic}
-                                </h3>
-                              </div>
-                              <p className="text-xs text-text-secondary truncate mt-0.5">
-                                {session.goal || (isThai ? "การสนทนาปลายเปิด" : "Open-ended Chat")}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary mt-1.5">
-                                <span className="inline-block rounded-md border-2 border-border-color bg-gray-100 dark:bg-gray-800 px-2 py-0.5 font-bold text-text-primary">
-                                  {session.proficiencyLevel.toUpperCase()}
-                                </span>
-                                <span className="text-[10px] font-medium text-text-meta">{formatDate(session.createdAt)}</span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2 items-end">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenChatLog(session)}
-                                className="h-8 rounded-lg border-2 border-border-color bg-accent-blue text-white px-3 text-xs font-bold shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] flex items-center gap-1 cursor-pointer"
-                              >
-                                <BookOutlined />
-                                <span>{t.library.readChat}</span>
-                              </button>
-                              
-                              {confirmDeleteId === session.id ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteConversation(session.id)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm cursor-pointer"
+                        {conversations.map((session, index) => {
+                          const baseDelay = Math.min(index, 8) * 60;
+                          return (
+                            <div
+                              key={session.id}
+                              className="rounded-xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex justify-between items-start gap-3 animate-card-fade-in"
+                              style={{ animationDelay: `${baseDelay}ms` }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span 
+                                    className="inline-block animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 60}ms` }}
                                   >
-                                    ✓
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteId(null)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    <MessageOutlined style={{ fontSize: 16, color: "var(--accent-blue)" }} />
+                                  </span>
+                                  <h3 
+                                    className="text-base font-black text-text-primary truncate animate-card-content"
+                                    style={{ animationDelay: `${baseDelay + 120}ms` }}
                                   >
-                                    ✕
-                                  </button>
+                                    {session.topic}
+                                  </h3>
                                 </div>
-                              ) : (
+                                <p 
+                                  className="text-xs text-text-secondary truncate mt-0.5 animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 180}ms` }}
+                                >
+                                  {session.goal || (isThai ? "การสนทนาปลายเปิด" : "Open-ended Chat")}
+                                </p>
+                                <div 
+                                  className="flex flex-wrap items-center gap-2 text-xs text-text-secondary mt-1.5 animate-card-content"
+                                  style={{ animationDelay: `${baseDelay + 220}ms` }}
+                                >
+                                  <span className="inline-block rounded-md border-2 border-border-color bg-gray-100 dark:bg-gray-800 px-2 py-0.5 font-bold text-text-primary">
+                                    {session.proficiencyLevel.toUpperCase()}
+                                  </span>
+                                  <span className="text-[10px] font-medium text-text-meta">{formatDate(session.createdAt)}</span>
+                                </div>
+                              </div>
+
+                              <div 
+                                className="flex flex-col gap-2 items-end animate-card-actions"
+                                style={{ animationDelay: `${baseDelay + 280}ms` }}
+                              >
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmDeleteId(session.id)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm cursor-pointer"
+                                  onClick={() => handleOpenChatLog(session)}
+                                  className="h-8 rounded-lg border-2 border-border-color bg-accent-blue text-white px-3 text-xs font-bold shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] flex items-center gap-1 cursor-pointer"
                                 >
-                                  <DeleteOutlined style={{ fontSize: 12 }} />
+                                  <BookOutlined />
+                                  <span>{t.library.readChat}</span>
                                 </button>
-                              )}
+                                
+                                {confirmDeleteId === session.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteConversation(session.id)}
+                                      className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-accent-red text-white text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteId(null)}
+                                      className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-gray-200 dark:bg-gray-700 text-text-primary text-xs font-bold shadow-nb-sm cursor-pointer"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteId(session.id)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border-color bg-card-bg text-accent-red shadow-nb-sm cursor-pointer"
+                                  >
+                                    <DeleteOutlined style={{ fontSize: 12 }} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </>
@@ -809,7 +892,6 @@ export default function LibraryPage() {
             </>
           )}
           </div>
-        )}
         </div>
 
         {/* Create Flashcard Set Modal */}

@@ -175,7 +175,7 @@ export async function POST(
         content: [{ type: 'text' as const, text: prompt }],
       },
     ],
-    max_tokens: 2048,
+    max_tokens: 4096,
   };
 
   const controller = new AbortController();

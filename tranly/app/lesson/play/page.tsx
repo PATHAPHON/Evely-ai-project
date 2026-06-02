@@ -22,7 +22,9 @@ export default function LessonPlayPage() {
 
   // null = still reading; false = nothing queued; true = a lesson was started.
   const [hasConfig, setHasConfig] = useState<boolean | null>(null);
+  const [isVisualLoading, setIsVisualLoading] = useState(true);
   const startedRef = useRef(false);
+  const lessonLoadStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -34,8 +36,30 @@ export default function LessonPlayPage() {
     // mismatch. The one-time setState below is that client-only handoff.
     const config = takePendingLesson();
     setHasConfig(config !== null);
-    if (config) void lesson.startLesson(config);
+    if (config) {
+      lessonLoadStartRef.current = Date.now();
+      void lesson.startLesson(config);
+    }
   }, [lesson]);
+
+  // Ensure minimum loading duration of 3.2s so the cinematic animations play beautifully
+  useEffect(() => {
+    if (hasConfig && lesson.status !== 'loading' && lesson.status !== 'idle') {
+      const start = lessonLoadStartRef.current;
+      if (start) {
+        const elapsed = Date.now() - start;
+        const MIN_DURATION = 3200;
+        if (elapsed < MIN_DURATION) {
+          const remaining = MIN_DURATION - elapsed;
+          const timer = setTimeout(() => {
+            setIsVisualLoading(false);
+          }, remaining);
+          return () => clearTimeout(timer);
+        }
+      }
+      setIsVisualLoading(false);
+    }
+  }, [hasConfig, lesson.status]);
 
   const goToChat = () => router.push('/chat');
 
@@ -90,7 +114,7 @@ export default function LessonPlayPage() {
             exercise={lesson.currentExercise}
             currentIndex={lesson.currentIndex}
             total={lesson.total}
-            isLoading={lesson.status === 'loading' || hasConfig === null}
+            isLoading={isVisualLoading || hasConfig === null}
             error={lesson.status === 'error' ? lesson.error : null}
             onAnswer={lesson.submitAnswer}
             onNext={lesson.nextExercise}

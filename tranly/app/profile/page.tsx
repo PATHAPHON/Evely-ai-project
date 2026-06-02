@@ -1,181 +1,130 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import UserHeader from "./_components/UserHeader";
-import LearningStats from "./_components/LearningStats";
-import SettingsSection from "./_components/SettingsSection";
-import AppInfo from "./_components/AppInfo";
 import { useStrings } from "@/app/_lib/strings";
+import { useUserProfile } from "./_lib/useUserProfile";
+import { useLanguageLearningStats } from "./_lib/useLearningStats";
+import { useStudyHeatmap } from "./_lib/useStudyHeatmap";
+import ProfileHeader from "./_components/ProfileHeader";
+import LearningStats from "./_components/LearningStats";
+import LearningHeatmap from "./_components/LearningHeatmap";
+import StreakCard from "./_components/StreakCard";
+import AppInfo from "./_components/AppInfo";
+import ProfileViewerModal from "./_components/ProfileViewerModal";
+import EditProfileSheet from "./_components/EditProfileSheet";
+import SettingsSheet from "./_components/SettingsSheet";
+import BottomSheet from "./_components/BottomSheet";
+import GlobalLanguageSelector from "@/app/_components/GlobalLanguageSelector";
+import LanguageSelector from "./_components/LanguageSelector";
+import ThemeToggle from "./_components/ThemeToggle";
+import AIConfigPanel from "./_components/AIConfigPanel";
+import DataManagement from "./_components/DataManagement";
 
 export default function ProfilePage() {
   const router = useRouter();
   const t = useStrings();
-  const [isPageLoading, setIsPageLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsPageLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
+  const profile = useUserProfile();
+  const stats = useLanguageLearningStats();
+  const heatmap = useStudyHeatmap(53);
+  const streak = heatmap?.currentStreak ?? 0;
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showViewer, setShowViewer] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [showAI, setShowAI] = useState(false);
+  const [showDanger, setShowDanger] = useState(false);
+
+  // Lightweight toast.
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastMsg(null), 1800);
   }, []);
 
+  const handleShare = useCallback(() => {
+    const url =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/profile`
+        : "/profile";
+    navigator.clipboard?.writeText(url).catch(() => {});
+    showToast(t.profile.shareCopied);
+  }, [showToast, t.profile.shareCopied]);
+
+  const viewerStats = [
+    { n: stats.wordCount, label: t.profile.statWords },
+    { n: stats.flashcardSetCount, label: t.profile.statFlashcards },
+    { n: streak, label: t.profile.statStreak },
+  ];
+
   return (
-    <div className="w-full h-dvh bg-background text-foreground flex flex-col relative overflow-hidden font-sans select-none">
-      {/* Local styles for premium silky page-load transitions */}
+    <div className="relative flex h-dvh w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
       <style>{`
-        @keyframes cardFadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-card-fade-in {
-          animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
-        }
+        @keyframes cardFadeInUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
+        .animate-card-fade-in { animation: cardFadeInUp 0.45s cubic-bezier(0.215,0.61,0.355,1) forwards; }
       `}</style>
+
+      {/* App bar */}
+      <div className="flex shrink-0 items-center justify-between px-4 pb-2 pt-6">
+        <h1
+          className="text-3xl font-extrabold leading-tight tracking-tight text-text-primary"
+          style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+        >
+          {t.profile.title}
+        </h1>
+        <button
+          type="button"
+          onClick={() => setShowSettings(true)}
+          aria-label={t.profile.settingsAria}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-card-bg text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none cursor-pointer"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+
       {/* Scrollable content */}
       <div
         className="flex-1 overflow-y-auto"
         style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
       >
-        {isPageLoading ? (
-          <div className="px-4 mt-6 flex flex-col gap-6 animate-pulse">
-            {/* User Header Skeleton */}
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-[#3d3d5c] border-3 border-border-color shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="w-1/3 h-5 rounded bg-gray-200 dark:bg-[#3d3d5c]" />
-                <div className="w-2/3 h-3.5 rounded bg-gray-200 dark:bg-[#3d3d5c]" />
-              </div>
-            </div>
+        <div className="animate-card-fade-in flex flex-col gap-6 px-4 pt-2">
+          <ProfileHeader
+            profile={profile}
+            onEdit={() => setShowEdit(true)}
+            onShare={handleShare}
+            onOpenViewer={() => setShowViewer(true)}
+          />
 
-            {/* Stats Skeleton */}
-            <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex flex-col items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-[#3d3d5c]" />
-                  <div className="w-12 h-6 rounded bg-gray-200 dark:bg-[#3d3d5c]" />
-                  <div className="w-16 h-4 rounded bg-gray-200 dark:bg-[#3d3d5c]" />
-                </div>
-              ))}
-            </div>
+          <LearningStats
+            wordCount={stats.wordCount}
+            flashcardSetCount={stats.flashcardSetCount}
+            studySessionCount={stats.studySessionCount}
+            streak={streak}
+            isLoading={stats.isLoading}
+          />
 
-            {/* Settings Section Skeleton */}
-            <div className="flex flex-col gap-2">
-              <div className="w-24 h-5 rounded bg-gray-200 dark:bg-[#3d3d5c] mb-1" />
-              <div className="rounded-2xl border-3 border-border-color bg-card-bg shadow-nb-md p-4 space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex justify-between items-center py-1">
-                    <div className="flex-1 space-y-2">
-                      <div className="w-1/4 h-4 rounded bg-gray-200 dark:bg-[#3d3d5c]" />
-                      <div className="w-1/2 h-3 rounded bg-gray-200 dark:bg-[#3d3d5c]" />
-                    </div>
-                    <div className="w-5 h-5 rounded bg-gray-200 dark:bg-[#3d3d5c]" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="px-4 mt-6 flex flex-col gap-6 animate-card-fade-in">
-            {/* User Header */}
-            <UserHeader />
+          <LearningHeatmap heatmap={heatmap} />
 
-          {/* Learning Stats */}
-          <LearningStats />
+          <StreakCard heatmap={heatmap} />
 
-          {/* Settings Menu Links */}
-          <SettingsSection title={t.profile.settings}>
-            <div className="rounded-2xl border-3 border-border-color bg-card-bg shadow-nb-md overflow-hidden flex flex-col">
-              {/* Item 1: Preferences */}
-              <button
-                onClick={() => router.push("/profile/preferences")}
-                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-[#3d3d5c] transition-colors cursor-pointer text-left"
-              >
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-text-primary">
-                    {t.profile.generalSection}
-                  </span>
-                  <span className="text-xs text-text-secondary mt-0.5">
-                    {t.common.loading === "กำลังโหลด..."
-                      ? "เปลี่ยนภาษาหลัก โหมดมืด และคำแปล"
-                      : "Change learning language, dark mode, and translations"}
-                  </span>
-                </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-text-secondary shrink-0" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
-
-              {/* Divider */}
-              <div className="h-[3px] bg-border-color" />
-
-              {/* Item 2: AI Settings */}
-              <button
-                onClick={() => router.push("/profile/ai")}
-                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-[#3d3d5c] transition-colors cursor-pointer text-left"
-              >
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-text-primary">
-                    {t.profile.aiSection}
-                  </span>
-                  <span className="text-xs text-text-secondary mt-0.5">
-                    {t.common.loading === "กำลังโหลด..."
-                      ? "ตั้งค่าคีย์ API และเวอร์ชันโมเดลสำหรับผู้ช่วย AI"
-                      : "Configure API key and model version for AI assistant"}
-                  </span>
-                </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-text-secondary shrink-0" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
-
-              {/* Divider */}
-              <div className="h-[3px] bg-border-color" />
-
-              {/* Item 3: Danger Zone */}
-              <button
-                onClick={() => router.push("/profile/danger")}
-                className="w-full flex items-center justify-between p-4 hover:bg-red-50/30 dark:hover:bg-red-950/20 transition-colors cursor-pointer text-left"
-              >
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-accent-red">
-                    {t.profile.dangerZone}
-                  </span>
-                  <span className="text-xs text-text-secondary mt-0.5">
-                    {t.common.loading === "กำลังโหลด..."
-                      ? "ลบหรือล้างข้อมูลประวัติการเรียนทั้งหมดของคุณ"
-                      : "Delete or reset all of your learning history data"}
-                  </span>
-                </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-accent-red shrink-0" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
-            </div>
-          </SettingsSection>
-
-          {/* App Info */}
           <AppInfo />
         </div>
-        )}
       </div>
 
-      {/* Bottom nav bar */}
+      {/* Bottom nav */}
       <div
-        className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-4 z-40 rounded-2xl shadow-nb-md"
+        className="absolute left-4 right-4 z-40 grid h-[80px] grid-cols-4 rounded-2xl border-3 border-border-color bg-card-bg p-[8px_8px_14px] shadow-nb-md"
         style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
       >
-        <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-          onClick={() => router.push("/home")}
-        >
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
+        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-secondary" onClick={() => router.push("/home")}>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
             </svg>
@@ -183,11 +132,8 @@ export default function ProfilePage() {
           <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
         </a>
 
-        <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-          onClick={() => router.push("/library")}
-        >
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
+        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-secondary" onClick={() => router.push("/library")}>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="4 7 4 4 20 4 20 7" />
               <line x1="9" y1="20" x2="15" y2="20" />
@@ -197,12 +143,9 @@ export default function ProfilePage() {
           <span className="text-[11px] font-bold tracking-wider">{t.common.tabLibrary}</span>
         </a>
 
-        <a
-          className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-          onClick={() => router.push("/chat")}
-        >
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
-            <svg width="22" height="22" viewBox="0 0 18 18" shapeRendering="crispEdges" style={{ display: 'block' }}>
+        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-secondary" onClick={() => router.push("/chat")}>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl">
+            <svg width="22" height="22" viewBox="0 0 18 18" shapeRendering="crispEdges" style={{ display: "block" }}>
               <rect x="6" y="1" width="1" height="2" fill="currentColor" />
               <rect x="11" y="1" width="1" height="2" fill="currentColor" />
               <rect x="1" y="6" width="3" height="6" fill="currentColor" />
@@ -218,8 +161,8 @@ export default function ProfilePage() {
           <span className="text-[11px] font-bold tracking-wider">{t.common.tabAIScan}</span>
         </a>
 
-        <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary transition-colors">
-          <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm transition-all">
+        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-primary">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-pink-bg shadow-nb-sm">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <circle cx="12" cy="8" r="4" />
               <path d="M20 21a8 8 0 0 0-16 0" />
@@ -228,6 +171,103 @@ export default function ProfilePage() {
           <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
         </a>
       </div>
+
+      {/* Toast */}
+      {toastMsg && (
+        <div className="pointer-events-none absolute bottom-[112px] left-1/2 z-[60] -translate-x-1/2 rounded-xl border-3 border-border-color bg-text-primary px-4 py-2 text-sm font-bold text-background shadow-nb-md">
+          {toastMsg}
+        </div>
+      )}
+
+      {/* Overlays */}
+      <ProfileViewerModal
+        open={showViewer}
+        onClose={() => setShowViewer(false)}
+        profile={profile}
+        stats={viewerStats}
+        onEdit={() => {
+          setShowViewer(false);
+          setShowEdit(true);
+        }}
+        onShare={handleShare}
+      />
+
+      <EditProfileSheet
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        profile={profile}
+        onSaved={() => showToast(t.profile.saved)}
+      />
+
+      <SettingsSheet
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        onEditProfile={() => setShowEdit(true)}
+        onOpenPreferences={() => setShowPreferences(true)}
+        onOpenAI={() => setShowAI(true)}
+        onOpenDanger={() => setShowDanger(true)}
+      />
+
+      {/* General & Learning */}
+      <BottomSheet
+        open={showPreferences}
+        onClose={() => setShowPreferences(false)}
+        title={t.profile.generalSection}
+        ariaLabel={t.profile.generalSection}
+        closeAria={t.profile.closeAria}
+      >
+        <div className="p-4">
+          <div className="flex flex-col gap-5 rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
+            <div>
+              <p className="mb-3 text-sm font-semibold text-text-primary">
+                {t.profile.learningLanguage}
+              </p>
+              <GlobalLanguageSelector />
+            </div>
+            <div className="h-[2px] bg-border-color/10 dark:bg-border-color/20" />
+            <LanguageSelector />
+            <div className="h-[2px] bg-border-color/10 dark:bg-border-color/20" />
+            <ThemeToggle />
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* AI Assistant Settings */}
+      <BottomSheet
+        open={showAI}
+        onClose={() => setShowAI(false)}
+        title={t.profile.aiSection}
+        ariaLabel={t.profile.aiSection}
+        closeAria={t.profile.closeAria}
+        heightClass="h-[88%]"
+      >
+        <div className="p-4">
+          <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
+            <AIConfigPanel />
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* Danger Zone */}
+      <BottomSheet
+        open={showDanger}
+        onClose={() => setShowDanger(false)}
+        title={t.profile.dangerZone}
+        ariaLabel={t.profile.dangerZone}
+        closeAria={t.profile.closeAria}
+        heightClass="max-h-[60%]"
+      >
+        <div className="p-4">
+          <div className="flex flex-col gap-2 rounded-2xl border-3 border-accent-red bg-card-bg p-4 shadow-nb-md">
+            <p className="text-xs leading-relaxed text-text-secondary">
+              {t.profile.dangerWarning}
+            </p>
+            <div className="mt-1">
+              <DataManagement />
+            </div>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }

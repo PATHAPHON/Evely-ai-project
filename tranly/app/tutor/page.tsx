@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeftOutlined,
@@ -53,14 +53,7 @@ export default function TutorPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [viewedMessages, setViewedMessages] = useState<ChatMessage[]>([]);
   const [viewedTopic, setViewedTopic] = useState<string>('');
-  const [isPageLoading, setIsPageLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsPageLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Hooks
   const {
@@ -113,6 +106,28 @@ export default function TutorPage() {
     loadSavedWords();
   }, [loadSavedWords]);
 
+  // Transition from the AI guide loading state to active chat once loading is complete or has an error
+  const guideLoadStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (view === 'guide' && !isSessionLoading && (messages.length > 0 || sessionError)) {
+      const start = guideLoadStartRef.current;
+      if (start) {
+        const elapsed = Date.now() - start;
+        const MIN_DURATION = 3200; // 3.2s to fully enjoy the spiral vortex (0.8s) + pop-grow + pulsing aura
+        if (elapsed < MIN_DURATION) {
+          const remaining = MIN_DURATION - elapsed;
+          const timer = setTimeout(() => {
+            setView('active-chat');
+            guideLoadStartRef.current = null;
+          }, remaining);
+          return () => clearTimeout(timer);
+        }
+      }
+      setView('active-chat');
+      guideLoadStartRef.current = null;
+    }
+  }, [view, isSessionLoading, messages.length, sessionError]);
+
   // Check for lesson replay request on mount or view change
   useEffect(() => {
     try {
@@ -133,6 +148,16 @@ export default function TutorPage() {
     (config: SessionConfig) => {
       startSession(config);
       setView('active-chat');
+    },
+    [startSession],
+  );
+
+  // Handle starting a new session from the AI Guide
+  const handleGuideStartSession = useCallback(
+    (config: SessionConfig) => {
+      guideLoadStartRef.current = Date.now();
+      startSession(config);
+      // Let the guide loading screen remain active; view will transition via the useEffect once messages arrive
     },
     [startSession],
   );
@@ -385,56 +410,55 @@ export default function TutorPage() {
           animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
         }
       `}</style>
-      {/* Header */}
-      <div className="p-[20px_16px_0]">
+      {/* Exit button — shown on the AI guide entry screen so the learner can
+          back out to the previous page. FLOATS absolutely over the chat layout. */}
+      {view === 'guide' && (
+        <button
+          type="button"
+          onClick={() => handleNav('/home')}
+          className="absolute top-5 left-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border-3 border-border-color bg-card-bg text-text-primary shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none hover:bg-gray-50 dark:hover:bg-[#3d3d5c]"
+          aria-label={isThai ? 'ออก' : 'Exit'}
+        >
+          <ArrowLeftOutlined style={{ fontSize: 18 }} />
+        </button>
+      )}
 
-        {/* Exit button — shown on the AI guide entry screen so the learner can
-            back out to the previous page. */}
-        {view === 'guide' && (
-          <button
-            type="button"
-            onClick={() => handleNav('/home')}
-            className="inline-flex items-center gap-2 rounded-xl border-3 border-border-color bg-card-bg px-3 py-2 text-sm font-bold text-text-primary shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
-          >
-            <ArrowLeftOutlined />
-            {isThai ? 'ออก' : 'Exit'}
-          </button>
-        )}
-
-        {/* Mode toggle: Chat vs Lessons — hidden while the AI guide is leading. */}
-        {view !== 'guide' && (
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border-3 border-border-color bg-card-bg p-1.5 shadow-nb-sm">
-          <button
-            type="button"
-            onClick={() => setMode('chat')}
-            disabled={navLocked}
-            className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
-              navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-            } ${
-              mode === 'chat'
-                ? 'bg-accent-green text-white'
-                : 'bg-transparent text-text-secondary'
-            }`}
-          >
-            {isThai ? 'แชท' : 'Chat'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('lesson')}
-            disabled={navLocked}
-            className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
-              navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-            } ${
-              mode === 'lesson'
-                ? 'bg-accent-green text-white'
-                : 'bg-transparent text-text-secondary'
-            }`}
-          >
-            {isThai ? 'บทเรียน' : 'Lessons'}
-          </button>
+      {/* Header — shown only in setup, chat, and other views (hidden in guide walkthrough) */}
+      {view !== 'guide' && (
+        <div className="p-[20px_16px_0]">
+          {/* Mode toggle: Chat vs Lessons — hidden while the AI guide is leading. */}
+          <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border-3 border-border-color bg-card-bg p-1.5 shadow-nb-sm">
+            <button
+              type="button"
+              onClick={() => setMode('chat')}
+              disabled={navLocked}
+              className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+                navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+              } ${
+                mode === 'chat'
+                  ? 'bg-accent-green text-white'
+                  : 'bg-transparent text-text-secondary'
+              }`}
+            >
+              {isThai ? 'แชท' : 'Chat'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('lesson')}
+              disabled={navLocked}
+              className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+                navLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+              } ${
+                mode === 'lesson'
+                  ? 'bg-accent-green text-white'
+                  : 'bg-transparent text-text-secondary'
+              }`}
+            >
+              {isThai ? 'บทเรียน' : 'Lessons'}
+            </button>
+          </div>
         </div>
-        )}
-      </div>
+      )}
 
       {/* Save error banner */}
       {saveError && (
@@ -445,33 +469,7 @@ export default function TutorPage() {
 
       {/* Main content area */}
       <main className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        {isPageLoading ? (
-          <div className="flex-1 flex flex-col gap-4 p-4 overflow-y-auto animate-pulse">
-            {/* Mascot welcoming bubble skeleton */}
-            <div className="flex max-w-[85%] items-start gap-2 self-start w-full">
-              <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#3d3d5c] shrink-0" />
-              <div className="h-16 w-3/4 rounded-2xl rounded-tl-md border-3 border-border-color bg-gray-200 dark:bg-[#3d3d5c] shadow-nb-sm" />
-            </div>
-            {/* Another question skeleton bubble */}
-            <div className="flex max-w-[85%] items-start gap-2 self-start w-full">
-              <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#3d3d5c] shrink-0" />
-              <div className="h-12 w-1/2 rounded-2xl rounded-tl-md border-3 border-border-color bg-gray-200 dark:bg-[#3d3d5c] shadow-nb-sm" />
-            </div>
-
-            {/* Spacer to push controls to the bottom */}
-            <div className="flex-1" />
-
-            {/* Unified suggestions skeleton */}
-            <div className="flex flex-wrap gap-2 mb-2 w-full animate-pulse">
-              <div className="w-32 h-12 rounded-xl border-3 border-border-color bg-gray-200 dark:bg-[#3d3d5c] shadow-nb-sm" />
-              <div className="w-36 h-12 rounded-xl border-3 border-border-color bg-gray-200 dark:bg-[#3d3d5c] shadow-nb-sm" />
-            </div>
-
-            {/* Input box skeleton */}
-            <div className="h-16 w-full rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] shadow-nb-md shrink-0 animate-pulse" />
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col overflow-hidden animate-card-fade-in">
+        <div className="flex-1 flex flex-col overflow-hidden animate-card-fade-in">
             {/* ===== AI guide (default entry) ===== */}
             {view === 'guide' && (
               <AIGuide
@@ -479,7 +477,7 @@ export default function TutorPage() {
                 selectedWords={selectedWords}
                 onOpenWordSelector={() => setShowWordSelector(true)}
                 wordSelectorOpen={showWordSelector}
-                onStartChat={handleStartSession}
+                onStartChat={handleGuideStartSession}
                 onStartLesson={handleGuideStartLesson}
               />
             )}
@@ -640,7 +638,6 @@ export default function TutorPage() {
             />
           )}
           </div>
-        )}
       </main>
 
       {/* Word selector modal */}

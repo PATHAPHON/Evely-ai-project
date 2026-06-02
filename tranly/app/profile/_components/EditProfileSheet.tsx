@@ -1,0 +1,171 @@
+"use client";
+
+import { useState } from "react";
+import { useStrings } from "@/app/_lib/strings";
+import BottomSheet from "./BottomSheet";
+import SlothMascot from "./SlothMascot";
+import type { UseUserProfileReturn } from "../_lib/useUserProfile";
+
+interface EditProfileSheetProps {
+  open: boolean;
+  onClose: () => void;
+  profile: UseUserProfileReturn;
+  onSaved: () => void;
+}
+
+const BIO_MAX = 120;
+
+const fieldClass =
+  "w-full rounded-xl border-3 border-border-color bg-card-bg px-3.5 py-3 text-[15px] text-text-primary outline-none transition-shadow focus:shadow-nb-sm";
+const labelClass =
+  "mb-2 block text-xs font-bold uppercase tracking-wide text-text-secondary";
+
+/** Bottom-sheet form for editing the persisted profile fields. */
+export default function EditProfileSheet({
+  open,
+  onClose,
+  profile,
+  onSaved,
+}: EditProfileSheetProps) {
+  const t = useStrings();
+  const [name, setName] = useState(profile.displayName);
+  const [handle, setHandle] = useState(profile.handle);
+  const [role, setRole] = useState(profile.role);
+  const [bio, setBio] = useState(profile.bio);
+  const [location, setLocation] = useState(profile.location);
+
+  // Seed the form from the latest profile each time the sheet transitions to
+  // open. Adjusting state during render (the React-recommended pattern) avoids
+  // an effect + cascading render.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open && !wasOpen) {
+    setWasOpen(true);
+    setName(profile.displayName);
+    setHandle(profile.handle);
+    setRole(profile.role);
+    setBio(profile.bio);
+    setLocation(profile.location);
+  } else if (!open && wasOpen) {
+    setWasOpen(false);
+  }
+
+  function handleSave() {
+    profile.updateProfile({
+      displayName: name,
+      handle: handle.replace(/^@/, ""),
+      role,
+      bio,
+      location,
+    });
+    onClose();
+    onSaved();
+  }
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={t.profile.editProfile}
+      ariaLabel={t.profile.editProfile}
+      closeAria={t.profile.closeAria}
+      heightClass="h-[88%]"
+      footer={
+        <div className="flex gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-2.5 text-sm font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none cursor-pointer"
+          >
+            {t.profile.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex-1 rounded-xl border-3 border-border-color bg-accent-green py-2.5 text-sm font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none cursor-pointer"
+          >
+            {t.profile.save}
+          </button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-5 px-4 py-5">
+        {/* Avatar preview */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-3 border-border-color bg-accent-pink-bg shadow-nb-md">
+            <SlothMascot size={56} interactive />
+          </div>
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="ef-name">{t.profile.displayNameLabel}</label>
+          <input
+            id="ef-name"
+            className={fieldClass}
+            type="text"
+            value={name}
+            maxLength={40}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="ef-handle">{t.profile.handleLabel}</label>
+          <div className="flex items-center rounded-xl border-3 border-border-color bg-card-bg focus-within:shadow-nb-sm">
+            <span className="pl-3.5 font-mono text-[15px] text-text-secondary">@</span>
+            <input
+              id="ef-handle"
+              className="flex-1 bg-transparent px-2 py-3 text-[15px] text-text-primary outline-none"
+              type="text"
+              value={handle}
+              maxLength={20}
+              autoCapitalize="none"
+              spellCheck={false}
+              onChange={(e) => setHandle(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="ef-role">{t.profile.roleLabel}</label>
+          <input
+            id="ef-role"
+            className={fieldClass}
+            type="text"
+            value={role}
+            maxLength={40}
+            placeholder={t.profile.rolePlaceholder}
+            onChange={(e) => setRole(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="ef-bio">{t.profile.bioLabel}</label>
+          <textarea
+            id="ef-bio"
+            className={`${fieldClass} min-h-20 resize-none leading-relaxed`}
+            value={bio}
+            maxLength={BIO_MAX}
+            placeholder={t.profile.bioPlaceholder}
+            onChange={(e) => setBio(e.target.value)}
+          />
+          <div className="mt-1.5 text-right font-mono text-xs text-text-meta">
+            {bio.length}/{BIO_MAX}
+          </div>
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="ef-loc">{t.profile.locationLabel}</label>
+          <input
+            id="ef-loc"
+            className={fieldClass}
+            type="text"
+            value={location}
+            maxLength={40}
+            placeholder={t.profile.locationPlaceholder}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
+      </div>
+    </BottomSheet>
+  );
+}

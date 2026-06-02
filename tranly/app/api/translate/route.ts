@@ -67,7 +67,7 @@ export async function POST(
         ],
       },
     ],
-    max_tokens: 512,
+    max_tokens: 1024,
   };
 
   const controller = new AbortController();

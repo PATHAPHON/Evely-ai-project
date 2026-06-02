@@ -9,6 +9,7 @@ import { speechLangForLanguage } from '../_lib/speechLangForLanguage';
 import type { LessonExercise } from '../_lib/lessonTypes';
 import ChoiceExercise from './ChoiceExercise';
 import MatchingExercise from './MatchingExercise';
+import Mascot from './Mascot';
 
 interface LessonPlayerProps {
   exercise: LessonExercise | null;
@@ -61,11 +62,59 @@ export default function LessonPlayer({
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-color border-t-[#52C41A]" />
-        <p className="text-base font-bold text-text-primary">
-          {isThai ? 'กำลังสร้างบทเรียน...' : 'Generating lesson...'}
-        </p>
+      <div className="flex flex-1 flex-col items-center justify-center bg-black/[0.01] animate-fade-in relative p-8">
+        <style>{`
+          @keyframes auraPulse {
+            0% {
+              transform: scale(0.9);
+              opacity: 0.15;
+              box-shadow: 0 0 20px 10px rgba(64, 150, 255, 0.3);
+            }
+            50% {
+              transform: scale(1.08);
+              opacity: 0.4;
+              box-shadow: 0 0 40px 20px rgba(64, 150, 255, 0.5);
+            }
+            100% {
+              transform: scale(0.9);
+              opacity: 0.15;
+              box-shadow: 0 0 20px 10px rgba(64, 150, 255, 0.3);
+            }
+          }
+          .animate-aura-pulse {
+            animation: auraPulse 2s ease-in-out infinite;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+          }
+        `}</style>
+        
+        {/* Glowing Aura Ring behind the Mascot */}
+        <div className="relative flex items-center justify-center mb-6">
+          <div className="absolute w-[140px] h-[140px] rounded-full animate-aura-pulse" />
+          <div className="relative">
+            <Mascot size={120} state="thinking" />
+          </div>
+        </div>
+        
+        {/* Loading status text */}
+        <div className="px-6 text-center">
+          <p className="text-xl font-black text-text-primary animate-pulse">
+            {isThai ? 'กำลังเตรียมบทเรียนเฉพาะตัวคุณ...' : 'Generating your custom lesson...'}
+          </p>
+          <p className="text-sm font-bold text-text-secondary mt-2 flex items-center justify-center gap-1">
+            {isThai ? 'กรุณารอสักครู่นะจ๊ะ' : 'Please wait a moment'}
+            <span className="flex gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary" />
+            </span>
+          </p>
+        </div>
       </div>
     );
   }

@@ -113,7 +113,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         content: [{ type: 'text' as const, text: systemPrompt }],
       },
     ],
-    max_tokens: 512,
+    max_tokens: 1024,
   };
 
   const controller = new AbortController();

@@ -50,10 +50,6 @@ export default function FlashcardPage() {
     setView('study');
   }, []);
 
-  const handleCancelSetup = useCallback(() => {
-    router.push('/chat');
-  }, [router]);
-
   // Only treat "no words" as final once the initial load has completed, so the
   // empty state doesn't flash while IndexedDB is still being read.
   const hasNoWords = wordsLoaded && savedWords.length === 0;
@@ -62,8 +58,38 @@ export default function FlashcardPage() {
     <div className="flex flex-col h-dvh bg-background relative">
       {navMessageHolder}
 
+      {/* Local styles for premium silky page-load transitions */}
+      <style>{`
+        @keyframes cardFadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-card-fade-in {
+          animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+        }
+      `}</style>
+
+      {/* Exit button — floats over the setup guide so the learner can back out
+          to the chat hub. Mirrors the tutor page. */}
+      {view === 'setup' && (
+        <button
+          type="button"
+          onClick={() => handleNav('/chat')}
+          className="absolute top-5 left-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border-3 border-border-color bg-card-bg text-text-primary shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none hover:bg-gray-50 dark:hover:bg-[#3d3d5c]"
+          aria-label={isThai ? 'ออก' : 'Exit'}
+        >
+          <ArrowLeftOutlined style={{ fontSize: 18 }} />
+        </button>
+      )}
+
       {/* Main content area */}
-      <main className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <main className="flex-1 flex flex-col overflow-hidden animate-card-fade-in" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {hasNoWords ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="text-5xl">🎴</div>
@@ -90,7 +116,6 @@ export default function FlashcardPage() {
               <FlashcardSetupGuide
                 savedWords={savedWords}
                 onStartFlashcards={handleStartFlashcards}
-                onCancel={handleCancelSetup}
               />
             )}
 

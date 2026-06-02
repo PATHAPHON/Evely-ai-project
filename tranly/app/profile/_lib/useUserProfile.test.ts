@@ -86,4 +86,54 @@ describe('useUserProfile', () => {
     const { result } = renderHook(() => useUserProfile());
     expect(result.current.displayName).toBe('Learner');
   });
+
+  it('defaults extra fields to empty strings', () => {
+    const { result } = renderHook(() => useUserProfile());
+    expect(result.current.handle).toBe('');
+    expect(result.current.role).toBe('');
+    expect(result.current.bio).toBe('');
+    expect(result.current.location).toBe('');
+  });
+
+  it('reads stored extra fields on mount', () => {
+    localStorage.setItem('tarnly:profile:handle', 'pat');
+    localStorage.setItem('tarnly:profile:role', 'Learner');
+    localStorage.setItem('tarnly:profile:bio', 'Hello');
+    localStorage.setItem('tarnly:profile:location', 'Bangkok');
+    const { result } = renderHook(() => useUserProfile());
+    expect(result.current.handle).toBe('pat');
+    expect(result.current.role).toBe('Learner');
+    expect(result.current.bio).toBe('Hello');
+    expect(result.current.location).toBe('Bangkok');
+  });
+
+  it('updateProfile patches fields and persists them (trimmed)', () => {
+    const { result } = renderHook(() => useUserProfile());
+
+    act(() => {
+      result.current.updateProfile({
+        displayName: 'Kim',
+        handle: '  kimchi  ',
+        bio: 'studying',
+      });
+    });
+
+    expect(result.current.displayName).toBe('Kim');
+    expect(result.current.handle).toBe('kimchi');
+    expect(result.current.bio).toBe('studying');
+    expect(localStorage.getItem('tarnly:profile:handle')).toBe('kimchi');
+    expect(localStorage.getItem('tarnly:profile:bio')).toBe('studying');
+  });
+
+  it('updateProfile clears a field when given an empty string', () => {
+    localStorage.setItem('tarnly:profile:role', 'old');
+    const { result } = renderHook(() => useUserProfile());
+
+    act(() => {
+      result.current.updateProfile({ role: '' });
+    });
+
+    expect(result.current.role).toBe('');
+    expect(localStorage.getItem('tarnly:profile:role')).toBeNull();
+  });
 });

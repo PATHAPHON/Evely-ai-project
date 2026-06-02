@@ -124,7 +124,20 @@ export default function ChatHubPage() {
           }
         }
         .animate-card-fade-in {
-          animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+          animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) both;
+        }
+        .animate-card-element {
+          animation: elementFadeIn 0.35s cubic-bezier(0.215, 0.61, 0.355, 1) both;
+        }
+        @keyframes elementFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
 
@@ -209,20 +222,30 @@ export default function ChatHubPage() {
 
           {/* Real Content Section: Fades in smoothly after skeletons complete */}
           {!cardsLoading && (
-            <div className="flex flex-col gap-3 animate-card-fade-in">
+            <div className="flex flex-col gap-3">
               {/* 1. Camera Scan Card */}
               <div
                 onClick={handleCameraScanClick}
-                className="rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all"
+                className="rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all animate-card-fade-in"
+                style={{ animationDelay: "0ms" }}
               >
-                <span className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-green text-white shadow-nb-sm group-active:translate-y-[1px]">
+                <span 
+                  className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-green text-white shadow-nb-sm group-active:translate-y-[1px] animate-card-element"
+                  style={{ animationDelay: "60ms" }}
+                >
                   <CameraOutlined style={{ fontSize: 24 }} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-black text-text-primary">
+                  <h3 
+                    className="text-base font-black text-text-primary animate-card-element"
+                    style={{ animationDelay: "120ms" }}
+                  >
                     {isThai ? 'กล้องสแกนอัจฉริยะ' : 'Smart Camera Scan'}
                   </h3>
-                  <p className="text-xs font-semibold text-text-secondary mt-0.5">
+                  <p 
+                    className="text-xs font-semibold text-text-secondary mt-0.5 animate-card-element"
+                    style={{ animationDelay: "180ms" }}
+                  >
                     {isThai
                       ? 'ถ่ายรูปสิ่งของ ป้าย หรือข้อความ เพื่อแปลและวิเคราะห์ศัพท์ทันที!'
                       : 'Snap objects, signs or books to instantly translate & extract vocab!'}
@@ -233,16 +256,26 @@ export default function ChatHubPage() {
               {/* 2. AI Tutor Chat Card */}
               <div
                 onClick={() => router.push('/tutor')}
-                className="rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all"
+                className="rounded-2xl border-3 border-border-color bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all animate-card-fade-in"
+                style={{ animationDelay: "100ms" }}
               >
-                <span className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-blue text-white shadow-nb-sm group-active:translate-y-[1px]">
+                <span 
+                  className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-blue text-white shadow-nb-sm group-active:translate-y-[1px] animate-card-element"
+                  style={{ animationDelay: "160ms" }}
+                >
                   <MessageOutlined style={{ fontSize: 24 }} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-black text-text-primary">
+                  <h3 
+                    className="text-base font-black text-text-primary animate-card-element"
+                    style={{ animationDelay: "220ms" }}
+                  >
                     {isThai ? 'แชทติวเตอร์ & บทเรียน' : 'AI Tutor & Custom Lessons'}
                   </h3>
-                  <p className="text-xs font-semibold text-text-secondary mt-0.5">
+                  <p 
+                    className="text-xs font-semibold text-text-secondary mt-0.5 animate-card-element"
+                    style={{ animationDelay: "280ms" }}
+                  >
                     {isThai
                       ? 'ฝึกแชทบทสนทนาจำลอง หรือสร้างบทเรียนส่วนตัวแบบจับคู่จับประโยค!'
                       : 'Interactive role-plays or dynamic grammar and vocabulary matching!'}
@@ -259,21 +292,31 @@ export default function ChatHubPage() {
                   }
                   router.push('/flashcard');
                 }}
-                className={`rounded-2xl border-3 border-border-color p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all bg-white dark:bg-[#2d2d44] ${
+                className={`rounded-2xl border-3 border-border-color p-4 shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer flex items-center gap-4 group transition-all bg-white dark:bg-[#2d2d44] animate-card-fade-in ${
                   wordCount === 0 ? 'opacity-60' : ''
                 }`}
+                style={{ animationDelay: "200ms" }}
               >
-                <span className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-yellow text-black shadow-nb-sm group-active:translate-y-[1px]">
+                <span 
+                  className="w-12 h-12 flex items-center justify-center rounded-xl border-3 border-border-color bg-accent-yellow text-black shadow-nb-sm group-active:translate-y-[1px] animate-card-element"
+                  style={{ animationDelay: "260ms" }}
+                >
                   <BookOutlined style={{ fontSize: 24 }} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-black text-text-primary flex items-center gap-2">
+                  <h3 
+                    className="text-base font-black text-text-primary flex items-center gap-2 animate-card-element"
+                    style={{ animationDelay: "320ms" }}
+                  >
                     <span>{isThai ? 'เล่นทวนบัตรคำศัพท์' : 'Play Flashcards'}</span>
                     <span className="inline-block rounded-md border border-border-color bg-accent-pink-bg px-1.5 py-0.2 text-[10px] font-black text-text-primary">
                       {wordCount} {isThai ? 'คำ' : 'words'}
                     </span>
                   </h3>
-                  <p className="text-xs font-semibold text-text-secondary mt-0.5">
+                  <p 
+                    className="text-xs font-semibold text-text-secondary mt-0.5 animate-card-element"
+                    style={{ animationDelay: "380ms" }}
+                  >
                     {isThai
                       ? 'ทบทวนคำศัพท์ที่บันทึกมาด้วยแฟลชการ์ดสุ่มคำศัพท์สนุกสนาน!'
                       : 'Master your saved vocabulary bank through spaced flipping card tests!'}

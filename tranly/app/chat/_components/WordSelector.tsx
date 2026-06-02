@@ -46,8 +46,32 @@ export default function WordSelector({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-t-2xl border-3 border-border-color bg-card-bg shadow-nb-md flex flex-col max-h-[80vh]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center animate-modal-backdrop">
+      <style>{`
+        @keyframes backdropFadeIn {
+          from {
+            background-color: rgba(0, 0, 0, 0);
+          }
+          to {
+            background-color: rgba(0, 0, 0, 0.4);
+          }
+        }
+        .animate-modal-backdrop {
+          animation: backdropFadeIn 0.28s ease-out forwards;
+        }
+        @keyframes modalSlideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-modal-slide {
+          animation: modalSlideUp 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+      `}</style>
+      <div className="w-full max-w-md rounded-t-2xl border-3 border-border-color bg-card-bg shadow-nb-md flex flex-col max-h-[80vh] animate-modal-slide">
         {/* Header */}
         <div className="flex items-center justify-between border-b-3 border-border-color p-4">
           <h2 className="text-lg font-bold text-text-primary">

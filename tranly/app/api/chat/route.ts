@@ -246,7 +246,7 @@ export async function POST(
   const requestBody = {
     model: customModel || 'gemini-3.1-flash-lite',
     messages: apiMessages,
-    max_tokens: 1024,
+    max_tokens: 2048,
   };
 
   // Set up timeout with AbortController

@@ -9,6 +9,7 @@ import {
 import type { ChatMessage } from '../_lib/types';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
 import Mascot from './Mascot';
+import SlothMascot from '@/app/profile/_components/SlothMascot';
 
 interface ChatListProps {
   messages: ChatMessage[];
@@ -121,8 +122,10 @@ function AIMessage({
 
   return (
     <div className="flex justify-start items-end gap-2">
-      <Mascot state={isLatest ? (isDone ? 'happy' : 'thinking') : 'idle'} size={40} />
-      <div className="max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md transition-all duration-300">
+      <div className="animate-mascot-pop-in shrink-0">
+        <Mascot state={isLatest ? (isDone ? 'happy' : 'thinking') : 'idle'} size={40} />
+      </div>
+      <div className="animate-bubble-pop-in max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md transition-all duration-300">
         {/* Korean text */}
         <p className="text-2xl font-bold text-text-primary mb-1">
           {shouldAnimate ? chars.slice(0, shown).join('') : message.korean}
@@ -172,18 +175,18 @@ function UserMessage({
   onSpeak: (messageId: string) => void;
 }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[75%] rounded-2xl border-3 border-border-color bg-[#E6F4FF] dark:bg-[#1a3a5c] p-3 shadow-nb-md">
+    <div className="flex justify-end items-end gap-2">
+      <div className="animate-user-bubble-pop-in max-w-[85%] rounded-2xl border-3 border-border-color bg-[#E6F4FF] dark:bg-[#1a3a5c] p-4 shadow-nb-md">
         {message.korean ? (
           <>
             <p className="text-2xl font-bold text-text-primary mb-1">{message.korean}</p>
             {message.reading && (
-              <p className="text-sm text-text-secondary mb-0.5">{message.reading}</p>
+              <p className="text-base text-text-secondary mb-0.5">{message.reading}</p>
             )}
             {message.romanization && (
-              <p className="text-xs text-text-secondary italic mb-1">{message.romanization}</p>
+              <p className="text-sm text-text-secondary italic mb-1">{message.romanization}</p>
             )}
-            <p className="text-xs text-text-secondary mt-1">{message.rawText}</p>
+            <p className="text-base text-text-secondary mt-1">{message.rawText}</p>
             <button
               type="button"
               onClick={() => onSpeak(message.id)}
@@ -197,6 +200,9 @@ function UserMessage({
           <p className="text-base text-text-primary">{message.rawText}</p>
         )}
       </div>
+      <div className="animate-mascot-pop-in shrink-0">
+        <SlothMascot size={40} />
+      </div>
     </div>
   );
 }
@@ -204,8 +210,10 @@ function UserMessage({
 function LoadingBubble() {
   return (
     <div className="flex justify-start items-end gap-2">
-      <Mascot state="thinking" size={40} />
-      <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
+      <div className="animate-mascot-pop-in shrink-0">
+        <Mascot state="thinking" size={40} />
+      </div>
+      <div className="animate-bubble-pop-in rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
         <div className="flex items-center gap-2 text-text-secondary">
           <LoadingOutlined style={{ fontSize: 18 }} spin />
           <span className="text-sm">Generating response...</span>

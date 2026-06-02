@@ -19,6 +19,12 @@
   --accent-blue: #4dabf7;
   --accent-yellow: #ffd93d;
   --accent-pink-bg: #fff0f6;
+  /* Study heatmap intensity ramp (green, aligned with --accent-green). */
+  --heat-0: #ebedf0;
+  --heat-1: #c6e9b4;
+  --heat-2: #97d977;
+  --heat-3: #6cc93f;
+  --heat-4: #52c41a;
 }
 
 .dark {
@@ -35,6 +41,11 @@
   --accent-blue: #4dabf7;
   --accent-yellow: #ffd93d;
   --accent-pink-bg: #3d2d44;
+  --heat-0: rgba(255, 255, 255, 0.08);
+  --heat-1: #2f5d22;
+  --heat-2: #3d8a2c;
+  --heat-3: #49b035;
+  --heat-4: #52c41a;
 }
 
 @theme inline {
@@ -51,6 +62,11 @@
   --color-accent-blue: var(--accent-blue);
   --color-accent-yellow: var(--accent-yellow);
   --color-accent-pink-bg: var(--accent-pink-bg);
+  --color-heat-0: var(--heat-0);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
   --font-sans: var(--font-outfit);
   --font-mono: var(--font-geist-mono);
   /* Neobrutalist flat-offset shadow scale. The dark variant is baked in via
@@ -178,12 +194,71 @@ body {
   animation: loading-dot 1.2s ease-in-out infinite;
 }
 
+/* Entry / Reveal Animations for Mascot and Bubbles */
+@keyframes mascot-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-10deg);
+  }
+  70% {
+    opacity: 0.9;
+    transform: scale(1.1) rotate(5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes bubble-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes user-bubble-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-mascot-pop-in {
+  animation: mascot-pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center bottom;
+  will-change: transform, opacity;
+}
+
+.animate-bubble-pop-in {
+  animation: bubble-pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: left top;
+  will-change: transform, opacity;
+}
+
+.animate-user-bubble-pop-in {
+  animation: user-bubble-pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: right top;
+  will-change: transform, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mascot-breathe,
   .mascot-think,
   .mascot-bounce,
   .mascot-eyes-look,
-  .loading-dot {
-    animation: none;
+  .loading-dot,
+  .animate-mascot-pop-in,
+  .animate-bubble-pop-in,
+  .animate-user-bubble-pop-in {
+    animation: none !important;
   }
 }

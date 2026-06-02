@@ -163,7 +163,7 @@ export async function POST(
         ],
       },
     ],
-    max_tokens: 2048,
+    max_tokens: 4096,
   };
 
   // Set up timeout with AbortController

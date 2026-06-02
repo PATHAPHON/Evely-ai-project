@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioOutlined, MessageOutlined, ReadOutlined, SendOutlined } from '@ant-design/icons';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
@@ -13,7 +13,13 @@ import { validateTopic } from '../_lib/validateTopic';
 import type { ProficiencyLevel, SavedWord } from '../_lib/types';
 import type { LessonConfig } from '../_lib/lessonTypes';
 import type { SessionConfig } from '../_lib/types';
-import Mascot from './Mascot';
+import {
+  TypewriterQueueProvider,
+  AIBubble,
+  UserBubble,
+  GuideAnimations,
+  ThinkingOverlay,
+} from './guideChat';
 
 interface AIGuideProps {
   savedWords: SavedWord[];
@@ -36,152 +42,6 @@ const PROFICIENCY_OPTIONS: {
   { value: 'advanced', labelTh: 'ขั้นสูง', labelEn: 'Advanced', description: 'TOPIK 5-6' },
 ];
 
-
-/**
- * Coordinates animated bubbles so they play one at a time. Each animated
- * AIBubble registers on mount and only starts once it reaches the head of the
- * queue; it unregisters when its text finishes, letting the next one begin.
- */
-interface TypewriterQueueApi {
-  active: string | null;
-  register: (id: string) => void;
-  unregister: (id: string) => void;
-}
-const TypewriterQueueCtx = createContext<TypewriterQueueApi | null>(null);
-
-function TypewriterQueueProvider({ children }: { children: React.ReactNode }) {
-  const [queue, setQueue] = useState<string[]>([]);
-  const register = useCallback(
-    (id: string) => setQueue((q) => (q.includes(id) ? q : [...q, id])),
-    [],
-  );
-  const unregister = useCallback(
-    (id: string) => setQueue((q) => q.filter((x) => x !== id)),
-    [],
-  );
-  const api = useMemo<TypewriterQueueApi>(
-    () => ({ active: queue[0] ?? null, register, unregister }),
-    [queue, register, unregister],
-  );
-  return (
-    <TypewriterQueueCtx.Provider value={api}>{children}</TypewriterQueueCtx.Provider>
-  );
-}
-
-/** Three bouncing dots — the "AI is typing" indicator. */
-function TypingDots() {
-  return (
-    <span className="flex gap-1 py-1.5">
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary" />
-    </span>
-  );
-}
-
-/**
- * AI bubble shown on the left, with the elephant mascot beside it. When
- * `animate` is set and the content is plain text, it first shows a typing
- * indicator for a beat, then reveals the text character-by-character so the
- * guide reads like a live AI chat. Non-text children (or `animate` off) render
- * immediately.
- */
-function AIBubble({
-  children,
-  animate = false,
-  onDone,
-}: {
-  children: React.ReactNode;
-  animate?: boolean;
-  /** Fired once when the text has fully revealed (or immediately if not animated). */
-  onDone?: () => void;
-}) {
-  const text = typeof children === 'string' ? children : null;
-  const chars = text ? Array.from(text) : [];
-  const queue = useContext(TypewriterQueueCtx);
-  const shouldAnimate = animate && text !== null && queue !== null;
-
-  // Stable id + a ref to the latest queue api, so the register/unregister effect
-  // can run once on mount without re-firing when `active` changes.
-  const id = useId();
-  const queueRef = useRef(queue);
-  queueRef.current = queue;
-  const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
-  const doneFired = useRef(false);
-
-  // 'dots' → typing indicator, 'typing' → revealing characters.
-  const [phase, setPhase] = useState<'dots' | 'typing'>(
-    shouldAnimate ? 'dots' : 'typing',
-  );
-  const [shown, setShown] = useState(shouldAnimate ? 0 : chars.length);
-
-  // It's our turn once we reach the head of the shared queue.
-  const myTurn = !shouldAnimate || queue?.active === id;
-
-  // Once we've taken our turn we stay visible, even after we leave the queue
-  // (which we do on completion to let the next bubble start).
-  const [hasStarted, setHasStarted] = useState(!shouldAnimate);
-  useEffect(() => {
-    if (myTurn) setHasStarted(true);
-  }, [myTurn]);
-
-  // Join (and leave) the queue for the duration this bubble is mounted.
-  useEffect(() => {
-    if (!shouldAnimate) return;
-    const q = queueRef.current;
-    q?.register(id);
-    return () => q?.unregister(id);
-  }, [shouldAnimate, id]);
-
-  // Pause on the dots for a beat before the text starts streaming in — but only
-  // once it's our turn to speak.
-  useEffect(() => {
-    if (!shouldAnimate || !myTurn) return;
-    const t = setTimeout(() => setPhase('typing'), 550);
-    return () => clearTimeout(t);
-  }, [shouldAnimate, myTurn]);
-
-  // Reveal one character at a time; when finished, leave the queue so the next
-  // bubble can start.
-  useEffect(() => {
-    if (phase !== 'typing') return;
-    if (shown >= chars.length) {
-      queueRef.current?.unregister(id);
-      if (!doneFired.current) {
-        doneFired.current = true;
-        onDoneRef.current?.();
-      }
-      return;
-    }
-    const t = setTimeout(() => setShown((n) => n + 1), 22);
-    return () => clearTimeout(t);
-  }, [phase, shown, chars.length, id]);
-
-  // While waiting for an earlier bubble to finish (and before we've ever
-  // started), stay hidden entirely.
-  if (shouldAnimate && !hasStarted) return null;
-
-  const showDots = shouldAnimate && phase === 'dots';
-
-  return (
-    <div className="flex max-w-[85%] items-start gap-2 self-start">
-      <Mascot size={40} state={showDots ? 'thinking' : 'idle'} />
-      <div className="rounded-2xl rounded-tl-md border-3 border-border-color bg-card-bg px-4 py-3 text-base font-semibold text-text-primary shadow-nb-sm">
-        {showDots ? <TypingDots /> : shouldAnimate ? chars.slice(0, shown).join('') : children}
-      </div>
-    </div>
-  );
-}
-
-/** User bubble shown on the right, recapping a chosen answer. */
-function UserBubble({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="max-w-[85%] self-end rounded-2xl rounded-tr-md border-3 border-border-color bg-accent-green px-4 py-2 text-sm font-bold text-white shadow-nb-sm">
-      {children}
-    </div>
-  );
-}
 
 /**
  * Fixed-sequence interview that feels like an AI chat. It asks one question at a
@@ -208,9 +68,22 @@ export default function AIGuide({
   // makes the whole guide feel like a back-and-forth chat.
   const [draft, setDraft] = useState('');
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isCurrentStepCompleted, setIsCurrentStepCompleted] = useState(false);
 
-  // Clear the draft whenever the step changes so each question starts empty.
+  // Auto-focus the input field on the topic step once it is completed/revealed
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
+    if (isCurrentStepCompleted && currentStep === 'topic') {
+      const t = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150); // Small delay to let the spring bounce animation start smoothly
+      return () => clearTimeout(t);
+    }
+  }, [isCurrentStepCompleted, currentStep]);
+
+  // Clear the draft and reset completion state whenever the step changes so each question starts empty.
+  useEffect(() => {
+    setIsCurrentStepCompleted(false);
     setDraft('');
   }, [currentStep]);
 
@@ -257,6 +130,7 @@ export default function AIGuide({
     if (currentStep !== 'words') wordsAutoOpened.current = false;
   }, [currentStep]);
   const handleWordsBubbleDone = useCallback(() => {
+    setIsCurrentStepCompleted(true);
     if (wordsAutoOpened.current) return;
     wordsAutoOpened.current = true;
     onOpenWordSelector();
@@ -351,17 +225,12 @@ export default function AIGuide({
   const handleConfirm = useCallback(() => {
     const outcome = guide.buildOutcome();
     if (!outcome) return;
-    // Show the "thinking" mascot for a beat, then hand off. The word context
-    // comes from the parent's WordSelector, which is the single source of truth
-    // for the selection — fold it into the config here.
     setIsThinking(true);
-    thinkTimer.current = setTimeout(() => {
-      if (outcome.kind === 'lesson') {
-        onStartLesson({ ...outcome.config, wordContext: selectedWords });
-      } else {
-        onStartChat({ ...outcome.config, wordContext: selectedWords });
-      }
-    }, 5000);
+    if (outcome.kind === 'lesson') {
+      onStartLesson({ ...outcome.config, wordContext: selectedWords });
+    } else {
+      onStartChat({ ...outcome.config, wordContext: selectedWords });
+    }
   }, [guide, selectedWords, onStartChat, onStartLesson]);
 
   const levelLabel = (value: ProficiencyLevel | null) =>
@@ -369,8 +238,9 @@ export default function AIGuide({
 
   return (
     <TypewriterQueueProvider>
-    <div className="flex flex-1 flex-col min-h-0">
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
+    <div className="flex flex-1 flex-col min-h-0 relative">
+      <GuideAnimations />
+      <div className={`flex flex-1 flex-col gap-3 overflow-y-auto p-4 pt-16 ${isThinking ? 'animate-absorb' : ''}`}>
       {/* Greeting */}
       <AIBubble animate>
         {isThai
@@ -414,11 +284,13 @@ export default function AIGuide({
 
       {/* ===== Current question ===== */}
       {currentStep === 'mode' && (
-        <AIBubble animate>{isThai ? 'อยากเรียนแบบไหนดี?' : 'What would you like to do?'}</AIBubble>
+        <AIBubble animate onDone={() => setIsCurrentStepCompleted(true)}>
+          {isThai ? 'อยากเรียนแบบไหนดี?' : 'What would you like to do?'}
+        </AIBubble>
       )}
 
       {currentStep === 'topic' && (
-        <AIBubble animate>
+        <AIBubble animate onDone={() => setIsCurrentStepCompleted(true)}>
           {selectedWords.length > 0
             ? isThai
               ? 'อยากเรียนเรื่องอะไรดี? จะให้ AI แนะนำหัวข้อจากคำศัพท์ที่เลือกก็ได้นะ'
@@ -430,7 +302,9 @@ export default function AIGuide({
       )}
 
       {currentStep === 'level' && (
-        <AIBubble animate>{isThai ? 'ระดับไหนดี?' : 'Which level?'}</AIBubble>
+        <AIBubble animate onDone={() => setIsCurrentStepCompleted(true)}>
+          {isThai ? 'ระดับไหนดี?' : 'Which level?'}
+        </AIBubble>
       )}
 
       {currentStep === 'words' && (
@@ -442,90 +316,82 @@ export default function AIGuide({
           </AIBubble>
           {/* If the learner dismissed the selector without it advancing, offer a
               quick way to reopen it. Pressing "Done" inside advances the flow. */}
-          <button
-            type="button"
-            onClick={onOpenWordSelector}
-            className="self-start rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 font-semibold text-text-primary shadow-nb-md transition-all cursor-pointer hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm"
-          >
-            {selectedWords.length > 0
-              ? isThai
-                ? `เลือกแล้ว ${selectedWords.length} คำ — แก้ไข`
-                : `${selectedWords.length} selected — edit`
-              : isThai
-                ? 'เลือกคำศัพท์'
-                : 'Choose words'}
-          </button>
-        </>
-      )}
-
-      {currentStep === 'summary' && (
-        <>
-          <AIBubble animate>
-            {isThai ? 'เยี่ยม! สรุปข้อมูลตามนี้นะ 👇' : 'Great! Here is the summary 👇'}
-          </AIBubble>
-          <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
-            <dl className="flex flex-col gap-1.5 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="font-semibold text-text-secondary">{isThai ? 'รูปแบบ' : 'Mode'}</dt>
-                <dd className="font-bold text-text-primary">
-                  {answers.mode === 'chat' ? (isThai ? 'แชท' : 'Chat') : (isThai ? 'บทเรียน' : 'Lesson')}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="font-semibold text-text-secondary">{isThai ? 'หัวข้อ' : 'Topic'}</dt>
-                <dd className="font-bold text-text-primary">{answers.topic}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="font-semibold text-text-secondary">{isThai ? 'ระดับ' : 'Level'}</dt>
-                <dd className="font-bold text-text-primary">{levelLabel(answers.level)}</dd>
-              </div>
-              {selectedWords.length > 0 && (
-                <div className="flex justify-between gap-3">
-                  <dt className="font-semibold text-text-secondary">{isThai ? 'คำศัพท์' : 'Words'}</dt>
-                  <dd className="font-bold text-text-primary">{selectedWords.length}</dd>
-                </div>
-              )}
-            </dl>
-          </div>
-          {isThinking ? (
-            <div className="flex items-center gap-3 self-start">
-              <Mascot size={48} state="thinking" />
-              <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border-3 border-border-color bg-card-bg px-4 py-3 text-base font-semibold text-text-primary shadow-nb-sm">
-                {answers.mode === 'lesson'
-                  ? isThai ? 'กำลังเตรียมบทเรียน...' : 'Preparing your lesson...'
-                  : isThai ? 'กำลังเตรียมการสนทนา...' : 'Setting up your chat...'}
-                <span className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary [animation-delay:-0.3s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary [animation-delay:-0.15s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-secondary" />
-                </span>
-              </div>
-            </div>
-          ) : (
+          {isCurrentStepCompleted && (
             <button
               type="button"
-              onClick={handleConfirm}
-              className="flex items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-green px-4 py-4 text-base font-bold uppercase tracking-wider text-white shadow-nb-md transition-all cursor-pointer active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm"
+              onClick={onOpenWordSelector}
+              className="self-start rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 font-semibold text-text-primary shadow-nb-md transition-all cursor-pointer hover:bg-gray-50 dark:hover:bg-[#3d3d5c] active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm animate-slide-up-bounce"
             >
-              {answers.mode === 'lesson' ? (
-                <>
-                  <ReadOutlined style={{ fontSize: 18 }} />
-                  {isThai ? 'สร้างบทเรียน' : 'Create Lesson'}
-                </>
-              ) : (
-                <>
-                  <MessageOutlined style={{ fontSize: 18 }} />
-                  {isThai ? 'เริ่มแชท' : 'Start Chat'}
-                </>
-              )}
+              {selectedWords.length > 0
+                ? isThai
+                  ? `เลือกแล้ว ${selectedWords.length} คำ — แก้ไข`
+                  : `${selectedWords.length} selected — edit`
+                : isThai
+                  ? 'เลือกคำศัพท์'
+                  : 'Choose words'}
             </button>
           )}
         </>
       )}
 
+      {currentStep === 'summary' && (
+        <>
+          <AIBubble animate onDone={() => setIsCurrentStepCompleted(true)}>
+            {isThai ? 'เยี่ยม! สรุปข้อมูลตามนี้นะ 👇' : 'Great! Here is the summary 👇'}
+          </AIBubble>
+          {isCurrentStepCompleted && (
+            <div className="flex flex-col gap-3 animate-slide-up-bounce w-full">
+              <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
+                <dl className="flex flex-col gap-1.5 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <dt className="font-semibold text-text-secondary">{isThai ? 'รูปแบบ' : 'Mode'}</dt>
+                    <dd className="font-bold text-text-primary">
+                      {answers.mode === 'chat' ? (isThai ? 'แชท' : 'Chat') : (isThai ? 'บทเรียน' : 'Lesson')}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="font-semibold text-text-secondary">{isThai ? 'หัวข้อ' : 'Topic'}</dt>
+                    <dd className="font-bold text-text-primary">{answers.topic}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="font-semibold text-text-secondary">{isThai ? 'ระดับ' : 'Level'}</dt>
+                    <dd className="font-bold text-text-primary">{levelLabel(answers.level)}</dd>
+                  </div>
+                  {selectedWords.length > 0 && (
+                    <div className="flex justify-between gap-3">
+                      <dt className="font-semibold text-text-secondary">{isThai ? 'คำศัพท์' : 'Words'}</dt>
+                      <dd className="font-bold text-text-primary">{selectedWords.length}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+              {!isThinking && (
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  className="flex items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-green px-4 py-4 text-base font-bold uppercase tracking-wider text-white shadow-nb-md transition-all cursor-pointer active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm"
+                >
+                  {answers.mode === 'lesson' ? (
+                    <>
+                      <ReadOutlined style={{ fontSize: 18 }} />
+                      {isThai ? 'สร้างบทเรียน' : 'Create Lesson'}
+                    </>
+                  ) : (
+                    <>
+                      <MessageOutlined style={{ fontSize: 18 }} />
+                      {isThai ? 'เริ่มแชท' : 'Start Chat'}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
       {/* Footer controls */}
-      {currentStep !== 'mode' && !isThinking && (
-        <div className="flex items-center pt-2">
+      {isCurrentStepCompleted && currentStep !== 'mode' && !isThinking && (
+        <div className="flex items-center pt-2 animate-fade-in">
           <button
             type="button"
             onClick={guide.back}
@@ -541,21 +407,23 @@ export default function AIGuide({
           shares it: quick-reply options sit above the input and *fill* it when
           tapped, then pressing send commits the answer and advances — so the
           guide reads like a real back-and-forth chat. */}
-      {(currentStep === 'mode' ||
-        currentStep === 'topic' ||
-        currentStep === 'level') && (
-        <div className="border-t-3 border-border-color bg-card-bg p-3">
+      {isCurrentStepCompleted &&
+        (currentStep === 'mode' ||
+          currentStep === 'topic' ||
+          currentStep === 'level') && (
+        <div className="p-3 pt-1 animate-slide-up-bounce">
           {/* ===== Quick-reply options for the active step ===== */}
           {currentStep === 'mode' && (
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              {modeReplies.map((r) => {
+              {modeReplies.map((r, idx) => {
                 const selected = trimmed === r.label;
                 return (
                   <button
                     key={r.value}
                     type="button"
                     onClick={() => setDraft(r.label)}
-                    className={`flex items-center gap-1.5 rounded-xl border-3 border-border-color px-4 py-3 font-bold shadow-nb-md transition-all cursor-pointer active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm ${
+                    style={{ animationDelay: `${idx * 60}ms` }}
+                    className={`flex items-center gap-1.5 rounded-xl border-3 border-border-color px-3.5 py-2 text-sm font-bold shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none animate-button-in ${
                       selected
                         ? 'bg-accent-green text-white'
                         : 'bg-card-bg text-text-primary hover:bg-gray-50 dark:hover:bg-[#3d3d5c]'
@@ -580,7 +448,8 @@ export default function AIGuide({
                   type="button"
                   onClick={handleSuggestTopic}
                   disabled={isSuggesting}
-                  className="flex items-center gap-1.5 rounded-lg border-2 border-border-color bg-accent-yellow px-3 py-1.5 text-sm font-bold text-black shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ animationDelay: '0ms' }}
+                  className="flex items-center gap-1.5 rounded-lg border-2 border-border-color bg-accent-yellow px-3 py-1.5 text-sm font-bold text-black shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 animate-button-in"
                 >
                   {isSuggesting ? (
                     <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
@@ -592,33 +461,38 @@ export default function AIGuide({
                     : isThai ? 'แนะนำหัวข้อจากคำศัพท์' : 'Suggest from words'}
                 </button>
               )}
-              {topicExamples.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  onClick={() => setDraft(ex)}
-                  className={`rounded-lg border-2 border-border-color px-3 py-1.5 text-sm font-bold shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none ${
-                    trimmed === ex
-                      ? 'bg-accent-green text-white'
-                      : 'bg-card-bg text-text-primary'
-                  }`}
-                >
-                  {ex}
-                </button>
-              ))}
+              {topicExamples.map((ex, idx) => {
+                const delay = (selectedWords.length > 0 ? idx + 1 : idx) * 60;
+                return (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => setDraft(ex)}
+                    style={{ animationDelay: `${delay}ms` }}
+                    className={`rounded-lg border-2 border-border-color px-3 py-1.5 text-sm font-bold shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none animate-button-in ${
+                      trimmed === ex
+                        ? 'bg-accent-green text-white'
+                        : 'bg-card-bg text-text-primary'
+                    }`}
+                  >
+                    {ex}
+                  </button>
+                );
+              })}
             </div>
           )}
 
           {currentStep === 'level' && (
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              {levelReplies.map((r) => {
+              {levelReplies.map((r, idx) => {
                 const selected = trimmed === r.label;
                 return (
                   <button
                     key={r.value}
                     type="button"
                     onClick={() => setDraft(r.label)}
-                    className={`flex items-center gap-1.5 rounded-xl border-3 border-border-color px-4 py-3 font-bold shadow-nb-md transition-all cursor-pointer active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm ${
+                    style={{ animationDelay: `${idx * 60}ms` }}
+                    className={`flex items-center gap-1.5 rounded-xl border-3 border-border-color px-3.5 py-2 text-sm font-bold shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none animate-button-in ${
                       selected
                         ? 'bg-accent-green text-white'
                         : 'bg-card-bg text-text-primary hover:bg-gray-50 dark:hover:bg-[#3d3d5c]'
@@ -636,6 +510,7 @@ export default function AIGuide({
           <div className="flex items-center gap-2">
             <div className="flex-1 rounded-xl border-3 border-border-color bg-card-bg shadow-nb-md">
               <input
+                ref={inputRef}
                 type="text"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, 100))}
@@ -682,6 +557,16 @@ export default function AIGuide({
             </button>
           </div>
         </div>
+      )}
+      {isThinking && (
+        <ThinkingOverlay
+          title={
+            answers.mode === 'lesson'
+              ? isThai ? 'กำลังดูดซับข้อมูลเพื่อแต่งบทเรียน...' : 'Absorbing topics to tailor your lesson...'
+              : isThai ? 'กำลังเตรียมการสนทนาสำหรับคุณ...' : 'Setting up your conversation...'
+          }
+          subtitle={isThai ? 'กรุณารอสักครู่นะจ๊ะ' : 'Please wait a moment'}
+        />
       )}
     </div>
     </TypewriterQueueProvider>
