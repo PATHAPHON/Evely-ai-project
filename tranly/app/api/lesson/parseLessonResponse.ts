@@ -33,10 +33,21 @@ function normalizePairs(value: unknown): MatchingPair[] {
   for (const raw of value) {
     if (typeof raw !== 'object' || raw === null) continue;
     const rec = raw as Record<string, unknown>;
-    const korean = asTrimmedString(rec.korean);
+    const rawKorean = asTrimmedString(rec.korean);
     const thai = asTrimmedString(rec.thai);
+    let reading = asTrimmedString(rec.reading);
+    let korean = rawKorean;
+    // Backward-compat: older responses bake the reading into the Korean as
+    // "word (reading)". Split it out so the word stays clean for TTS/display.
+    if (reading.length === 0) {
+      const m = rawKorean.match(/^(.*?)\s*[（(]([^（()）]+)[)）]\s*$/);
+      if (m) {
+        korean = m[1].trim();
+        reading = m[2].trim();
+      }
+    }
     if (korean.length > 0 && thai.length > 0) {
-      pairs.push({ korean, thai });
+      pairs.push(reading.length > 0 ? { korean, thai, reading } : { korean, thai });
     }
   }
   return pairs;

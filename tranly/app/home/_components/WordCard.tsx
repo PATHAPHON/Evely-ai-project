@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState, useRef } from "react";
 import { SoundOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
 import type { FeedWordRecord } from "../_lib/types";
 import type { SpeechLang } from "@/app/chat/_lib/types";
@@ -10,6 +10,8 @@ import { useTTS } from "@/app/chat/_lib/useTTS";
 interface WordCardProps {
   word: FeedWordRecord;
   onToggleBookmark: (wordId: string) => void;
+  activeImageIndex: number;
+  setActiveImageIndex: React.Dispatch<React.SetStateAction<number>>;
 }
 
 /** The native-script primary word for the record's language. */
@@ -56,72 +58,132 @@ const SPEECH_LANG_BY_LANGUAGE: Record<FeedWordRecord['language'], SpeechLang> = 
  *
  * Styled with Neobrutalist design system.
  */
-export default function WordCard({ word, onToggleBookmark }: WordCardProps) {
+export default function WordCard({ word, onToggleBookmark, activeImageIndex, setActiveImageIndex }: WordCardProps) {
   const { language } = useLanguagePreference();
   const { speak, isSupported } = useTTS(SPEECH_LANG_BY_LANGUAGE[word.language]);
+  const touchStartX = useRef<number | null>(null);
 
   const primaryWord = getPrimaryWord(word);
   const pronunciation = getPronunciation(word);
 
-  const handlePlayAudio = useCallback(() => {
-    if (primaryWord) speak(primaryWord);
-  }, [primaryWord, speak]);
+  const images = word.imageUrls && word.imageUrls.length > 0
+    ? word.imageUrls
+    : word.imageUrl
+    ? [word.imageUrl]
+    : [];
 
-  const handleToggleBookmark = useCallback(() => {
-    onToggleBookmark(word.id);
-  }, [word.id, onToggleBookmark]);
+  const handleNextImage = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndex((prev) => (prev + 1) % images.length);
+  }, [images.length]);
+
+  const handlePrevImage = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  }, [images.length]);
+
+  const setIndex = useCallback((index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndex(index);
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+
+    const threshold = 50;
+    if (dx > threshold) {
+      // Swipe Right -> Prev Image
+      setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    } else if (dx < -threshold) {
+      // Swipe Left -> Next Image
+      setActiveImageIndex((prev) => (prev + 1) % images.length);
+    }
+  }, [images.length]);
 
   return (
-    <div className="w-full rounded-2xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] p-4 shadow-nb-md">
-      {/* Native-script word */}
-      <p className="text-3xl font-bold text-black dark:text-white text-center mb-2">
-        {primaryWord}
-      </p>
+    <div className="relative w-full h-[58vh] max-h-[500px] rounded-3xl border-3 border-black dark:border-[#4a4a6a] bg-black overflow-hidden shadow-nb-lg">
+      
+      {/* Top Header Image Carousel */}
+      {images.length > 0 && (
+        <div 
+          className={`image-carousel absolute inset-0 w-full h-full select-none overflow-hidden touch-pan-y z-0 ${
+            images.length > 1 ? "cursor-pointer" : ""
+          }`}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onClick={images.length > 1 ? handleNextImage : undefined}
+        >
+          {/* Active Image */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={images[activeImageIndex]}
+            alt={`${primaryWord} - context ${activeImageIndex + 1}`}
+            className="w-full h-full object-cover select-none pointer-events-none transition-all duration-300"
+            key={images[activeImageIndex]}
+          />
 
-      {/* Pronunciation guide */}
-      <p className="text-sm text-gray-500 dark:text-white/50 text-center mb-3 italic">
-        {pronunciation}
-      </p>
 
-      {/* Translation — for Korean, respect the user's preference (Thai vs English);
-          other languages always show the Thai meaning. */}
-      {word.language === 'korean' && language !== 'thai' ? (
-        <p className="text-base text-black dark:text-white text-center font-medium mb-4">{word.english}</p>
-      ) : (
-        <p className="text-base text-gray-700 dark:text-white/70 text-center mb-4">{word.thai}</p>
+          {/* Top Dotted Indicator Overlay (Tinder/NGL style) */}
+          {images.length > 1 && (
+            <div className="absolute top-3 left-4 right-4 flex gap-1 z-20">
+              {images.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={(e) => setIndex(idx, e)}
+                  className={`h-1 flex-1 rounded-full border border-black/10 transition-all cursor-pointer ${
+                    idx === activeImageIndex ? "bg-white" : "bg-white/40"
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Action buttons */}
-      <div className="flex items-center justify-center gap-4">
-        {/* Audio button — hidden only if the runtime can't play audio at all */}
-        {isSupported && (
-          <button
-            type="button"
-            onClick={handlePlayAudio}
-            aria-label="Play pronunciation"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-          >
-            <SoundOutlined style={{ fontSize: 18 }} />
-          </button>
+      {/* Bottom Dark Gradient Shadow for text contrast */}
+      <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none z-10" />
+
+      {/* Content Section (Overlaid on Bottom) */}
+      <div className="absolute bottom-0 left-0 right-0 pt-6 px-6 pb-24 z-20 text-white flex flex-col gap-1.5 pointer-events-auto">
+        
+        {/* Part of speech badge (Pulse active capsule) */}
+        {word.partOfSpeech && (
+          <div className="flex mb-1">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border-2 border-black bg-[#E6FFFB] text-[#08979C] shadow-nb-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#08979C] animate-pulse" />
+              {word.partOfSpeech}
+            </span>
+          </div>
         )}
 
-        {/* Bookmark toggle button */}
-        <button
-          type="button"
-          onClick={handleToggleBookmark}
-          aria-label={word.bookmarked ? "Remove bookmark" : "Add bookmark"}
-          className={`flex h-10 w-10 items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer ${
-            word.bookmarked
-              ? "bg-[#FAAD14] text-white"
-              : "bg-white dark:bg-[#2d2d44] text-black dark:text-white"
-          }`}
-        >
-          {word.bookmarked ? (
-            <StarFilled style={{ fontSize: 18 }} />
-          ) : (
-            <StarOutlined style={{ fontSize: 18 }} />
-          )}
-        </button>
+        {/* Native-script word */}
+        <h2 className="text-3xl font-black tracking-wide text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] m-0">
+          {primaryWord}
+        </h2>
+
+        {/* Pronunciation guide */}
+        <p className="text-sm text-gray-300 font-bold italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] m-0">
+          {pronunciation}
+        </p>
+
+        {/* Translation */}
+        {word.language === 'korean' && language !== 'thai' ? (
+          <p className="text-base text-white font-extrabold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] m-0">
+            {word.english}
+          </p>
+        ) : (
+          <p className="text-base text-white font-extrabold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] m-0">
+            {word.thai}
+          </p>
+        )}
       </div>
     </div>
   );

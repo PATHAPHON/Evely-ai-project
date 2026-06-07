@@ -1,11 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import {
-  CONVERSATIONS_STORE,
-  CONVERSATION_MESSAGES_STORE,
-  openDatabase,
-} from '@/app/_lib/db';
+import { useCallback, useState } from 'react';
+import { supabase } from '@/app/_lib/supabaseClient';
 import type {
   ChatMessage,
   ConversationMessageRecord,
@@ -27,92 +23,106 @@ export function useConversationHistory(): UseConversationHistoryReturn {
   const [sessions, setSessions] = useState<ConversationSessionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dbRef = useRef<IDBDatabase | null>(null);
-
-  const getDb = useCallback(async (): Promise<IDBDatabase> => {
-    if (dbRef.current) return dbRef.current;
-    const db = await openDatabase();
-    dbRef.current = db;
-    return db;
-  }, []);
 
   const loadSessions = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await getDb();
-      const records = await new Promise<ConversationSessionRecord[]>(
-        (resolve, reject) => {
-          const tx = db.transaction(CONVERSATIONS_STORE, 'readonly');
-          const store = tx.objectStore(CONVERSATIONS_STORE);
-          const req = store.getAll();
-          req.onsuccess = () =>
-            resolve(req.result as ConversationSessionRecord[]);
-          req.onerror = () => reject(req.error);
-        }
-      );
-      records.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setSessions(records);
-      setIsLoading(false);
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) {
+        setSessions([]);
+        return;
+      }
+
+      const { data, error: dbError } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      const mappedSessions: ConversationSessionRecord[] = (data || []).map((row) => ({
+        id: row.id,
+        topic: row.topic,
+        proficiencyLevel: row.proficiency_level,
+        wordContext: row.word_context || [],
+        goal: row.goal || '',
+        createdAt: row.created_at,
+        endedAt: row.ended_at,
+        completed: row.completed,
+      }));
+
+      setSessions(mappedSessions);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'โหลดประวัติสนทนาไม่สำเร็จ';
       setError(message);
-      setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  }, [getDb]);
+  }, []);
 
   const loadSessionMessages = useCallback(
     async (sessionId: string): Promise<ChatMessage[]> => {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
-        const records = await new Promise<ConversationMessageRecord[]>(
-          (resolve, reject) => {
-            const tx = db.transaction(
-              CONVERSATION_MESSAGES_STORE,
-              'readonly'
-            );
-            const store = tx.objectStore(CONVERSATION_MESSAGES_STORE);
-            const index = store.index('sessionId');
-            const req = index.getAll(sessionId);
-            req.onsuccess = () =>
-              resolve(req.result as ConversationMessageRecord[]);
-            req.onerror = () => reject(req.error);
-          }
-        );
-        records.sort(
-          (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-        const messages: ChatMessage[] = records.map((r) => ({
-          id: r.id,
-          role: r.role,
-          korean: r.korean,
-          reading: r.reading,
-          romanization: r.romanization,
-          translation: r.translation,
-          english: (r as ConversationMessageRecord & { english?: string }).english ?? '',
-          rawText: r.rawText,
-          timestamp: r.timestamp,
-          status: 'sent' as const,
-        }));
-        setIsLoading(false);
+        const { data, error: dbError } = await supabase
+          .from('conversation_messages')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('timestamp', { ascending: true });
+
+        if (dbError) {
+          throw dbError;
+        }
+
+        const messages: ChatMessage[] = (data || []).map((r) => {
+          const splitKorean = (r.korean || '').split('|||');
+          const splitReading = (r.reading || '').split('|||');
+          const splitRomanization = (r.romanization || '').split('|||');
+          const splitTranslation = (r.translation || '').split('|||');
+          const splitEnglish = (r.english || '').split('|||');
+
+          const sentences = splitKorean.map((k: string, idx: number) => ({
+            korean: k,
+            reading: splitReading[idx] || '',
+            romanization: splitRomanization[idx] || '',
+            translation: splitTranslation[idx] || '',
+            english: splitEnglish[idx] || '',
+          }));
+
+          return {
+            id: r.id,
+            role: r.role as 'user' | 'assistant',
+            korean: r.korean || '',
+            reading: r.reading || '',
+            romanization: r.romanization || '',
+            translation: r.translation || '',
+            english: r.english || '',
+            rawText: r.raw_text || '',
+            timestamp: r.timestamp,
+            status: 'sent' as const,
+            sentences: sentences.length > 0 ? sentences : undefined,
+          };
+        });
+
         return messages;
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'โหลดข้อความไม่สำเร็จ';
         setError(message);
-        setIsLoading(false);
         throw err;
+      } finally {
+        setIsLoading(false);
       }
     },
-    [getDb]
+    []
   );
 
   const saveSession = useCallback(
@@ -120,14 +130,28 @@ export function useConversationHistory(): UseConversationHistoryReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(CONVERSATIONS_STORE, 'readwrite');
-          const store = tx.objectStore(CONVERSATIONS_STORE);
-          store.put(session);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
+        const { error: dbError } = await supabase.from('conversations').upsert({
+          id: session.id,
+          user_id: userId,
+          topic: session.topic,
+          proficiency_level: session.proficiencyLevel,
+          word_context: session.wordContext,
+          goal: session.goal,
+          created_at: session.createdAt,
+          ended_at: session.endedAt,
+          completed: session.completed,
         });
+
+        if (dbError) {
+          throw dbError;
+        }
+
         setIsLoading(false);
       } catch (err) {
         const message =
@@ -139,7 +163,7 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   const saveMessage = useCallback(
@@ -147,29 +171,38 @@ export function useConversationHistory(): UseConversationHistoryReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
-        const record: ConversationMessageRecord = {
+        const isAssistant = message.role === 'assistant';
+        const record = {
           id: message.id,
-          sessionId,
+          session_id: sessionId,
           role: message.role,
-          korean: message.korean,
-          reading: message.reading,
-          romanization: message.romanization,
-          translation: message.translation,
-          english: message.english,
-          rawText: message.rawText,
+          korean: isAssistant && message.sentences
+            ? message.sentences.map((s) => s.korean).join('|||')
+            : message.korean,
+          reading: isAssistant && message.sentences
+            ? message.sentences.map((s) => s.reading).join('|||')
+            : message.reading,
+          romanization: isAssistant && message.sentences
+            ? message.sentences.map((s) => s.romanization).join('|||')
+            : message.romanization,
+          translation: isAssistant && message.sentences
+            ? message.sentences.map((s) => s.translation).join('|||')
+            : message.translation,
+          english: isAssistant && message.sentences
+            ? message.sentences.map((s) => s.english).join('|||')
+            : message.english,
+          raw_text: message.rawText,
           timestamp: message.timestamp,
         };
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(
-            CONVERSATION_MESSAGES_STORE,
-            'readwrite'
-          );
-          const store = tx.objectStore(CONVERSATION_MESSAGES_STORE);
-          store.put(record);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
+
+        const { error: dbError } = await supabase
+          .from('conversation_messages')
+          .insert(record);
+
+        if (dbError) {
+          throw dbError;
+        }
+
         setIsLoading(false);
       } catch (err) {
         const message =
@@ -181,7 +214,7 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   const deleteSession = useCallback(
@@ -189,38 +222,22 @@ export function useConversationHistory(): UseConversationHistoryReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
-        // Delete all messages for this session first
-        const messageIds = await new Promise<string[]>((resolve, reject) => {
-          const tx = db.transaction(
-            CONVERSATION_MESSAGES_STORE,
-            'readonly'
-          );
-          const store = tx.objectStore(CONVERSATION_MESSAGES_STORE);
-          const index = store.index('sessionId');
-          const req = index.getAll(sessionId);
-          req.onsuccess = () => {
-            const records = req.result as ConversationMessageRecord[];
-            resolve(records.map((r) => r.id));
-          };
-          req.onerror = () => reject(req.error);
-        });
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
 
-        // Delete messages and session in a single transaction
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(
-            [CONVERSATIONS_STORE, CONVERSATION_MESSAGES_STORE],
-            'readwrite'
-          );
-          const messagesStore = tx.objectStore(CONVERSATION_MESSAGES_STORE);
-          for (const id of messageIds) {
-            messagesStore.delete(id);
-          }
-          const sessionsStore = tx.objectStore(CONVERSATIONS_STORE);
-          sessionsStore.delete(sessionId);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
+        // Deleting from public.conversations cascades and deletes all related messages automatically
+        const { error: dbError } = await supabase
+          .from('conversations')
+          .delete()
+          .eq('id', sessionId)
+          .eq('user_id', userId);
+
+        if (dbError) {
+          throw dbError;
+        }
 
         setSessions((prev) => prev.filter((s) => s.id !== sessionId));
         setIsLoading(false);
@@ -234,7 +251,7 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   return {

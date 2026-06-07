@@ -72,7 +72,7 @@ function buildLessonSystemPrompt(
     `{"exercises":[\n` +
     `  {"type":"multiple_choice","prompt":"<question/instruction in Thai, e.g., 'เลือกคำแปลที่ถูกต้องของ...' หรือ 'คำใดคือ...'>","korean":"<${lang.label} word/phrase being asked about, in ${lang.script}>","reading":"<${lang.readingDesc}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai translation/meaning>","options":["<choice1>","<choice2>","<choice3>","<choice4>"],"answerIndex":0},\n` +
     `  {"type":"fill_blank","prompt":"<instruction in Thai>","korean":"<${lang.label} sentence with ___ for the blank>","reading":"<${lang.readingDesc}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai translation/meaning>","options":["<choice1>","<choice2>","<choice3>"],"answerIndex":0},\n` +
-    `  {"type":"matching","prompt":"<instruction in Thai, e.g., 'จับคู่คำกับคำแปลภาษาไทย'>","pairs":[{"korean":"<${lang.label} text>","thai":"<Thai translation/meaning>"},{"korean":"<${lang.label} text>","thai":"<Thai translation/meaning>"},{"korean":"<${lang.label} text>","thai":"<Thai translation/meaning>"}]},\n` +
+    `  {"type":"matching","prompt":"<instruction in Thai, e.g., 'จับคู่คำกับคำแปลภาษาไทย'>","pairs":[{"korean":"<${lang.label} text>","reading":"<${lang.readingDesc}>","thai":"<Thai translation/meaning>"},{"korean":"<${lang.label} text>","reading":"<${lang.readingDesc}>","thai":"<Thai translation/meaning>"},{"korean":"<${lang.label} text>","reading":"<${lang.readingDesc}>","thai":"<Thai translation/meaning>"}]},\n` +
     `  {"type":"listening","prompt":"<instruction in Thai, e.g., 'ฟังแล้วเลือกคำที่ได้ยิน'>","korean":"<${lang.label} text to be spoken aloud, in ${lang.script}>","reading":"<${lang.readingDesc}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai translation/meaning>","options":["<${lang.label} choice1>","<${lang.label} choice2>","<${lang.label} choice3>"],"answerIndex":0}\n` +
     `]}\n\n` +
     `RULES:\n` +
@@ -81,10 +81,10 @@ function buildLessonSystemPrompt(
     `- "answerIndex" is the 0-based index of the correct entry in "options"\n` +
     `- For "multiple_choice" and "fill_blank", "options" hold the answer choices (Thai meanings or ${lang.label} words as appropriate)\n` +
     `- For "listening", "options" must all be ${lang.label} words/phrases (the learner picks the one they heard)\n` +
-    `- For "matching", provide 2-4 "pairs" that match ${lang.label} words/phrases with their correct Thai translations/meanings.\n` +
+    `- For "matching", provide 2-4 "pairs" that match ${lang.label} words/phrases with their correct Thai translations/meanings. Each pair's "korean" must be the clean ${lang.label} word ONLY (no pronunciation in parentheses), and its "reading" must hold ${lang.readingDesc}.\n` +
     `- STRICT RULE FOR "reading": The "reading" field must strictly contain ONLY ${lang.readingDesc}. It must NOT contain the Thai translation/meaning.\n` +
     `- The "translation" field must contain the Thai translation/meaning of the ${lang.label} word/sentence.\n` +
-    `- RULE FOR PRONUNCIATION IN TEXT STRINGS: Whenever you output a ${lang.label} word/phrase/sentence inside the "prompt" (โจทย์), the "options" (except for listening options), or the "korean" field in "matching" pairs, you MUST always append its pronunciation in Thai-script karaoke in parentheses next to it (e.g. ${lang.readingExample}).\n` +
+    `- RULE FOR PRONUNCIATION IN TEXT STRINGS: Whenever you output a ${lang.label} word/phrase/sentence inside the "prompt" (โจทย์), or the "options" (except for listening options), you MUST always append its pronunciation in Thai-script karaoke in parentheses next to it (e.g. ${lang.readingExample}). Do NOT append it inside the "korean" field of "matching" pairs — those keep a clean word and carry pronunciation in their separate "reading" field.\n` +
     `  * For "listening" options, do NOT append pronunciation (keep them as plain ${lang.label} so it stays a pure listening test); provide the pronunciation only in the separate "reading" field.\n` +
     `- All instructions/prompts must be in Thai\n` +
     `- Do NOT add any text before or after the JSON`
@@ -168,7 +168,7 @@ export async function POST(
 
   // KKU has no system role — send the prompt as a single user message.
   const requestBody = {
-    model: customModel || 'gemini-3.1-flash-lite',
+    model: customModel || 'deepseek-v4-flash',
     messages: [
       {
         role: 'user' as const,

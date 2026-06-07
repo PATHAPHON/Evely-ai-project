@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { WordRecord } from '../_lib/wordTypes';
 import type { TargetLanguage } from '../_lib/wordTypes';
 
@@ -80,7 +81,23 @@ export default function LanguageWordCard({
   compact = false,
 }: LanguageWordCardProps) {
   const fields = getWordCardFields(record);
-  const imageUrl = record.imageBlob ? URL.createObjectURL(record.imageBlob) : null;
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (record.imageUrl) {
+      setImageUrl(record.imageUrl);
+      return;
+    }
+    if (!record.imageBlob) {
+      setImageUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(record.imageBlob);
+    setImageUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [record.imageUrl, record.imageBlob]);
 
   return (
     <div

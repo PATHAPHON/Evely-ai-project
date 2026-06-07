@@ -5,8 +5,33 @@ import {
   useActiveLanguage,
   STORAGE_KEY,
   DEFAULT_LANGUAGE,
-  SWITCH_TIMEOUT_MS,
 } from '../ActiveLanguageContext';
+
+const mockGetSession = vi.fn().mockResolvedValue({ data: { session: null } });
+const mockOnAuthStateChange = vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
+
+const mockEq = vi.fn().mockResolvedValue({ error: null });
+const mockLimit = vi.fn().mockResolvedValue({ error: null });
+const mockSelect = vi.fn().mockReturnValue({
+  limit: (...args: any[]) => mockLimit(...args),
+});
+const mockUpdate = vi.fn().mockReturnValue({
+  eq: (...args: any[]) => mockEq(...args),
+});
+const mockFrom = vi.fn().mockReturnValue({
+  update: (...args: any[]) => mockUpdate(...args),
+  select: (...args: any[]) => mockSelect(...args),
+});
+
+vi.mock('@/app/_lib/supabaseClient', () => ({
+  supabase: {
+    auth: {
+      getSession: (...args: any[]) => mockGetSession(...args),
+      onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+    },
+    from: (...args: any[]) => mockFrom(...args),
+  },
+}));
 
 function TestConsumer() {
   const { activeLanguage, setActiveLanguage, switchError, clearSwitchError } =
@@ -25,7 +50,11 @@ function TestConsumer() {
 describe('ActiveLanguageContext', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockOnAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
+    mockEq.mockResolvedValue({ error: null });
+    mockLimit.mockResolvedValue({ error: null });
   });
 
   afterEach(() => {
@@ -81,12 +110,8 @@ describe('ActiveLanguageContext', () => {
   });
 
   describe('error handling and rollback', () => {
-    it('reverts to previous language and shows error when IndexedDB query fails', async () => {
-      // Mock the db module to simulate a failure
-      vi.doMock('../db', () => ({
-        openDatabase: vi.fn().mockResolvedValue({}),
-        queryByLanguage: vi.fn().mockRejectedValue(new Error('IndexedDB error')),
-      }));
+    it('reverts to previous language and shows error when database query fails', async () => {
+      mockLimit.mockResolvedValueOnce({ error: new Error('Database error') });
 
       render(
         <ActiveLanguageProvider>
@@ -118,20 +143,14 @@ describe('ActiveLanguageContext', () => {
 
       // localStorage should be reverted
       expect(localStorage.getItem(STORAGE_KEY)).toBe('korean');
-
-      vi.doUnmock('../db');
     });
 
-    it('reverts to previous language when data load exceeds timeout', async () => {
+    it('does not revert language when data load is slow (no timeout rollback)', async () => {
       vi.useFakeTimers();
 
-      // Mock the db module to simulate a slow response
-      vi.doMock('../db', () => ({
-        openDatabase: vi.fn().mockImplementation(
-          () => new Promise((resolve) => setTimeout(() => resolve({}), 1000))
-        ),
-        queryByLanguage: vi.fn().mockResolvedValue([]),
-      }));
+      mockLimit.mockImplementationOnce(
+        () => new Promise((resolve) => setTimeout(() => resolve({ error: null }), 2000))
+      );
 
       render(
         <ActiveLanguageProvider>
@@ -148,24 +167,19 @@ describe('ActiveLanguageContext', () => {
       // Optimistically shows japanese
       expect(screen.getByTestId('language').textContent).toBe('japanese');
 
-      // Advance past the timeout
+      // Advance past a hypothetical timeout
       await act(async () => {
-        vi.advanceTimersByTime(SWITCH_TIMEOUT_MS + 10);
+        vi.advanceTimersByTime(1010);
       });
 
-      // Should revert to korean
-      expect(screen.getByTestId('language').textContent).toBe('korean');
-      expect(screen.getByTestId('error').textContent).toContain('timed out');
-      expect(localStorage.getItem(STORAGE_KEY)).toBe('korean');
-
-      vi.doUnmock('../db');
+      // Should still show japanese
+      expect(screen.getByTestId('language').textContent).toBe('japanese');
+      expect(screen.getByTestId('error').textContent).toBe('');
+      expect(localStorage.getItem(STORAGE_KEY)).toBe('japanese');
     });
 
     it('clearSwitchError clears the error message', async () => {
-      vi.doMock('../db', () => ({
-        openDatabase: vi.fn().mockResolvedValue({}),
-        queryByLanguage: vi.fn().mockRejectedValue(new Error('fail')),
-      }));
+      mockLimit.mockResolvedValueOnce({ error: new Error('fail') });
 
       render(
         <ActiveLanguageProvider>
@@ -186,8 +200,6 @@ describe('ActiveLanguageContext', () => {
       });
 
       expect(screen.getByTestId('error').textContent).toBe('');
-
-      vi.doUnmock('../db');
     });
   });
 });

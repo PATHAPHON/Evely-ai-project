@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useStrings } from "@/app/_lib/strings";
-import GlobalLanguageSelector from "@/app/_components/GlobalLanguageSelector";
 import LanguageSelector from "../_components/LanguageSelector";
 import ThemeToggle from "../_components/ThemeToggle";
 
@@ -15,7 +14,7 @@ export default function PreferencesPage() {
   const t = useStrings();
 
   return (
-    <div className="w-full h-dvh bg-background text-foreground flex flex-col font-sans select-none">
+    <div className="w-full h-dvh dot-grid-bg text-foreground flex flex-col font-sans select-none">
       {/* Header */}
       <div className="p-4 border-b-3 border-border-color flex items-center gap-3 bg-card-bg">
         <button
@@ -35,17 +34,6 @@ export default function PreferencesPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md flex flex-col gap-5">
-          {/* Learning Language */}
-          <div>
-            <p className="text-sm font-semibold text-text-primary mb-3">
-              {t.profile.learningLanguage}
-            </p>
-            <GlobalLanguageSelector />
-          </div>
-
-          {/* Divider */}
-          <div className="h-[2px] bg-border-color/10 dark:bg-border-color/20" />
-
           {/* Translation Language */}
           <LanguageSelector />
 

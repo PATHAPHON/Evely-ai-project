@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ConfigProvider } from "antd";
-import { 
-  SmileOutlined, 
-  HeartOutlined, 
-  ThunderboltOutlined, 
-  StarOutlined, 
-  CrownOutlined, 
+import {
+  SmileOutlined,
+  HeartOutlined,
+  ThunderboltOutlined,
+  StarOutlined,
+  CrownOutlined,
   RocketOutlined,
   FireOutlined,
   CompassOutlined,
@@ -20,18 +18,12 @@ import {
   BulbOutlined
 } from "@ant-design/icons";
 import useIllustrationTheme from "@/app/theme/illustrationTheme";
-import ScanButton from "@/app/scan/_components/ScanButton";
+import BottomNav from "@/app/_components/BottomNav";
 import WordFeed from "@/app/home/_components/WordFeed";
-import { useStrings } from "@/app/_lib/strings";
-import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
+import StatsBar from "@/app/_components/StatsBar";
 
 export default function HomePage() {
   const configProps = useIllustrationTheme();
-  const router = useRouter();
-  const t = useStrings();
-  const { language } = useLanguagePreference();
-  const isThai = language === "thai";
-  const [activeTab, setActiveTab] = useState("Home");
 
   return (
     <ConfigProvider {...configProps}>
@@ -84,6 +76,19 @@ export default function HomePage() {
         .animate-card-fade-in {
           animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
         }
+        @keyframes fadeInQuick {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-fade-in-quick {
+          animation: fadeInQuick 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
         /* Respect users who prefer reduced motion: stop all decorative
            animation and hide the purely-ornamental icons entirely. */
         @media (prefers-reduced-motion: reduce) {
@@ -95,7 +100,7 @@ export default function HomePage() {
       `}</style>
 
       {/* Container matches the absolute screen viewport of the mobile app */}
-      <div className="w-full h-dvh bg-white dark:bg-[#1a1a2e] text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
+      <div className="w-full h-dvh dot-grid-bg text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
         
         {/* Dynamic Meteor Shower - Animated Spinning Icons (Z-0) */}
         <div className="icon-meteor text-accent-yellow text-2xl" style={{ top: '8%', right: '5%', animationDelay: '0s', animationDuration: '6s' }}><StarOutlined /></div>
@@ -154,85 +159,23 @@ export default function HomePage() {
           <CoffeeOutlined />
         </div>
         
-        {/* Scroll Container */}
-        <div 
+        {/* Top stats bar (replaces the page title) */}
+        <div className="relative z-10">
+          <StatsBar />
+        </div>
+
+        {/* Scroll Container — daily word feed */}
+        <div
           className="flex-1 overflow-y-auto flex flex-col"
           style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
         >
-          /* Word Feed */
-          <div className="flex-1 mt-2 relative z-10 flex flex-col min-h-0 animate-card-fade-in">
+          <div className="flex-1 mt-2 relative z-10 flex flex-col animate-card-fade-in">
             <WordFeed />
           </div>
         </div>
 
-        {/* Tabbar Navigation styled with high contrast border-t */}
-        <div 
-          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-4 z-40 rounded-2xl shadow-nb-md"
-          style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
-        >
-          
-          {/* Tab: Home (ACTIVE) */}
-          <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary transition-colors">
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm transition-all">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
-          </a>
-
-          {/* Tab: Library */}
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-            onClick={() => router.push("/library")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="4 7 4 4 20 4 20 7" />
-                <line x1="9" y1="20" x2="15" y2="20" />
-                <line x1="12" y1="4" x2="12" y2="20" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabLibrary}</span>
-          </a>
-
-          {/* Tab: AI Scan */}
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-            onClick={() => router.push("/chat")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
-              <svg width="22" height="22" viewBox="0 0 18 18" shapeRendering="crispEdges" style={{ display: 'block' }}>
-                <rect x="6" y="1" width="1" height="2" fill="currentColor" />
-                <rect x="11" y="1" width="1" height="2" fill="currentColor" />
-                <rect x="1" y="6" width="3" height="6" fill="currentColor" />
-                <rect x="14" y="6" width="3" height="6" fill="currentColor" />
-                <rect x="4" y="3" width="10" height="10" fill="currentColor" />
-                <rect x="8" y="13" width="2" height="4" fill="currentColor" />
-                <rect x="5" y="13" width="2" height="2" fill="currentColor" />
-                <rect x="11" y="13" width="2" height="2" fill="currentColor" />
-                <rect x="7" y="7" width="1" height="2" fill="#0b3d66" />
-                <rect x="10" y="7" width="1" height="2" fill="#0b3d66" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabAIScan}</span>
-          </a>
-
-          {/* Tab: Profile */}
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-            onClick={() => router.push("/profile")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M20 21a8 8 0 0 0-16 0" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
-          </a>
-
-        </div>
+        {/* Tabbar Navigation */}
+        <BottomNav active="home" />
 
       </div>
     </ConfigProvider>

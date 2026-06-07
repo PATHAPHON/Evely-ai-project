@@ -1,41 +1,52 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import 'fake-indexeddb/auto';
-import { IDBFactory } from 'fake-indexeddb';
 import { useExclusionList } from './useExclusionList';
-import { openDatabase, WORDS_STORE, FEED_WORDS_STORE } from '@/app/_lib/db';
 
-beforeEach(() => {
-  // Reset IndexedDB between tests
-  globalThis.indexedDB = new IDBFactory();
+let mockWords: any[] = [];
+let mockFeedWords: any[] = [];
+const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
+
+const mockFrom = vi.fn((table: string) => {
+  const data = table === 'words' ? mockWords : table === 'feed_words' ? mockFeedWords : [];
+  let filtered = [...data];
+  const builder = {
+    select: vi.fn(() => builder),
+    eq: vi.fn((col: string, val: any) => {
+      filtered = filtered.filter((row) => row[col] === val);
+      return builder;
+    }),
+    then: (resolve: any) => {
+      resolve({
+        data: filtered,
+        error: null,
+      });
+    },
+  };
+  return builder;
 });
 
-async function seedWordsStore(records: { id: string; korean?: string; label: string; createdAt: number; imageBlob: Blob }[]) {
-  const db = await openDatabase();
-  const tx = db.transaction(WORDS_STORE, 'readwrite');
-  const store = tx.objectStore(WORDS_STORE);
-  for (const record of records) {
-    store.put(record);
-  }
-  await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
+vi.mock('@/app/_lib/supabaseClient', () => ({
+  supabase: {
+    auth: {
+      getUser: (...args: any[]) => mockGetUser(...args),
+    },
+    from: (...args: any[]) => mockFrom(...args),
+  },
+}));
+
+beforeEach(() => {
+  mockWords = [];
+  mockFeedWords = [];
+  vi.clearAllMocks();
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
+});
+
+function seedWordsStore(records: any[]) {
+  mockWords = records.map((r) => ({ ...r, user_id: 'test-user-id' }));
 }
 
-async function seedFeedWordsStore(records: { id: string; korean: string; reading: string; romanization: string; english: string; thai: string; generatedDate: string; bookmarked: boolean; imageBlob: Blob | null; createdAt: number }[]) {
-  const db = await openDatabase();
-  const tx = db.transaction(FEED_WORDS_STORE, 'readwrite');
-  const store = tx.objectStore(FEED_WORDS_STORE);
-  for (const record of records) {
-    store.put(record);
-  }
-  await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
+function seedFeedWordsStore(records: any[]) {
+  mockFeedWords = records.map((r) => ({ ...r, user_id: 'test-user-id' }));
 }
 
 describe('useExclusionList', () => {
@@ -51,9 +62,9 @@ describe('useExclusionList', () => {
   });
 
   it('returns korean words from the words store (scanned)', async () => {
-    await seedWordsStore([
+    seedWordsStore([
       { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
-      { id: '2', korean: '바나나', label: 'banana', createdAt: 2, imageBlob: new Blob() },
+      { id: '2', korean: '바นานา', label: 'banana', createdAt: 2, imageBlob: new Blob() },
     ]);
 
     const { result } = renderHook(() => useExclusionList());
@@ -64,14 +75,14 @@ describe('useExclusionList', () => {
     });
 
     expect(exclusionList).toContain('사과');
-    expect(exclusionList).toContain('바나나');
+    expect(exclusionList).toContain('바นานา');
     expect(exclusionList).toHaveLength(2);
   });
 
   it('returns korean words from the feed-words store (generated)', async () => {
-    await seedFeedWordsStore([
+    seedFeedWordsStore([
       { id: '1', korean: '고양이', reading: 'โกยางอี', romanization: 'goyangi', english: 'cat', thai: 'แมว', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
-      { id: '2', korean: '강아지', reading: 'คังอาจี', romanization: 'gangaji', english: 'dog', thai: 'สุนัข', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 2 },
+      { id: '2', korean: '강าจี', reading: 'คังอาจี', romanization: 'gangaji', english: 'dog', thai: 'สุนัข', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 2 },
     ]);
 
     const { result } = renderHook(() => useExclusionList());
@@ -82,15 +93,15 @@ describe('useExclusionList', () => {
     });
 
     expect(exclusionList).toContain('고양이');
-    expect(exclusionList).toContain('강아지');
+    expect(exclusionList).toContain('강าจี');
     expect(exclusionList).toHaveLength(2);
   });
 
   it('combines words from both stores', async () => {
-    await seedWordsStore([
+    seedWordsStore([
       { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
     ]);
-    await seedFeedWordsStore([
+    seedFeedWordsStore([
       { id: '2', korean: '고양이', reading: 'โกยางอี', romanization: 'goyangi', english: 'cat', thai: 'แมว', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
     ]);
 
@@ -107,10 +118,10 @@ describe('useExclusionList', () => {
   });
 
   it('deduplicates words that appear in both stores', async () => {
-    await seedWordsStore([
+    seedWordsStore([
       { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
     ]);
-    await seedFeedWordsStore([
+    seedFeedWordsStore([
       { id: '2', korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
     ]);
 
@@ -125,7 +136,7 @@ describe('useExclusionList', () => {
   });
 
   it('skips words store records without korean field', async () => {
-    await seedWordsStore([
+    seedWordsStore([
       { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
       { id: '2', korean: undefined, label: 'unknown', createdAt: 2, imageBlob: new Blob() },
     ]);

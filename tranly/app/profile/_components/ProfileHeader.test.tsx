@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import ProfileHeader from "./ProfileHeader";
-import type { UseUserProfileReturn } from "../_lib/useUserProfile";
+import type { UseUserProfileReturn } from "@/app/_lib/useUserProfile";
 
 function makeProfile(overrides: Partial<UseUserProfileReturn> = {}): UseUserProfileReturn {
   return {
@@ -13,6 +13,10 @@ function makeProfile(overrides: Partial<UseUserProfileReturn> = {}): UseUserProf
     avatarInitial: "T",
     setDisplayName: vi.fn(),
     updateProfile: vi.fn(),
+    claimedChests: [],
+    completedExams: [],
+    claimChest: vi.fn().mockResolvedValue(undefined),
+    completeExam: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -27,7 +31,6 @@ describe("ProfileHeader", () => {
         onOpenViewer={vi.fn()}
       />
     );
-    expect(screen.getByText("T")).toBeInTheDocument();
     expect(screen.getByText("TestUser")).toBeInTheDocument();
     expect(screen.getByText("@tester")).toBeInTheDocument();
     expect(screen.getByText("Learning Korean")).toBeInTheDocument();

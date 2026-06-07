@@ -67,7 +67,6 @@ export default function AIGuide({
   // fills this draft; pressing send commits it as the answer and advances. This
   // makes the whole guide feel like a back-and-forth chat.
   const [draft, setDraft] = useState('');
-  const [isSuggesting, setIsSuggesting] = useState(false);
   const [isCurrentStepCompleted, setIsCurrentStepCompleted] = useState(false);
 
   // Auto-focus the input field on the topic step once it is completed/revealed
@@ -197,30 +196,7 @@ export default function AIGuide({
     setDraft('');
   }, [draft, currentStep, guide, modeReplies, levelReplies]);
 
-  // Suggest a topic that fits the words the learner just picked, reusing the
-  // existing endpoint. Words are chosen before the topic step precisely so this
-  // can key off them.
-  const handleSuggestTopic = useCallback(async () => {
-    if (selectedWords.length === 0 || isSuggesting) return;
-    setIsSuggesting(true);
-    try {
-      const res = await fetch('/api/chat/suggest-topic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getCustomAIHeaders() },
-        body: JSON.stringify({
-          words: selectedWords.map((w) => ({ korean: w.korean, thai: w.thai })),
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.topic) setDraft(data.topic);
-      }
-    } catch {
-      // Non-fatal: the learner can still type a topic.
-    } finally {
-      setIsSuggesting(false);
-    }
-  }, [selectedWords, isSuggesting]);
+
 
   const handleConfirm = useCallback(() => {
     const outcome = guide.buildOutcome();
@@ -443,26 +419,8 @@ export default function AIGuide({
 
           {currentStep === 'topic' && (
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              {selectedWords.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleSuggestTopic}
-                  disabled={isSuggesting}
-                  style={{ animationDelay: '0ms' }}
-                  className="flex items-center gap-1.5 rounded-lg border-2 border-border-color bg-accent-yellow px-3 py-1.5 text-sm font-bold text-black shadow-nb-sm transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 animate-button-in"
-                >
-                  {isSuggesting ? (
-                    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-                  ) : (
-                    <span>✨</span>
-                  )}
-                  {isSuggesting
-                    ? isThai ? 'กำลังแนะนำ...' : 'Suggesting...'
-                    : isThai ? 'แนะนำหัวข้อจากคำศัพท์' : 'Suggest from words'}
-                </button>
-              )}
               {topicExamples.map((ex, idx) => {
-                const delay = (selectedWords.length > 0 ? idx + 1 : idx) * 60;
+                const delay = idx * 60;
                 return (
                   <button
                     key={ex}

@@ -164,7 +164,6 @@ function CreateSet({
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const allSelected = selected.size === words.length;
@@ -175,46 +174,22 @@ function CreateSet({
     [words, usedWordIds]
   );
 
-  const handleAiPick = async () => {
+  const handleRandomPick = () => {
     setAiError(null);
     if (aiCandidates.length === 0) {
       setAiError("ทุกคำถูกใช้ใน Flashcard หมดแล้ว");
       return;
     }
-    setAiLoading(true);
-    try {
-      const res = await fetch("/api/flashcard/select", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getCustomAIHeaders(),
-        },
-        body: JSON.stringify({
-          candidates: aiCandidates.map((w) => ({
-            id: w.id,
-            korean: w.korean || w.label,
-            english: w.english,
-          })),
-        }),
-      });
-      if (!res.ok) {
-        setAiError("ให้ AI เลือกไม่สำเร็จ ลองอีกครั้ง");
-        return;
-      }
-      const data = (await res.json()) as { ids?: string[]; name?: string };
-      const ids = (data.ids ?? []).filter((id) =>
-        aiCandidates.some((w) => w.id === id)
-      );
-      if (ids.length === 0) {
-        setAiError("AI ไม่สามารถเลือกคำได้ ลองอีกครั้ง");
-        return;
-      }
-      setSelected(new Set(ids));
-      if (data.name && name.trim().length === 0) setName(data.name);
-    } catch {
-      setAiError("เกิดข้อผิดพลาด ลองอีกครั้ง");
-    } finally {
-      setAiLoading(false);
+    const arr = [...aiCandidates];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    const target = Math.min(10, Math.max(5, arr.length));
+    const ids = arr.slice(0, target).map((c) => c.id);
+    setSelected(new Set(ids));
+    if (name.trim().length === 0) {
+      setName("ชุดสุ่มคำศัพท์");
     }
   };
 
@@ -272,11 +247,10 @@ function CreateSet({
 
       <button
         type="button"
-        onClick={handleAiPick}
-        disabled={aiLoading}
-        className="flex items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-yellow px-5 py-3 font-extrabold text-black shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={handleRandomPick}
+        className="flex items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-accent-yellow px-5 py-3 font-extrabold text-black shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm cursor-pointer"
       >
-        {aiLoading ? "กำลังให้ AI เลือก..." : "✨ ให้ AI เลือกให้"}
+        🎲 สุ่มเลือกคำให้
       </button>
 
       {aiError && (
@@ -352,11 +326,19 @@ function Study({
   const safeIndex = Math.min(index, deck.length - 1);
   const word = deck[safeIndex];
 
-  const url = useMemo(
-    () => URL.createObjectURL(word.imageBlob),
-    [word.imageBlob]
-  );
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+  const url = useMemo(() => {
+    if (word.imageUrl) return word.imageUrl;
+    if (word.imageBlob) return URL.createObjectURL(word.imageBlob);
+    return "";
+  }, [word.imageBlob, word.imageUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (url && url.startsWith("blob:")) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, [url]);
 
   const korean = word.korean || "";
   const thai = word.label && word.label !== korean ? word.label : "";

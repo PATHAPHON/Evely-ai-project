@@ -3,6 +3,7 @@ import { parseFeedResponse } from './parseFeedResponse';
 import type {
   FeedSuccessResponse,
   FeedErrorResponse,
+  FeedWord,
 } from '@/app/home/_lib/types';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
@@ -39,7 +40,7 @@ function errorResponse(
  */
 function validateInput(
   body: unknown
-): { language: TargetLanguage; excludeWords: string[]; count: number } | null {
+): { language: TargetLanguage; excludeWords: string[]; count: number; topic?: string } | null {
   if (typeof body !== 'object' || body === null) return null;
 
   const record = body as Record<string, unknown>;
@@ -57,55 +58,117 @@ function validateInput(
   if (typeof record.count !== 'number') return null;
   if (!Number.isInteger(record.count) || record.count <= 0) return null;
 
+  const topic = typeof record.topic === 'string' ? record.topic : undefined;
+
   return {
     language: record.language as TargetLanguage,
     excludeWords: record.excludeWords as string[],
     count: record.count,
+    topic,
   };
 }
 
 /**
  * Build a language-specific prompt for vocabulary generation.
  */
-function buildPrompt(language: TargetLanguage, count: number, exclusionText: string): string {
+function buildPrompt(language: TargetLanguage, count: number, exclusionText: string, topic?: string): string {
+  const topicInstruction = topic ? `about the topic "${topic}" ` : '';
   switch (language) {
     case 'korean':
       return (
-        `Generate ${count} Korean vocabulary words for a language learner. ` +
+        `Generate ${count} Korean vocabulary words ${topicInstruction}for a language learner. ` +
         exclusionText +
         'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
-        'Each element must have this schema: {"korean":"<Korean word in Hangul>","reading":"<Korean pronunciation written in Thai script>","romanization":"<Korean pronunciation in Revised Romanization>","english":"<English translation>","thai":"<Thai translation>"}. ' +
-        'Example: [{"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล"}]. ' +
+        'Each element must have this schema: {"korean":"<Korean word in Hangul>","reading":"<Korean pronunciation written in Thai script>","romanization":"<Korean pronunciation in Revised Romanization>","english":"<English translation>","thai":"<Thai translation>","part_of_speech":"<part of speech in Thai, e.g. คำนาม, คำกริยา, คำคุณศัพท์, คำสรรพนาม, คำวิเศษณ์>","image_queries":["<English search query for a clean, isolated version on a solid white background, e.g. \\"red apple isolated on white background\\">", "<English query for a 3D icon version on white background, e.g. \\"3D red apple sticker style isolated on white background\\">", "<English query for another isolated version, e.g. \\"sliced apple isolated on white background\\">"]}. ' +
+        'Example: [{"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล","part_of_speech":"คำนาม","image_queries":["red apple isolated on white background","3D red apple icon isolated on white background","sliced apple isolated on white background"]}]. ' +
         'Return ONLY the JSON array and nothing else.'
       );
     case 'japanese':
       return (
-        `Generate ${count} Japanese vocabulary words for a language learner. ` +
+        `Generate ${count} Japanese vocabulary words ${topicInstruction}for a language learner. ` +
         exclusionText +
         'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
-        'Each element must have this schema: {"kanji":"<word in kanji>","hiragana":"<hiragana reading>","romaji":"<romaji pronunciation>","thai":"<Thai translation>"}. ' +
-        'Example: [{"kanji":"猫","hiragana":"ねこ","romaji":"neko","thai":"แมว"}]. ' +
+        'Each element must have this schema: {"kanji":"<word in kanji>","hiragana":"<hiragana reading>","romaji":"<romaji pronunciation>","english":"<English translation>","thai":"<Thai translation>","part_of_speech":"<part of speech in Thai, e.g. คำนาม, คำกริยา, คำคุณศัพท์, คำสรรพนาม, คำวิเศษณ์>","image_queries":["<English search query for a clean, isolated version on a solid white background, e.g. \\"cute cat isolated on white background\\">", "<English query for a 3D icon version on white background, e.g. \\"3D cat icon isolated on white background\\">", "<English query for another isolated version, e.g. \\"white kitten isolated on white background\\">"]}. ' +
+        'Example: [{"kanji":"猫","hiragana":"ねこ","romaji":"neko","english":"cat","thai":"แมว","part_of_speech":"คำนาม","image_queries":["cute cat isolated on white background","3D cat icon isolated on white background","white kitten isolated on white background"]}]. ' +
         'Return ONLY the JSON array and nothing else.'
       );
     case 'chinese':
       return (
-        `Generate ${count} Chinese vocabulary words for a language learner. ` +
+        `Generate ${count} Chinese vocabulary words ${topicInstruction}for a language learner. ` +
         exclusionText +
         'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
-        'Each element must have this schema: {"hanzi":"<word in Chinese characters>","pinyin":"<pinyin with tone marks>","thai":"<Thai translation>"}. ' +
-        'Example: [{"hanzi":"猫","pinyin":"māo","thai":"แมว"}]. ' +
+        'Each element must have this schema: {"hanzi":"<word in Chinese characters>","pinyin":"<pinyin with tone marks>","english":"<English translation>","thai":"<Thai translation>","part_of_speech":"<part of speech in Thai, e.g. คำนาม, คำกริยา, คำคุณศัพท์, คำสรรพนาม, คำวิเศษณ์>","image_queries":["<English search query for a clean, isolated version on a solid white background, e.g. \\"cute cat isolated on white background\\">", "<English query for a 3D icon version on white background, e.g. \\"3D cat icon isolated on white background\\">", "<English query for another isolated version, e.g. \\"white kitten isolated on white background\\">"]}. ' +
+        'Example: [{"hanzi":"猫","pinyin":"māo","english":"cat","thai":"แมว","part_of_speech":"คำนาม","image_queries":["cute cat isolated on white background","3D cat icon isolated on white background","white kitten isolated on white background"]}]. ' +
         'Return ONLY the JSON array and nothing else.'
       );
     case 'english':
       return (
-        `Generate ${count} English vocabulary words for a language learner. ` +
+        `Generate ${count} English vocabulary words ${topicInstruction}for a language learner. ` +
         exclusionText +
         'Reply with ONLY a raw JSON array (no markdown, no code fences, no prose, no leading/trailing text). ' +
-        'Each element must have this schema: {"word":"<English word>","ipa":"<IPA phonetic transcription>","thai":"<Thai translation>"}. ' +
-        'Example: [{"word":"cat","ipa":"/kæt/","thai":"แมว"}]. ' +
+        'Each element must have this schema: {"word":"<English word>","ipa":"<IPA phonetic transcription>","thai":"<Thai translation>","part_of_speech":"<part of speech in Thai, e.g. คำนาม, คำกริยา, คำคุณศัพท์, คำสรรพนาม, คำวิเศษณ์>","image_queries":["<English search query for a clean, isolated version on a solid white background, e.g. \\"cute cat isolated on white background\\">", "<English query for a 3D icon version on white background, e.g. \\"3D cat icon isolated on white background\\">", "<English query for another isolated version, e.g. \\"white kitten isolated on white background\\">"]}. ' +
+        'Example: [{"word":"cat","ipa":"/kæt/","thai":"แมว","part_of_speech":"คำนาม","image_queries":["cute cat isolated on white background","3D cat icon isolated on white background","white kitten isolated on white background"]}]. ' +
         'Return ONLY the JSON array and nothing else.'
       );
   }
+}
+
+function getProcessedQuery(query: string): string {
+  const qLower = query.toLowerCase();
+  if (
+    !qLower.includes('white background') &&
+    !qLower.includes('isolated') &&
+    !qLower.includes('transparent')
+  ) {
+    return `${query} isolated on white background`;
+  }
+  return query;
+}
+
+async function fetchPexelsImage(query: string): Promise<string | null> {
+  const apiKey = process.env.PEXELS_API_KEY;
+  if (!apiKey) {
+    console.log('PEXELS_API_KEY is not set. Skipping Pexels search.');
+    return null;
+  }
+
+  const processedQuery = getProcessedQuery(query);
+
+  try {
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(processedQuery)}&per_page=1`,
+      {
+        headers: {
+          Authorization: apiKey,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Pexels API error: [${response.status}]`);
+      return null;
+    }
+
+    const data = await response.json();
+    const photo = data?.photos?.[0];
+    if (photo?.src?.large) {
+      return photo.src.large;
+    }
+    if (photo?.src?.medium) {
+      return photo.src.medium;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch from Pexels API:', error);
+    return null;
+  }
+}
+
+function getEnglishWord(word: FeedWord): string {
+  if (word.language === 'english') {
+    return word.word;
+  }
+  return word.english || word.thai;
 }
 
 export async function POST(
@@ -125,7 +188,7 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { language, excludeWords, count } = input;
+  const { language, excludeWords, count, topic } = input;
 
   // Read custom API key and model from request headers (user-provided config)
   const customApiKey = request.headers.get('x-custom-api-key');
@@ -144,10 +207,11 @@ export async function POST(
       : '';
 
   // Use custom model if provided, otherwise fall back to default
-  const model = customModel || 'gemini-3.1-flash-lite';
+  const model = customModel || 'deepseek-v4-flash';
 
   // Build language-specific prompt
-  const promptText = buildPrompt(language, count, exclusionText);
+  const promptText = buildPrompt(language, count, exclusionText, topic);
+
 
   // Construct KKU IntelSphere API request
   const requestBody = {
@@ -223,7 +287,40 @@ export async function POST(
       return errorResponse('api_error', 502);
     }
 
-    return NextResponse.json({ words }, { status: 200 });
+    // Fetch image URLs for each word
+    const wordsWithImages = await Promise.all(
+      words.map(async (word) => {
+        const queries = word.imageQueries || [];
+        const imageUrls: string[] = [];
+
+        for (const query of queries) {
+          let imageUrl: string | undefined;
+          const processedQuery = getProcessedQuery(query);
+
+          if (process.env.PEXELS_API_KEY) {
+            const pexelsUrl = await fetchPexelsImage(query);
+            if (pexelsUrl) {
+              imageUrl = pexelsUrl;
+            }
+          }
+
+          // Fallback to LoremFlickr search if Pexels key is not set or Pexels returns no image
+          if (!imageUrl) {
+            imageUrl = `https://loremflickr.com/600/400/${encodeURIComponent(processedQuery)}`;
+          }
+
+          imageUrls.push(imageUrl);
+        }
+
+        return {
+          ...word,
+          imageUrl: imageUrls[0],
+          imageUrls,
+        };
+      })
+    );
+
+    return NextResponse.json({ words: wordsWithImages }, { status: 200 });
   } catch (error: unknown) {
     clearTimeout(timeoutId);
 

@@ -16,7 +16,7 @@ interface ChatListProps {
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
-  onSpeak: (messageId: string) => void;
+  onSpeak: (messageId: string, text?: string) => void;
 }
 
 /**
@@ -96,7 +96,7 @@ function AIMessage({
   onType,
 }: {
   message: ChatMessage;
-  onSpeak: (messageId: string) => void;
+  onSpeak: (messageId: string, text?: string) => void;
   isLatest?: boolean;
   onType?: () => void;
 }) {
@@ -105,63 +105,159 @@ function AIMessage({
   // Determine if this is a brand new message requiring typewriter animation
   const isRecent = new Date().getTime() - new Date(message.timestamp).getTime() < 10000;
   const shouldAnimate = isLatest && isRecent;
-  const chars = Array.from(message.korean);
-  const [shown, setShown] = useState(shouldAnimate ? 0 : chars.length);
+
+  const sentences = message.sentences || [];
+  const hasSentences = sentences.length > 0;
+
+  const totalLength = hasSentences
+    ? sentences.reduce((sum, s) => sum + s.korean.length, 0)
+    : Array.from(message.korean).length;
+
+  const [shown, setShown] = useState(shouldAnimate ? 0 : totalLength);
 
   useEffect(() => {
     if (!shouldAnimate) return;
-    if (shown >= chars.length) return;
+    if (shown >= totalLength) return;
     const t = setTimeout(() => {
       setShown((n) => n + 1);
       onType?.();
     }, 25); // 25ms per character reveal
     return () => clearTimeout(t);
-  }, [shown, chars.length, shouldAnimate, onType]);
+  }, [shown, totalLength, shouldAnimate, onType]);
 
-  const isDone = !shouldAnimate || shown >= chars.length;
+  const isDone = !shouldAnimate || shown >= totalLength;
+  const chars = Array.from(message.korean);
+
+  let charOffset = 0;
 
   return (
-    <div className="flex justify-start items-end gap-2">
+    <div className="flex justify-start items-end gap-2 w-full">
       <div className="animate-mascot-pop-in shrink-0">
         <Mascot state={isLatest ? (isDone ? 'happy' : 'thinking') : 'idle'} size={40} />
       </div>
-      <div className="animate-bubble-pop-in max-w-[85%] rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md transition-all duration-300">
-        {/* Korean text */}
-        <p className="text-2xl font-bold text-text-primary mb-1">
-          {shouldAnimate ? chars.slice(0, shown).join('') : message.korean}
-        </p>
+      <div className="animate-bubble-pop-in max-w-[85%] w-full rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md transition-all duration-300">
+        {hasSentences ? (
+          <div className="flex flex-col w-full">
+            {sentences.map((s, idx) => {
+              const startOffset = charOffset;
+              const endOffset = charOffset + s.korean.length;
+              charOffset = endOffset;
 
-        {/* Translation & auxiliary info (fades/expands in smoothly) */}
-        <div
-          className={`transition-all duration-300 ease-out origin-top ${
-            isDone ? 'opacity-100 max-h-[500px]' : 'opacity-0 max-h-0 overflow-hidden'
-          }`}
-        >
-          {/* Romanization */}
-          <p className="text-sm text-text-secondary italic mb-1 mt-1">
-            {message.romanization}
-          </p>
+              let sentenceShown = s.korean.length;
+              if (shouldAnimate) {
+                if (shown < startOffset) sentenceShown = 0;
+                else if (shown < endOffset) sentenceShown = shown - startOffset;
+              }
 
-          {/* Translation — language based on user preference */}
-          {language === 'thai' ? (
-            <div className="mt-1">
-              <p className="text-base text-text-secondary mb-0.5">{message.reading}</p>
-              <p className="text-base text-text-secondary">{message.translation}</p>
+              if (sentenceShown === 0) return null;
+
+              const isSentenceDone = !shouldAnimate || shown >= endOffset;
+              const sentenceText = s.korean.slice(0, sentenceShown);
+
+              return (
+                <div key={idx} className="flex flex-col w-full">
+                  {idx > 0 && (
+                    <div className="border-t-2 border-border-color/10 my-3 w-full" />
+                  )}
+                  <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 items-center w-full">
+                    {/* Column 1: Play button */}
+                    <div className="flex items-center justify-center pr-1">
+                      <button
+                        type="button"
+                        onClick={() => onSpeak(message.id, s.korean)}
+                        disabled={!isSentenceDone}
+                        aria-label="Play Korean pronunciation"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <SoundOutlined style={{ fontSize: 14 }} />
+                      </button>
+                    </div>
+
+                    {/* Column 2: Romanization & Korean text */}
+                    <div className="min-w-0 flex flex-col justify-center">
+                      <div
+                        className={`transition-all duration-300 ease-out origin-top ${
+                          isSentenceDone ? 'opacity-100 max-h-[100px]' : 'opacity-0 max-h-0 overflow-hidden'
+                        }`}
+                      >
+                        <span className="block text-xs text-text-secondary italic leading-tight mb-1">
+                          {s.romanization}
+                        </span>
+                      </div>
+                      <span className="block text-2xl font-bold text-text-primary leading-tight">
+                        {sentenceText}
+                      </span>
+                    </div>
+
+                    {/* Column 3: Translation */}
+                    <div className="min-w-0 flex flex-col justify-center">
+                      <div
+                        className={`transition-all duration-300 ease-out origin-top ${
+                          isSentenceDone ? 'opacity-100 max-h-[200px]' : 'opacity-0 max-h-0 overflow-hidden'
+                        }`}
+                      >
+                        {language === 'thai' ? (
+                          <>
+                            <p className="text-base font-semibold text-text-secondary leading-tight mb-0.5">
+                              {s.reading}
+                            </p>
+                            <p className="text-base text-text-secondary leading-tight">
+                              {s.translation}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-base text-text-secondary leading-tight">
+                            {s.english}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // Fallback legacy layout
+          <>
+            {/* Korean text */}
+            <p className="text-2xl font-bold text-text-primary mb-1">
+              {shouldAnimate ? chars.slice(0, shown).join('') : message.korean}
+            </p>
+
+            {/* Translation & auxiliary info (fades/expands in smoothly) */}
+            <div
+              className={`transition-all duration-300 ease-out origin-top ${
+                isDone ? 'opacity-100 max-h-[500px]' : 'opacity-0 max-h-0 overflow-hidden'
+              }`}
+            >
+              {/* Romanization */}
+              <p className="text-sm text-text-secondary italic mb-1 mt-1">
+                {message.romanization}
+              </p>
+
+              {/* Translation — language based on user preference */}
+              {language === 'thai' ? (
+                <div className="mt-1">
+                  <p className="text-base text-text-secondary mb-0.5">{message.reading}</p>
+                  <p className="text-base text-text-secondary">{message.translation}</p>
+                </div>
+              ) : (
+                <p className="text-base text-text-secondary mt-1">{message.english}</p>
+              )}
+
+              {/* Audio button */}
+              <button
+                type="button"
+                onClick={() => onSpeak(message.id)}
+                aria-label="Play Korean pronunciation"
+                className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
+              >
+                <SoundOutlined style={{ fontSize: 14 }} />
+              </button>
             </div>
-          ) : (
-            <p className="text-base text-text-secondary mt-1">{message.english}</p>
-          )}
-
-          {/* Audio button */}
-          <button
-            type="button"
-            onClick={() => onSpeak(message.id)}
-            aria-label="Play Korean pronunciation"
-            className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border-color bg-[#4096FF] text-white shadow-nb-sm transition-all duration-100 active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
-          >
-            <SoundOutlined style={{ fontSize: 14 }} />
-          </button>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

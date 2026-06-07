@@ -58,6 +58,13 @@ export interface ChatMessage {
   suggestions?: ReplySuggestion[];
   /** True when this assistant message concludes the conversation (goal reached). */
   ended?: boolean;
+  sentences?: Array<{
+    korean: string;
+    reading: string;
+    romanization: string;
+    translation: string;
+    english: string;
+  }>;
 }
 
 export interface SessionConfig {
@@ -68,6 +75,8 @@ export interface SessionConfig {
   goal: string;
   /** Learning language the AI should converse in. */
   language: TargetLanguage;
+  /** Optional lesson ID for script-based sessions */
+  lessonId?: string;
 }
 
 export interface SavedWord {
@@ -105,6 +114,13 @@ export interface ChatSuccessResponse {
   suggestions?: ReplySuggestion[];
   /** True when the AI has concluded the conversation (goal reached). */
   ended?: boolean;
+  sentences?: Array<{
+    korean: string;
+    reading: string;
+    romanization: string;
+    translation: string;
+    english: string;
+  }>;
 }
 
 export interface ChatErrorResponse {

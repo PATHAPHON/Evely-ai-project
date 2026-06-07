@@ -48,7 +48,7 @@ export async function POST(
   }
 
   const requestBody = {
-    model: 'gemini-3.1-flash-lite',
+    model: 'deepseek-v4-flash',
     messages: [
       {
         role: 'user' as const,

@@ -1,19 +1,21 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import { WORDS_STORE, openDatabase, queryByLanguage } from '@/app/_lib/db';
+import { useCallback, useState } from 'react';
+import { supabase } from '@/app/_lib/supabaseClient';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 export interface WordRecord {
   id: string;
-  imageBlob: Blob;
+  imageBlob?: Blob | null;
+  imageUrl?: string | null;
   label: string;
   language?: TargetLanguage;
   korean?: string;
   reading?: string;
   romanization?: string;
   english?: string;
+  partOfSpeech?: string;
   createdAt: number;
 }
 
@@ -23,6 +25,7 @@ export interface SaveWordInput {
   reading?: string;
   romanization?: string;
   english?: string;
+  partOfSpeech?: string;
 }
 
 export interface UseWordStorageReturn {
@@ -38,14 +41,6 @@ export function useWordStorage(): UseWordStorageReturn {
   const { activeLanguage } = useActiveLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dbRef = useRef<IDBDatabase | null>(null);
-
-  const getDb = useCallback(async (): Promise<IDBDatabase> => {
-    if (dbRef.current) return dbRef.current;
-    const db = await openDatabase();
-    dbRef.current = db;
-    return db;
-  }, []);
 
   const save = useCallback(
     async (
@@ -55,29 +50,53 @@ export function useWordStorage(): UseWordStorageReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
         const id = crypto.randomUUID();
         const normalized: SaveWordInput =
           typeof input === 'string' ? { label: input } : input;
-        const record: WordRecord = {
+
+        // 1. Upload image to Supabase Storage
+        const filePath = `authenticated/${userId}/words/${id}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('tarnly-media')
+          .upload(filePath, imageBlob, {
+            contentType: 'image/png',
+            upsert: true,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // 2. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('tarnly-media')
+          .getPublicUrl(filePath);
+
+        // 3. Insert metadata record in DB
+        const { error: dbError } = await supabase.from('words').insert({
           id,
-          imageBlob,
+          user_id: userId,
           label: normalized.label,
+          image_url: publicUrl,
           language: activeLanguage,
           korean: normalized.korean,
           reading: normalized.reading,
           romanization: normalized.romanization,
           english: normalized.english,
-          createdAt: Date.now(),
-        };
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(WORDS_STORE, 'readwrite');
-          const store = tx.objectStore(WORDS_STORE);
-          const req = store.put(record);
-          req.onsuccess = () => resolve();
-          req.onerror = () => reject(req.error);
-          tx.onerror = () => reject(tx.error);
+          part_of_speech: normalized.partOfSpeech,
+          created_at: new Date().toISOString(),
         });
+
+        if (dbError) {
+          throw dbError;
+        }
+
         setIsLoading(false);
         return id;
       } catch (err) {
@@ -90,67 +109,115 @@ export function useWordStorage(): UseWordStorageReturn {
         throw err;
       }
     },
-    [getDb, activeLanguage]
+    [activeLanguage]
   );
 
   const list = useCallback(async (): Promise<WordRecord[]> => {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await getDb();
-      const records = await new Promise<WordRecord[]>((resolve, reject) => {
-        const tx = db.transaction(WORDS_STORE, 'readonly');
-        const store = tx.objectStore(WORDS_STORE);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result as WordRecord[]);
-        req.onerror = () => reject(req.error);
-      });
-      records.sort((a, b) => b.createdAt - a.createdAt);
-      setIsLoading(false);
-      return records;
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) return [];
+
+      const { data, error: dbError } = await supabase
+        .from('words')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      return (data || []).map((row) => ({
+        id: row.id,
+        imageUrl: row.image_url,
+        label: row.label,
+        language: row.language as TargetLanguage,
+        korean: row.korean,
+        reading: row.reading,
+        romanization: row.romanization,
+        english: row.english,
+        partOfSpeech: row.part_of_speech,
+        createdAt: new Date(row.created_at).getTime(),
+      }));
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Failed to load word.';
+        err instanceof Error ? err.message : 'Failed to load words.';
       setError(message);
       setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  }, [getDb]);
+  }, []);
 
-  /**
-   * List only words belonging to the current active language.
-   * Uses the IndexedDB 'language' index for efficient filtering.
-   */
   const listByLanguage = useCallback(async (): Promise<WordRecord[]> => {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await getDb();
-      const records = await queryByLanguage<WordRecord>(db, WORDS_STORE, activeLanguage);
-      records.sort((a, b) => b.createdAt - a.createdAt);
-      setIsLoading(false);
-      return records;
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) return [];
+
+      const { data, error: dbError } = await supabase
+        .from('words')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('language', activeLanguage)
+        .order('created_at', { ascending: false });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      return (data || []).map((row) => ({
+        id: row.id,
+        imageUrl: row.image_url,
+        label: row.label,
+        language: row.language as TargetLanguage,
+        korean: row.korean,
+        reading: row.reading,
+        romanization: row.romanization,
+        english: row.english,
+        partOfSpeech: row.part_of_speech,
+        createdAt: new Date(row.created_at).getTime(),
+      }));
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Failed to load word.';
+        err instanceof Error ? err.message : 'Failed to load words.';
       setError(message);
       setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  }, [getDb, activeLanguage]);
+  }, [activeLanguage]);
 
-  const remove = useCallback(
-    async (id: string): Promise<void> => {
-      const db = await getDb();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(WORDS_STORE, 'readwrite');
-        const req = tx.objectStore(WORDS_STORE).delete(id);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
-    },
-    [getDb]
-  );
+  const remove = useCallback(async (id: string): Promise<void> => {
+    try {
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) return;
+
+      const { error: dbError } = await supabase
+        .from('words')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      const filePath = `authenticated/${userId}/words/${id}.png`;
+      await supabase.storage.from('tarnly-media').remove([filePath]);
+    } catch (err) {
+      console.error('Failed to delete word:', err);
+      throw err;
+    }
+  }, []);
 
   return { save, list, listByLanguage, remove, isLoading, error };
 }

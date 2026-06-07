@@ -262,7 +262,11 @@ export default function TutorPage() {
 
   // Handle speaking a message (TTS)
   const handleSpeak = useCallback(
-    (messageId: string) => {
+    (messageId: string, text?: string) => {
+      if (text) {
+        speak(text);
+        return;
+      }
       const message = messages.find((m: ChatMessage) => m.id === messageId);
       if (message && message.korean) {
         speak(message.korean);
@@ -273,7 +277,11 @@ export default function TutorPage() {
 
   // Handle speaking a viewed (past) message
   const handleSpeakViewed = useCallback(
-    (messageId: string) => {
+    (messageId: string, text?: string) => {
+      if (text) {
+        speak(text);
+        return;
+      }
       const message = viewedMessages.find((m) => m.id === messageId);
       if (message && message.korean) {
         speak(message.korean);
@@ -391,7 +399,7 @@ export default function TutorPage() {
   }, [startListening, speechLang]);
 
   return (
-    <div className="flex flex-col h-dvh bg-background relative">
+    <div className="flex flex-col h-dvh dot-grid-bg relative">
       {navMessageHolder}
 
       {/* Local styles for premium silky page-load transitions */}

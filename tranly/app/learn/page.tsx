@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigProvider, message } from "antd";
 import useIllustrationTheme from "@/app/theme/illustrationTheme";
-import ScanButton from "@/app/scan/_components/ScanButton";
+import BottomNav from "@/app/_components/BottomNav";
 import {
   useWordStorage,
   type WordRecord,
@@ -35,8 +35,19 @@ function WordCard({
   word: WordRecord;
   onDelete: (id: string) => void;
 }) {
-  const url = useMemo(() => URL.createObjectURL(word.imageBlob), [word.imageBlob]);
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+  const url = useMemo(() => {
+    if (word.imageUrl) return word.imageUrl;
+    if (word.imageBlob) return URL.createObjectURL(word.imageBlob);
+    return "";
+  }, [word.imageBlob, word.imageUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (url && url.startsWith("blob:")) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, [url]);
   const { language } = useLanguagePreference();
   const t = useStrings();
   const { speak } = useTTS("ko-KR");
@@ -61,11 +72,18 @@ function WordCard({
           {romanization}
         </p>
         {/* Secondary: the Korean script — important but not the headword. */}
-        {korean && (
-          <p className="text-base font-bold text-text-primary truncate mt-0.5">
-            {korean}
-          </p>
-        )}
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          {korean && (
+            <p className="text-base font-bold text-text-primary truncate">
+              {korean}
+            </p>
+          )}
+          {word.partOfSpeech && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-black border-2 border-black dark:border-[#4a4a6a] bg-[#E6FFFB] text-[#08979C] shadow-nb-sm dark:bg-[#1f373a] dark:text-[#5cdbd3] select-none">
+              {word.partOfSpeech}
+            </span>
+          )}
+        </div>
         {language === 'thai' ? (
           <>
             {reading && (
@@ -275,7 +293,7 @@ export default function LearnPage() {
   return (
     <ConfigProvider {...configProps}>
       {contextHolder}
-      <div className="w-full h-dvh bg-white dark:bg-[#1a1a2e] text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
+      <div className="w-full h-dvh dot-grid-bg text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
         <div
           className="flex-1 overflow-y-auto"
           style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
@@ -344,72 +362,9 @@ export default function LearnPage() {
           </div>
         </div>
 
-        {/* Bottom tab bar (Learn active). Hidden while studying a flashcard set
-            so navigation is locked until the user finishes or cancels. */}
-        {!flashcardStudying && (
-        <div
-          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-5 z-40 rounded-2xl shadow-nb-md"
-          style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
-        >
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
-            onClick={() => router.push("/home")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
-          </a>
-
-          <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary">
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="4 7 4 4 20 4 20 7" />
-                <line x1="9" y1="20" x2="15" y2="20" />
-                <line x1="12" y1="4" x2="12" y2="20" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabWord}</span>
-          </a>
-
-          <ScanButton />
-
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
-            onClick={() => router.push("/chat")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3v2" />
-                <path d="M12 19v2" />
-                <path d="M5 12H3" />
-                <path d="M21 12h-2" />
-                <path d="M6.3 6.3 4.9 4.9" />
-                <path d="M19.1 19.1 17.7 17.7" />
-                <path d="M6.3 17.7 4.9 19.1" />
-                <path d="M19.1 4.9 17.7 6.3" />
-                <circle cx="12" cy="12" r="4" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabAI}</span>
-          </a>
-
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary"
-            onClick={() => router.push("/profile")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M20 21a8 8 0 0 0-16 0" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
-          </a>
-        </div>
-        )}
+        {/* Bottom tab bar. Hidden while studying a flashcard set so
+            navigation is locked until the user finishes or cancels. */}
+        {!flashcardStudying && <BottomNav active="library" />}
       </div>
     </ConfigProvider>
   );

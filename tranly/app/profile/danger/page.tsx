@@ -13,7 +13,7 @@ export default function DangerPage() {
   const t = useStrings();
 
   return (
-    <div className="w-full h-dvh bg-background text-foreground flex flex-col font-sans select-none">
+    <div className="w-full h-dvh dot-grid-bg text-foreground flex flex-col font-sans select-none">
       {/* Header */}
       <div className="p-4 border-b-3 border-border-color flex items-center gap-3 bg-card-bg">
         <button

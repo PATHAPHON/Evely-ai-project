@@ -1,0 +1,61 @@
+flowchart TD
+  %% Entry & Auth
+  Start([● Start]) --> OpenApp[User Opens Tarnly Web App]
+  OpenApp --> CheckAuth{Supabase Session\nActive?}
+  
+  CheckAuth -- No --> RedirectAuth[Redirect to /auth]
+  RedirectAuth --> UserLogin[User Logs in / Registers]
+  UserLogin --> SetSession[Set Supabase Auth Session]
+  SetSession --> RedirectHome
+  
+  CheckAuth -- Yes --> LoadContexts[Load Gems & Active Language Contexts]
+  LoadContexts --> RedirectHome[Redirect to /home Page]
+
+  %% Navigation Loop
+  RedirectHome --> TabBar{User Selects Tab?}
+
+  %% Tab 1: Home Feed
+  TabBar -- "Tab 1: Home (/home)" --> LoadFeed[Query Daily Feed Word from /api/feed]
+  LoadFeed --> DisplayFeedWord[Display Word Card]
+  DisplayFeedWord --> FeedSwipe{User Swipe Action?}
+  FeedSwipe -- "Swipe Left (Skip)" --> SpendGemsSkip[Spend 5 Gems if not Greetings]
+  SpendGemsSkip --> DeleteFeedWord[Delete Feed Word from Supabase]
+  DeleteFeedWord --> LoadFeed
+  FeedSwipe -- "Swipe Right (Bookmark)" --> SaveLearnWord[Upload Placeholder Image & Insert to Supabase words]
+  SaveLearnWord --> DeleteFeedWord
+  FeedSwipe -- "Swipe Up (Next)" --> DeleteFeedWord
+
+  %% Tab 2: Learn
+  TabBar -- "Tab 2: Words (/learn)" --> FetchWords[Fetch Saved Words from Supabase]
+  FetchWords --> WordsAction{User Action?}
+  WordsAction -- Delete Word --> SoftDelete[Soft Delete Word with Undo Toast]
+  SoftDelete --> FetchWords
+  WordsAction -- Start Flashcards --> SetupFlashcards[Select Flashcards Setup Options]
+  SetupFlashcards --> StudyFlashcards[Play Interactive Flashcard Deck]
+  StudyFlashcards --> WordsAction
+
+  %% Tab 3: Scan (Camera)
+  TabBar -- "Tab 3: Scan (/scan)" --> CaptureFlow[Execute AI Scan & Identify Flow]
+  CaptureFlow --> TabBar
+
+  %% Tab 4: Chat & Lessons
+  TabBar -- "Tab 4: Chat (/chat)" --> FetchHistory[Fetch Conversation History from Supabase]
+  FetchHistory --> ChatAction{Select Interaction?}
+  ChatAction -- Send Chat Msg --> PostMessage[Send Message to /api/chat]
+  PostMessage --> ProcessAI[AI mascot response & TTS audio]
+  ProcessAI --> SaveMessage[Save Messages to Supabase]
+  SaveMessage --> FetchHistory
+  ChatAction -- Play Lesson --> LoadLessons[Fetch Catalog Lessons]
+  LoadLessons --> InteractiveLesson[AI mascot quizzes user]
+  InteractiveLesson --> AwardGems[Earn Gems on completion]
+  AwardGems --> SaveMessage
+
+  %% Tab 5: Profile
+  TabBar -- "Tab 5: Profile (/profile)" --> FetchStats[Fetch Stats & Streak from Supabase]
+  FetchStats --> ProfileAction{Profile Action?}
+  ProfileAction -- Toggle settings --> SaveSettings[Save theme / display name / language]
+  SaveSettings --> FetchStats
+  ProfileAction -- Reset Data --> TriggerReset[Delete all user data from Supabase DB & Storage]
+  TriggerReset --> ClearLocal[Clear localstorage & logout]
+  ClearLocal --> RedirectAuth
+  ProfileAction -- Log out --> ClearLocal

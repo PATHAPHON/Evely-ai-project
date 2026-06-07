@@ -5,6 +5,11 @@ import type { TargetLanguage } from '@/app/_lib/wordTypes';
 export interface BaseFeedWord {
   language: TargetLanguage;
   thai: string;
+  partOfSpeech?: string;
+  english?: string;
+  imageUrl?: string;
+  imageUrls?: string[];
+  imageQueries?: string[];
 }
 
 export interface JapaneseFeedWord extends BaseFeedWord {
@@ -49,7 +54,10 @@ export interface FeedWordRecord {
   thai: string;
   bookmarked: boolean;
   imageBlob: Blob | null;
+  imageUrl?: string | null;
+  imageUrls?: string[];
   createdAt: number;
+  partOfSpeech?: string;
   // Japanese fields
   kanji?: string;
   hiragana?: string;

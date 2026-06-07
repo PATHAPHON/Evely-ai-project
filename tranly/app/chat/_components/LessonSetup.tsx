@@ -41,7 +41,6 @@ export default function LessonSetup({
   const [topic, setTopic] = useState('');
   const [proficiencyLevel, setProficiencyLevel] =
     useState<ProficiencyLevel | null>(null);
-  const [isGeneratingTopic, setIsGeneratingTopic] = useState(false);
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
   const { activeLanguage } = useActiveLanguage();
@@ -65,38 +64,6 @@ export default function LessonSetup({
     activeLanguage,
     onStart,
   ]);
-
-  const handleSuggestTopic = useCallback(async () => {
-    if (selectedWords.length === 0 || isGeneratingTopic) return;
-    setIsGeneratingTopic(true);
-
-    try {
-      const headers = getCustomAIHeaders();
-      const res = await fetch('/api/chat/suggest-topic', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-        body: JSON.stringify({
-          words: selectedWords.map((w) => ({ korean: w.korean, thai: w.thai })),
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.topic) setTopic(data.topic);
-      } else {
-        const errorData = await res.json();
-        alert(errorData.error || 'Failed to suggest topic.');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Network error when suggesting topic.');
-    } finally {
-      setIsGeneratingTopic(false);
-    }
-  }, [selectedWords, isGeneratingTopic]);
 
   return (
     <div className="flex flex-col gap-5 p-4">
@@ -139,25 +106,6 @@ export default function LessonSetup({
           <label htmlFor="lesson-topic-input" className="text-sm font-semibold text-text-primary">
             {isThai ? 'หัวข้อบทเรียน' : 'Lesson Topic'}
           </label>
-          <button
-            type="button"
-            onClick={handleSuggestTopic}
-            disabled={selectedWords.length === 0 || isGeneratingTopic}
-            className={`flex items-center gap-1.5 rounded-lg border-2 border-border-color px-2.5 py-1 text-xs font-bold transition-all ${
-              selectedWords.length === 0 || isGeneratingTopic
-                ? 'bg-gray-100 dark:bg-gray-800 text-text-secondary cursor-not-allowed opacity-50'
-                : 'bg-accent-yellow text-black shadow-nb-sm cursor-pointer hover:bg-[#ffe169] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)]'
-            }`}
-          >
-            {isGeneratingTopic ? (
-              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-            ) : (
-              <span>✨</span>
-            )}
-            {isGeneratingTopic
-              ? (isThai ? 'กำลังแนะนำ...' : 'Suggesting...')
-              : (isThai ? 'แนะนำด้วย AI' : 'AI Suggest')}
-          </button>
         </div>
         <input
           id="lesson-topic-input"
@@ -168,13 +116,6 @@ export default function LessonSetup({
           maxLength={100}
           className="w-full rounded-xl border-3 border-border-color bg-card-bg px-4 py-3 text-base text-text-primary shadow-nb-md outline-none placeholder:text-text-secondary focus:shadow-nb-sm dark:focus:shadow-nb-sm focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
         />
-        {selectedWords.length === 0 && (
-          <span className="text-[11px] text-accent-red font-bold">
-            {isThai
-              ? '💡 เลือกคำศัพท์ประกอบ (ด้านบน) ก่อน เพื่อใช้ AI แนะนำหัวข้อ'
-              : '💡 Select word context above first to use AI suggest'}
-          </span>
-        )}
         <span className="text-xs text-text-secondary">
           {isThai
             ? `${topic.trim().length}/100 ตัวอักษร (ขั้นต่ำ 2 ตัวอักษร)`

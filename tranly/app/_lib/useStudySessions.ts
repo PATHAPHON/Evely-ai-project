@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { STUDY_SESSIONS_STORE, openDatabase, queryByLanguage } from '@/app/_lib/db';
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '@/app/_lib/supabaseClient';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import type { StudySession } from '@/app/_lib/studySessionTypes';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 export interface UseStudySessionsReturn {
   sessions: StudySession[] | null;
@@ -13,25 +14,46 @@ export interface UseStudySessionsReturn {
 export function useStudySessions(): UseStudySessionsReturn {
   const { activeLanguage } = useActiveLanguage();
   const [sessions, setSessions] = useState<StudySession[] | null>(null);
-  const dbRef = useRef<IDBDatabase | null>(null);
-
-  const getDb = useCallback(async (): Promise<IDBDatabase> => {
-    if (dbRef.current) return dbRef.current;
-    const db = await openDatabase();
-    dbRef.current = db;
-    return db;
-  }, []);
 
   const refresh = useCallback(async () => {
-    const db = await getDb();
-    const records = await queryByLanguage<StudySession>(
-      db,
-      STUDY_SESSIONS_STORE,
-      activeLanguage
-    );
-    records.sort((a, b) => b.completedAt - a.completedAt);
-    setSessions(records);
-  }, [getDb, activeLanguage]);
+    try {
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) {
+        setSessions([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('study_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('language', activeLanguage)
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      const mappedSessions: StudySession[] = (data || []).map((row) => ({
+        id: row.id,
+        language: row.language as TargetLanguage,
+        flashcardSetId: row.flashcard_set_id,
+        completedAt: new Date(row.completed_at).getTime(),
+        cardsReviewed: row.cards_reviewed,
+      }));
+
+      setSets(mappedSessions);
+    } catch (err) {
+      console.error('Failed to load study sessions:', err);
+      setSets([]);
+    }
+  }, [activeLanguage]);
+
+  // Helper setter to avoid React scope issues
+  function setSets(val: StudySession[]) {
+    setSessions(val);
+  }
 
   useEffect(() => {
     refresh().catch(() => setSessions([]));
@@ -41,23 +63,34 @@ export function useStudySessions(): UseStudySessionsReturn {
     async (flashcardSetId: string, cardsReviewed: number) => {
       if (cardsReviewed < 1) return;
 
-      const db = await getDb();
-      const session: StudySession = {
-        id: crypto.randomUUID(),
-        language: activeLanguage,
-        flashcardSetId,
-        completedAt: Date.now(),
-        cardsReviewed,
-      };
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STUDY_SESSIONS_STORE, 'readwrite');
-        const req = tx.objectStore(STUDY_SESSIONS_STORE).put(session);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
-      await refresh();
+      try {
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
+        const id = crypto.randomUUID();
+        const { error } = await supabase.from('study_sessions').insert({
+          id,
+          user_id: userId,
+          language: activeLanguage,
+          flashcard_set_id: flashcardSetId,
+          completed_at: new Date().toISOString(),
+          cards_reviewed: cardsReviewed,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        await refresh();
+      } catch (err) {
+        console.error('Failed to record study session:', err);
+        throw err;
+      }
     },
-    [getDb, refresh, activeLanguage]
+    [refresh, activeLanguage]
   );
 
   return { sessions, recordSession };

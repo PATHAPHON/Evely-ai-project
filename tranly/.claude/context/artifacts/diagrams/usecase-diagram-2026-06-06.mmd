@@ -1,0 +1,87 @@
+flowchart LR
+  %% Actors
+  subgraph Actors [Actors]
+    Learner["👤 Learner"]
+    Admin["👤 Administrator"]
+    AI["🤖 AI System (IntelSphere / Google TTS)"]
+  end
+
+  %% System Boundary
+  subgraph Tarnly_PWA ["Tarnly System Boundary"]
+    %% Auth
+    UC_Auth(["🔐 Register & Authenticate"])
+    
+    %% Feed
+    subgraph Word_Feed [Word Feed]
+      UC_Feed(["📖 Browse Daily Word Feed"])
+      UC_Bookmark(["Bookmark/Save Feed Word"])
+      UC_Gems(["Earn/Spend Gems"])
+    end
+
+    %% Scan
+    subgraph AI_Object_Scanner [AI Object Scanner]
+      UC_Scan(["📸 Capture Object Photo"])
+      UC_Identify(["🔍 Identify Object with AI"])
+      UC_SaveScan(["💾 Save Scan as Flashcard"])
+    end
+
+    %% Learn
+    subgraph Vocabulary_Flashcards [Vocabulary & Flashcards]
+      UC_Learn(["🗂️ View Vocab Bank (My Words)"])
+      UC_Flashcards(["🎴 Practice Flashcards"])
+      UC_Stats(["📈 View Learning Statistics"])
+    end
+
+    %% Chat
+    subgraph AI_Chat_Tutor [AI Chat & Tutor]
+      UC_Chat(["💬 Chat with AI Mascot"])
+      UC_TTS(["🔊 Listen to Word Pronunciations"])
+      UC_Topic(["Suggested Conversation Topics"])
+      UC_Lesson(["Play Interactive Lessons"])
+    end
+
+    %% TOPIK
+    subgraph TOPIK_Exam [TOPIK Exam]
+      UC_Topik(["📝 Take TOPIK Practice Exams"])
+    end
+
+    %% Backoffice
+    subgraph Backoffice_Panel [Backoffice Panel]
+      UC_ManageLessons(["📚 Manage Lesson Catalog"])
+      UC_ManageTopik(["📝 Manage TOPIK Questions"])
+    end
+  end
+
+  %% Connections
+  Learner --> UC_Auth
+  
+  Learner --> UC_Feed
+  Learner --> UC_Bookmark
+  Learner --> UC_Gems
+  
+  Learner --> UC_Scan
+  Learner --> UC_SaveScan
+  UC_Identify --> AI
+  
+  Learner --> UC_Learn
+  Learner --> UC_Flashcards
+  Learner --> UC_Stats
+  
+  Learner --> UC_Chat
+  Learner --> UC_Topic
+  Learner --> UC_Lesson
+  UC_Chat --> AI
+  UC_TTS --> AI
+  UC_Lesson --> AI
+  
+  Learner --> UC_Topik
+  
+  Admin --> UC_ManageLessons
+  Admin --> UC_ManageTopik
+
+  %% Relationships between Use Cases
+  UC_Bookmark -.->|include| UC_SaveScan
+  UC_Feed -.->|include| UC_Gems
+  UC_Scan -.->|include| UC_Identify
+  UC_Identify -.->|include| UC_SaveScan
+  UC_Lesson -.->|include| UC_Gems

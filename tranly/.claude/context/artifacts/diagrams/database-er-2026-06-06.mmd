@@ -1,0 +1,234 @@
+erDiagram
+    auth_users {
+        uuid id PK
+    }
+
+    profiles {
+        uuid id PK, FK
+        text display_name
+        text handle
+        text role
+        text bio
+        text location
+        text avatar_url
+        integer gems
+        integer energy
+        integer streak
+        integer max_streak
+        text target_language
+        text ui_language
+        integer total_xp
+        timestamp created_at
+        timestamp updated_at
+        int_array claimed_chests
+        text_array completed_exams
+    }
+
+    words {
+        uuid id PK
+        uuid user_id FK
+        text label
+        text image_url
+        text language
+        text part_of_speech
+        text korean
+        text reading
+        text romanization
+        text english
+        text kanji
+        text hiragana
+        text romaji
+        text hanzi
+        text pinyin
+        text word
+        text ipa
+        text thai
+        timestamp created_at
+    }
+
+    feed_words {
+        uuid id PK
+        uuid user_id FK
+        text language
+        date generated_date
+        boolean bookmarked
+        text image_url
+        text part_of_speech
+        text korean
+        text reading
+        text romanization
+        text english
+        text kanji
+        text hiragana
+        text romaji
+        text hanzi
+        text pinyin
+        text word
+        text ipa
+        text thai
+        timestamp created_at
+    }
+
+    flashcards {
+        uuid id PK
+        uuid user_id FK
+        text label
+        text image_url
+        timestamp created_at
+    }
+
+    flashcard_sets {
+        uuid id PK
+        uuid user_id FK
+        text name
+        text language
+        timestamp created_at
+    }
+
+    flashcard_set_words {
+        uuid flashcard_set_id PK, FK
+        uuid word_id PK, FK
+    }
+
+    study_sessions {
+        uuid id PK
+        uuid user_id FK
+        uuid flashcard_set_id FK
+        text language
+        integer cards_reviewed
+        timestamp completed_at
+    }
+
+    conversations {
+        uuid id PK
+        uuid user_id FK
+        text topic
+        text proficiency_level
+        text_array word_context
+        text goal
+        boolean completed
+        timestamp created_at
+        timestamp ended_at
+    }
+
+    conversation_messages {
+        uuid id PK
+        uuid session_id FK
+        text role
+        text raw_text
+        text translation
+        text english
+        text korean
+        text reading
+        text romanization
+        timestamp timestamp
+    }
+
+    lessons {
+        uuid id PK
+        uuid user_id FK
+        text topic
+        text proficiency_level
+        text_array word_context
+        jsonb exercises
+        integer last_score
+        integer total
+        integer times_completed
+        timestamp created_at
+    }
+
+    catalog_lessons {
+        uuid id PK
+        uuid user_id FK
+        text title_th
+        text title_en
+        text category
+        text proficiency_level
+        text target_language
+        text description_th
+        text description_en
+        text_array word_context
+        text goal
+        text system_context
+        text icon
+        text type
+        jsonb script_steps
+        timestamp created_at
+    }
+
+    topik_exam_sets {
+        text id PK
+        text exam_type
+        text name
+        text difficulty
+        timestamp created_at
+    }
+
+    topik_questions {
+        uuid id PK
+        uuid user_id FK
+        text exam_set_id FK
+        text exam_type
+        text type
+        text passage
+        text question
+        jsonb choices
+        integer correct_answer
+        text audio_src
+        timestamp created_at
+    }
+
+    word_progress {
+        uuid id PK
+        uuid user_id FK
+        uuid word_id FK
+        integer box
+        integer interval
+        numeric ease_factor
+        integer repetitions
+        integer streak
+        numeric mastery_level
+        timestamp last_reviewed_at
+        timestamp next_review_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    captures {
+        uuid id PK
+        uuid user_id FK
+        text image_path
+        jsonb ocr_result
+        timestamp created_at
+    }
+
+    xp_history {
+        uuid id PK
+        uuid user_id FK
+        integer amount
+        text activity_type
+        uuid activity_id
+        timestamp created_at
+    }
+
+    %% Relationships
+    auth_users ||--|| profiles : "has"
+    auth_users ||--o{ words : "owns"
+    auth_users ||--o{ feed_words : "has_feed"
+    auth_users ||--o{ flashcards : "owns"
+    auth_users ||--o{ flashcard_sets : "owns"
+    auth_users ||--o{ study_sessions : "studies"
+    auth_users ||--o{ conversations : "chats"
+    auth_users ||--o{ lessons : "learns"
+    auth_users ||--o{ catalog_lessons : "creates"
+    auth_users ||--o{ topik_questions : "creates"
+    auth_users ||--o{ word_progress : "progresses"
+    auth_users ||--o{ captures : "captures"
+    auth_users ||--o{ xp_history : "earns"
+
+    conversations ||--o{ conversation_messages : "contains"
+    flashcard_sets ||--o{ flashcard_set_words : "contains"
+    words ||--o{ flashcard_set_words : "belongs_to"
+    flashcard_sets ||--o{ study_sessions : "reviewed_in"
+    words ||--o{ word_progress : "tracked"
+    topik_exam_sets ||--o{ topik_questions : "contains"

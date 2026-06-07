@@ -1,15 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  WORDS_STORE,
-  CONVERSATIONS_STORE,
-  CAPTURES_STORE,
-  FLASHCARD_SETS_STORE,
-  STUDY_SESSIONS_STORE,
-  openDatabase,
-  queryByLanguage,
-} from '@/app/_lib/db';
+import { supabase } from '@/app/_lib/supabaseClient';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
@@ -27,31 +19,6 @@ export interface LanguageLearningStats {
   isLoading: boolean;
 }
 
-function countRecords(db: IDBDatabase, storeName: string): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const req = store.count();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function countByLanguage(
-  db: IDBDatabase,
-  storeName: string,
-  language: TargetLanguage
-): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const index = store.index('language');
-    const req = index.count(IDBKeyRange.only(language));
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
 export function useLearningStats(): LearningStats {
   const [totalWords, setTotalWords] = useState(0);
   const [totalConversations, setTotalConversations] = useState(0);
@@ -63,21 +30,35 @@ export function useLearningStats(): LearningStats {
 
     async function loadStats() {
       try {
-        const db = await openDatabase();
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          if (!cancelled) setIsLoading(false);
+          return;
+        }
 
-        const [words, conversations, scans] = await Promise.all([
-          countRecords(db, WORDS_STORE),
-          countRecords(db, CONVERSATIONS_STORE),
-          countRecords(db, CAPTURES_STORE),
+        const [wordsRes, convRes, scansRes] = await Promise.all([
+          supabase
+            .from('words')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId),
+          supabase
+            .from('conversations')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId),
+          supabase
+            .from('captures')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId),
         ]);
 
         if (!cancelled) {
-          setTotalWords(words);
-          setTotalConversations(conversations);
-          setTotalScans(scans);
+          setTotalWords(wordsRes.count || 0);
+          setTotalConversations(convRes.count || 0);
+          setTotalScans(scansRes.count || 0);
         }
-      } catch {
-        // On error, keep counts at 0
+      } catch (err) {
+        console.error('Failed to load learning stats:', err);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -95,13 +76,6 @@ export function useLearningStats(): LearningStats {
   return { totalWords, totalConversations, totalScans, isLoading };
 }
 
-/**
- * Language-aware statistics hook.
- * Computes stats (word count, flashcard set count, study session count)
- * for the current active language only.
- * Returns 0 for each stat when no data exists.
- * Re-fetches when the active language changes.
- */
 export function useLanguageLearningStats(): LanguageLearningStats {
   const { activeLanguage } = useActiveLanguage();
   const [wordCount, setWordCount] = useState(0);
@@ -115,21 +89,43 @@ export function useLanguageLearningStats(): LanguageLearningStats {
     async function loadStats() {
       setIsLoading(true);
       try {
-        const db = await openDatabase();
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          if (!cancelled) {
+            setWordCount(0);
+            setFlashcardSetCount(0);
+            setStudySessionCount(0);
+            setIsLoading(false);
+          }
+          return;
+        }
 
-        const [words, sets, sessions] = await Promise.all([
-          countByLanguage(db, WORDS_STORE, activeLanguage),
-          countByLanguage(db, FLASHCARD_SETS_STORE, activeLanguage),
-          countByLanguage(db, STUDY_SESSIONS_STORE, activeLanguage),
+        const [wordsRes, setsRes, sessionsRes] = await Promise.all([
+          supabase
+            .from('words')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('language', activeLanguage),
+          supabase
+            .from('flashcard_sets')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('language', activeLanguage),
+          supabase
+            .from('study_sessions')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('language', activeLanguage),
         ]);
 
         if (!cancelled) {
-          setWordCount(words);
-          setFlashcardSetCount(sets);
-          setStudySessionCount(sessions);
+          setWordCount(wordsRes.count || 0);
+          setFlashcardSetCount(setsRes.count || 0);
+          setStudySessionCount(sessionsRes.count || 0);
         }
-      } catch {
-        // On error, keep counts at 0
+      } catch (err) {
+        console.error('Failed to load language learning stats:', err);
         if (!cancelled) {
           setWordCount(0);
           setFlashcardSetCount(0);

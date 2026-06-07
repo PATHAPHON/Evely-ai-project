@@ -1,0 +1,51 @@
+flowchart TD
+  %% Start/End Nodes
+  StartNode([● Start]) --> OpenScan[Open Scan Camera Page]
+  EndNode([● End])
+
+  %% Scan Page
+  OpenScan --> InitCamera[Initialize Camera & Viewport]
+  InitCamera --> Capture[User Captures Photo]
+  Capture --> SetStore[Save Blob to CapturedImageStore]
+  SetStore --> NavigatePreview[Navigate to /scan/flashcard Page]
+
+  %% Flashcard Page / AI processing
+  NavigatePreview --> GetStore[Retrieve Blob from CapturedImageStore]
+  GetStore --> StartLoading[Show Analyzing Image Spinner]
+  StartLoading --> CallAI[Post Request to /api/identify]
+  CallAI --> AIDecision{AI Identification\nSuccessful?}
+
+  %% AI Failed path
+  AIDecision -- No --> ShowError[Show Error Overlay]
+  ShowError --> RetryDecision{Retry\nAllowed?}
+  
+  RetryDecision -- Yes --> ClickRetry[Click Retry]
+  ClickRetry --> CallAI
+  
+  RetryDecision -- No --> ClickRetakeError[Click Retake]
+  ClickRetakeError --> ClearStoreRetake[Clear CapturedImageStore]
+  ClearStoreRetake --> NavigateScan[/scan Page]
+  NavigateScan --> Capture
+
+  %% AI Success path
+  AIDecision -- Yes --> ShowLabel[Reveal Identified Label with Animation]
+  ShowLabel --> UserChoice{User Action?}
+
+  UserChoice -- Retake --> ClickRetake[Click Retake Button]
+  ClickRetake --> ClearStoreRetake
+
+  UserChoice -- Save --> ShowSaving[Show Saving Spinner & Disable Buttons]
+  ShowSaving --> UploadStorage[Upload Blob to Supabase Storage\nPath: authenticated/userId/words/id.png]
+  UploadStorage --> InsertDB[Insert Metadata Record to Supabase\nTable: words]
+  InsertDB --> DbDecision{Supabase Write\nSuccessful?}
+
+  %% Database Error path
+  DbDecision -- No --> ShowDbError[Show Error Notification]
+  ShowDbError --> EnableButtons[Enable Save/Retake Buttons]
+  EnableButtons --> UserChoice
+
+  %% Database Success path
+  DbDecision -- Yes --> ShowSuccess[Show Saved Success Confirmation]
+  ShowSuccess --> ClearStoreSuccess[Clear CapturedImageStore]
+  ClearStoreSuccess --> NavigateLearn[Navigate to /learn Page]
+  NavigateLearn --> EndNode

@@ -5,6 +5,7 @@ import { blobToBase64 } from './blobToBase64';
 import { ERROR_MESSAGES, MAX_RETRY_COUNT } from './constants';
 import type { IdentifyErrorResponse, IdentifySuccessResponse } from './types';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
+import { saveCaptureRecord } from '../../_lib/saveCapture';
 
 export interface UseObjectIdentificationReturn {
   label: string | null;
@@ -63,6 +64,11 @@ export function useObjectIdentification(): UseObjectIdentificationReturn {
       }
 
       const data: IdentifySuccessResponse = await response.json();
+
+      // Log capture to database asynchronously in the background
+      saveCaptureRecord(blob, data).catch((err) => {
+        console.error('Failed to save capture record:', err);
+      });
 
       // Treat whitespace-only or empty labels as errors
       if (!data.label || data.label.trim().length === 0) {

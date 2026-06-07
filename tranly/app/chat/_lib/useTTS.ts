@@ -37,6 +37,9 @@ export function useTTS(
 
   const releaseAudio = useCallback(() => {
     if (audioRef.current) {
+      audioRef.current.onplay = null;
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current.src = '';
       audioRef.current = null;

@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 import { useConversationHistory } from './useConversationHistory';
+import { useGems } from '@/app/_lib/GemsContext';
 import type {
   ChatMessage,
   ChatMessagePayload,
@@ -39,6 +40,7 @@ export function useConversationSession(): UseConversationSessionReturn {
   const sessionIdRef = useRef<string | null>(null);
   const createdAtRef = useRef<string | null>(null);
 
+  const { spendGems } = useGems();
   const { saveSession, saveMessage } = useConversationHistory();
 
   const startSession = useCallback(
@@ -148,6 +150,15 @@ export function useConversationSession(): UseConversationSessionReturn {
       if (!sessionIdRef.current || !sessionConfig) return;
 
       setError(null);
+
+      const success = spendGems(5);
+      if (!success) {
+        setError(
+          'เพชรสะสมไม่เพียงพอ! 💎 คุณต้องมีอย่างน้อย 5 เพชรเพื่อส่งข้อความแชท กรุณาสะสมเพชรฟรีโดยการเล่นบทเรียน "ทักทาย" (Basic Greetings) หรือสุ่มปัดคำหัวข้อ "ทักทาย" ครับ'
+        );
+        return;
+      }
+
       setIsLoading(true);
 
       // Create user message
@@ -246,6 +257,7 @@ export function useConversationSession(): UseConversationSessionReturn {
           status: 'sent',
           suggestions: aiResponse.suggestions ?? [],
           ended: aiResponse.ended ?? false,
+          sentences: aiResponse.sentences,
         };
 
         setMessages((prev) =>
@@ -327,6 +339,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         status: 'sent',
         suggestions: aiResponse.suggestions ?? [],
         ended: aiResponse.ended ?? false,
+        sentences: aiResponse.sentences,
       };
 
       setMessages((prev) =>

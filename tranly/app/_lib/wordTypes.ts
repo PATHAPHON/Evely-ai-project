@@ -13,6 +13,7 @@ export interface BaseWordRecord {
   id: string;
   language: TargetLanguage;
   imageBlob: Blob | null;
+  imageUrl?: string | null;
   thaiTranslation: string;
   createdAt: number;
 }

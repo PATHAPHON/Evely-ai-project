@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { supabase } from '@/app/_lib/supabaseClient';
 import type { TargetLanguage } from './wordTypes';
 
 export interface ActiveLanguageContextValue {
@@ -20,9 +21,9 @@ export interface ActiveLanguageContextValue {
   clearSwitchError: () => void;
 }
 
-export const STORAGE_KEY = 'tarnly:active-language';
+export const STORAGE_KEY = 'tranly:active-language';
+export const LEGACY_STORAGE_KEY = 'tarnly:active-language';
 export const DEFAULT_LANGUAGE: TargetLanguage = 'korean';
-export const SWITCH_TIMEOUT_MS = 500;
 
 const VALID_LANGUAGES: readonly TargetLanguage[] = [
   'english',
@@ -35,20 +36,60 @@ function isValidLanguage(value: unknown): value is TargetLanguage {
   return typeof value === 'string' && VALID_LANGUAGES.includes(value as TargetLanguage);
 }
 
+function getStoredLanguage(): string | null {
+  if (typeof window === 'undefined') return null;
+  const primary = localStorage.getItem(STORAGE_KEY);
+  if (primary !== null) return primary;
+  const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (legacy !== null) {
+    localStorage.setItem(STORAGE_KEY, legacy);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    return legacy;
+  }
+  return null;
+}
+
+function setStoredLanguage(value: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, value);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+}
+
 export const ActiveLanguageContext = createContext<ActiveLanguageContextValue | null>(null);
 
 export function ActiveLanguageProvider({ children }: { children: ReactNode }) {
   const [activeLanguage, setActiveLanguageState] = useState<TargetLanguage>(DEFAULT_LANGUAGE);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const previousLanguageRef = useRef<TargetLanguage>(DEFAULT_LANGUAGE);
 
-  // Read persisted value from localStorage on mount
+  // Read persisted value from localStorage and get user ID on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getStoredLanguage();
     if (isValidLanguage(stored)) {
       setActiveLanguageState(stored);
       previousLanguageRef.current = stored;
     }
+
+    let active = true;
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (active && session?.user?.id) {
+        setUserId(session.user.id);
+      }
+    };
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (active) {
+        setUserId(session?.user?.id || null);
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const clearSwitchError = useCallback(() => {
@@ -56,44 +97,48 @@ export function ActiveLanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setActiveLanguage = useCallback((lang: TargetLanguage) => {
+    if (!isValidLanguage(lang)) return;
     const prev = previousLanguageRef.current;
+    if (prev === lang) return;
+
     // Clear any previous error
     setSwitchError(null);
     // Optimistically update
     setActiveLanguageState(lang);
-    localStorage.setItem(STORAGE_KEY, lang);
+    setStoredLanguage(lang);
     previousLanguageRef.current = lang;
 
-    // Validate the switch by attempting a quick IndexedDB probe with timeout
-    const timeoutId = setTimeout(() => {
-      // If we reach here, the data load took too long — rollback
-      setActiveLanguageState(prev);
-      localStorage.setItem(STORAGE_KEY, prev);
-      previousLanguageRef.current = prev;
-      setSwitchError('Language switch failed: data load timed out. Reverted to previous language.');
-    }, SWITCH_TIMEOUT_MS);
-
-    // Attempt to open the database and query the language index
+    // Attempt to query database and update target_language in profiles
     const probeSwitch = async () => {
       try {
-        const { openDatabase, queryByLanguage } = await import('./db');
-        const db = await openDatabase();
-        // Probe the words store for the new language to validate connectivity
-        await queryByLanguage(db, 'words', lang);
-        // Success — clear the timeout
-        clearTimeout(timeoutId);
-      } catch {
-        // IndexedDB query failed — rollback
-        clearTimeout(timeoutId);
+        if (userId) {
+          // Sync language to profiles table
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ target_language: lang })
+            .eq('id', userId);
+
+          if (updateError) throw updateError;
+        }
+
+        // Probe connectivity by doing a simple select check
+        const { error: probeError } = await supabase
+          .from('words')
+          .select('id')
+          .limit(1);
+
+        if (probeError) throw probeError;
+      } catch (err) {
+        // Rollback on actual failure
         setActiveLanguageState(prev);
-        localStorage.setItem(STORAGE_KEY, prev);
+        setStoredLanguage(prev);
         previousLanguageRef.current = prev;
-        setSwitchError('Language switch failed: could not load data. Reverted to previous language.');
+        setSwitchError('Language switch failed: database update failed. Reverted to previous language.');
       }
     };
 
     probeSwitch();
-  }, []);
+  }, [userId]);
 
   return (
     <ActiveLanguageContext.Provider

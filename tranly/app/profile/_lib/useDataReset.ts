@@ -1,36 +1,18 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import {
-  openDatabase,
-  CAPTURES_STORE,
-  FLASHCARDS_STORE,
-  WORDS_STORE,
-  FEED_WORDS_STORE,
-  CONVERSATIONS_STORE,
-  CONVERSATION_MESSAGES_STORE,
-} from "@/app/_lib/db";
+import { supabase } from "@/app/_lib/supabaseClient";
 
 export interface UseDataResetReturn {
   resetAllData: () => Promise<void>;
   isResetting: boolean;
 }
 
-function clearStore(db: IDBDatabase, storeName: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readwrite");
-    const store = tx.objectStore(storeName);
-    const request = store.clear();
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-}
-
-function clearLocalStorageTarnlyKeys(): void {
+function clearLocalStorageKeys(): void {
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith("tarnly:")) {
+    if (key && (key.startsWith("tarnly:") || key.startsWith("tranly:"))) {
       keysToRemove.push(key);
     }
   }
@@ -43,19 +25,55 @@ export function useDataReset(): UseDataResetReturn {
   const resetAllData = useCallback(async () => {
     setIsResetting(true);
     try {
-      const db = await openDatabase();
-      await Promise.all([
-        clearStore(db, CAPTURES_STORE),
-        clearStore(db, FLASHCARDS_STORE),
-        clearStore(db, WORDS_STORE),
-        clearStore(db, FEED_WORDS_STORE),
-        clearStore(db, CONVERSATIONS_STORE),
-        clearStore(db, CONVERSATION_MESSAGES_STORE),
-      ]);
-      db.close();
-      clearLocalStorageTarnlyKeys();
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+
+      if (userId) {
+        // 1. Delete all user records from Supabase tables
+        await Promise.all([
+          supabase.from("words").delete().eq("user_id", userId),
+          supabase.from("feed_words").delete().eq("user_id", userId),
+          supabase.from("conversations").delete().eq("user_id", userId),
+          supabase.from("lessons").delete().eq("user_id", userId),
+          supabase.from("captures").delete().eq("user_id", userId),
+          supabase.from("study_sessions").delete().eq("user_id", userId),
+          supabase.from("flashcard_sets").delete().eq("user_id", userId),
+          supabase.from("xp_history").delete().eq("user_id", userId),
+        ]);
+
+        // 2. Reset profile settings, gems, and energy
+        await supabase
+          .from("profiles")
+          .update({
+            gems: 176,
+            energy: 15,
+            streak: 0,
+            max_streak: 0,
+            total_xp: 0,
+            claimed_chests: [],
+            completed_exams: [],
+          })
+          .eq("id", userId);
+
+        // 3. Clear Supabase Storage files
+        const folders = ["words", "feed", "captures"];
+        for (const folder of folders) {
+          const pathPrefix = `authenticated/${userId}/${folder}`;
+          const { data: files } = await supabase.storage
+            .from("tarnly-media")
+            .list(pathPrefix);
+
+          if (files && files.length > 0) {
+            const filePaths = files.map((f) => `${pathPrefix}/${f.name}`);
+            await supabase.storage.from("tarnly-media").remove(filePaths);
+          }
+        }
+      }
+
+      // 4. Clear localStorage keys
+      clearLocalStorageKeys();
     } catch (error) {
-      console.error('Failed to reset data:', error);
+      console.error("Failed to reset data:", error);
       throw error;
     } finally {
       setIsResetting(false);

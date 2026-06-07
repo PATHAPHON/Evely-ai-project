@@ -16,8 +16,10 @@ import { setCapturedImage } from "../_lib/capturedImageStore";
  */
 export default function ScanButton({
   disabled = false,
+  variant = "tab",
 }: {
   disabled?: boolean;
+  variant?: "tab" | "fab";
 }) {
   const router = useRouter();
   const [hasGetUserMedia, setHasGetUserMedia] = useState(false);
@@ -58,18 +60,32 @@ export default function ScanButton({
 
   return (
     <>
-      <a
-        onClick={handleClick}
-        aria-disabled={disabled}
-        className={`flex flex-col items-center gap-1 transition-colors text-black dark:text-white ${
-          disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-        }`}
-      >
-        <span className="w-10 h-10 flex items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green text-white shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)]">
-          <ScanOutlined style={{ fontSize: 20 }} />
-        </span>
-        <span className="text-[11px] font-bold tracking-wider">Scan</span>
-      </a>
+      {variant === "fab" ? (
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={disabled}
+          aria-label="Scan"
+          className={`w-14 h-14 flex items-center justify-center rounded-full border-3 border-black dark:border-[#4a4a6a] bg-accent-green text-white shadow-nb-md active:translate-y-[2px] active:shadow-nb-sm transition-transform ${
+            disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+          }`}
+        >
+          <ScanOutlined style={{ fontSize: 24 }} />
+        </button>
+      ) : (
+        <a
+          onClick={handleClick}
+          aria-disabled={disabled}
+          className={`flex flex-col items-center gap-1 transition-colors text-black dark:text-white ${
+            disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+          }`}
+        >
+          <span className="w-10 h-10 flex items-center justify-center rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-accent-green text-white shadow-nb-sm active:translate-y-[1px] active:shadow-[1px_1px_0_var(--shadow-color)]">
+            <ScanOutlined style={{ fontSize: 20 }} />
+          </span>
+          <span className="text-[11px] font-bold tracking-wider">Scan</span>
+        </a>
+      )}
 
       {/* Hidden file input for non-secure context fallback */}
       {!hasGetUserMedia && (

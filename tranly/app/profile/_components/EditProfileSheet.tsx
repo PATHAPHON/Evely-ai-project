@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useStrings } from "@/app/_lib/strings";
 import BottomSheet from "./BottomSheet";
 import SlothMascot from "./SlothMascot";
-import type { UseUserProfileReturn } from "../_lib/useUserProfile";
+import type { UseUserProfileReturn } from "@/app/_lib/useUserProfile";
 
 interface EditProfileSheetProps {
   open: boolean;

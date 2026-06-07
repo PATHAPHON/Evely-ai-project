@@ -1,12 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import {
-  WORDS_STORE,
-  FEED_WORDS_STORE,
-  openDatabase,
-  queryByLanguage,
-} from '@/app/_lib/db';
+import { useCallback, useState } from 'react';
+import { supabase } from '@/app/_lib/supabaseClient';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import type { SavedWord } from './types';
@@ -29,7 +24,7 @@ const FIELD_KEYS: Record<
 > = {
   korean: {
     native: ['korean', 'hangul'],
-    reading: ['reading', 'thaiReading'],
+    reading: ['reading', 'thaiReading', 'thai_reading'],
     romanization: ['romanization'],
     english: ['english'],
   },
@@ -70,7 +65,7 @@ function toSavedWord(
 ): SavedWord {
   const keys = FIELD_KEYS[language];
   const native = pick(record, keys.native);
-  const thai = pick(record, ['thai', 'thaiTranslation']);
+  const thai = pick(record, ['thai', 'thaiTranslation', 'thai_translation', 'label']);
   const label = typeof record.label === 'string' ? record.label : '';
   return {
     id: String(record.id),
@@ -89,45 +84,54 @@ export function useWordContext(): UseWordContextReturn {
   const { activeLanguage } = useActiveLanguage();
   const [savedWords, setSavedWords] = useState<SavedWord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const dbRef = useRef<IDBDatabase | null>(null);
-
-  const getDb = useCallback(async (): Promise<IDBDatabase> => {
-    if (dbRef.current) return dbRef.current;
-    const db = await openDatabase();
-    dbRef.current = db;
-    return db;
-  }, []);
 
   const loadSavedWords = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     try {
-      const db = await getDb();
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) {
+        setSavedWords([]);
+        return;
+      }
 
-      // Only words belonging to the active learning language — leave the
-      // selection empty when there are none for that language.
-      const [wordRecords, feedRecords] = await Promise.all([
-        queryByLanguage<Record<string, unknown>>(db, WORDS_STORE, activeLanguage),
-        queryByLanguage<Record<string, unknown>>(
-          db,
-          FEED_WORDS_STORE,
-          activeLanguage
-        ),
+      // Query words and feed_words directly from Supabase
+      const [wordsRes, feedWordsRes] = await Promise.all([
+        supabase
+          .from('words')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('language', activeLanguage),
+        supabase
+          .from('feed_words')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('language', activeLanguage)
+          .eq('bookmarked', true),
       ]);
 
-      const wordsFromStore: SavedWord[] = wordRecords
-        .map((r) => toSavedWord(r, activeLanguage, 'word-store'))
+      if (wordsRes.error) {
+        console.error('Error fetching words from Supabase:', wordsRes.error);
+      }
+      if (feedWordsRes.error) {
+        console.error('Error fetching bookmarked feed words from Supabase:', feedWordsRes.error);
+      }
+
+      const wordsFromStore: SavedWord[] = (wordsRes.data || [])
+        .map((r) => toSavedWord(r as Record<string, unknown>, activeLanguage, 'word-store'))
         .filter((w) => w.korean.length > 0);
 
-      const wordsFromFeed: SavedWord[] = feedRecords
-        .filter((r) => r.bookmarked === true)
-        .map((r) => toSavedWord(r, activeLanguage, 'feed-words'))
+      const wordsFromFeed: SavedWord[] = (feedWordsRes.data || [])
+        .map((r) => toSavedWord(r as Record<string, unknown>, activeLanguage, 'feed-words'))
         .filter((w) => w.korean.length > 0);
 
       setSavedWords([...wordsFromStore, ...wordsFromFeed]);
+    } catch (err) {
+      console.error('Failed to load words from Supabase:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [getDb, activeLanguage]);
+  }, [activeLanguage]);
 
   return { savedWords, loadSavedWords, isLoading };
 }

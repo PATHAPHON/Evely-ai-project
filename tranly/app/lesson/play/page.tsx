@@ -64,7 +64,7 @@ export default function LessonPlayPage() {
   const goToChat = () => router.push('/chat');
 
   return (
-    <div className="flex h-dvh flex-col bg-background">
+    <div className="flex h-dvh flex-col dot-grid-bg">
       {/* Header */}
       <div className="flex items-center gap-3 p-[20px_16px_12px]">
         <button

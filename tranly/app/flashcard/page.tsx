@@ -55,7 +55,7 @@ export default function FlashcardPage() {
   const hasNoWords = wordsLoaded && savedWords.length === 0;
 
   return (
-    <div className="flex flex-col h-dvh bg-background relative">
+    <div className="flex flex-col h-dvh dot-grid-bg relative">
       {navMessageHolder}
 
       {/* Local styles for premium silky page-load transitions */}

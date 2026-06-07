@@ -1,7 +1,11 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { SoundOutlined } from '@ant-design/icons';
+import {
+  SettingOutlined,
+  SoundOutlined,
+  ThunderboltFilled,
+} from '@ant-design/icons';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import { useTTS } from '../_lib/useTTS';
@@ -172,20 +176,31 @@ export default function LessonPlayer({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Progress bar */}
-      <div className="px-4 pt-3">
-        <div className="flex items-center gap-3">
-          <div className="h-3 flex-1 overflow-hidden rounded-full border-3 border-border-color bg-card-bg">
-            <div
-              className="h-full bg-accent-green transition-all duration-300"
-              style={{
-                width: `${total > 0 ? ((currentIndex + (answered ? 1 : 0)) / total) * 100 : 0}%`,
-              }}
-            />
-          </div>
-          <span className="text-sm font-bold text-text-primary">
-            {currentIndex + 1}/{total}
+      {/* Top bar: settings + progress + energy — matches the multiple-choice
+          screen's header for a consistent lesson chrome. */}
+      <div className="flex items-center gap-3 px-4 pt-1">
+        <button
+          type="button"
+          aria-label={isThai ? 'ตั้งค่า' : 'Settings'}
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-text-secondary transition-all active:translate-y-[1px] cursor-pointer"
+        >
+          <SettingOutlined style={{ fontSize: 24 }} />
+        </button>
+
+        <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#000]/10 dark:bg-white/10">
+          <div
+            className="h-full rounded-full bg-accent-green transition-all duration-300"
+            style={{
+              width: `${total > 0 ? ((currentIndex + (answered ? 1 : 0)) / total) * 100 : 0}%`,
+            }}
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 font-extrabold text-[#ff4d94]">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ff4d94] text-white">
+            <ThunderboltFilled style={{ fontSize: 16 }} />
           </span>
+          <span className="text-xl">{currentIndex + 1}</span>
         </div>
       </div>
 
@@ -197,6 +212,7 @@ export default function LessonPlayer({
             exercise={exercise}
             answered={answered}
             onAnswer={handleAnswer}
+            onSpeak={speak}
           />
         ) : (
           <ChoiceExercise

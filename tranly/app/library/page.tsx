@@ -27,8 +27,9 @@ import { useFlashcardSets, type FlashcardSet } from "@/app/learn/_lib/useFlashca
 import type { LessonRecord } from "@/app/chat/_lib/lessonTypes";
 import type { ConversationSessionRecord, ChatMessage } from "@/app/chat/_lib/types";
 import { useTTS } from "@/app/chat/_lib/useTTS";
-import ScanButton from "@/app/scan/_components/ScanButton";
+import BottomNav from "@/app/_components/BottomNav";
 import { FlashcardMode } from "@/app/learn/_components/FlashcardMode";
+import StatsBar from "@/app/_components/StatsBar";
 
 type TabType = "words" | "flashcards" | "lessons" | "chats";
 
@@ -380,20 +381,11 @@ export default function LibraryPage() {
   );
 
   // Navigation Lock check
-  const navLocked = flashcardStudying;
-
-  const handleNav = (path: string) => {
-    if (navLocked) {
-      messageApi.info(t.chat.navLockedHint);
-      return;
-    }
-    router.push(path);
-  };
 
   return (
     <ConfigProvider {...configProps}>
       {contextHolder}
-      <div className="w-full h-dvh bg-white dark:bg-[#1a1a2e] text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
+      <div className="w-full h-dvh dot-grid-bg text-[#2C2C2C] dark:text-white flex flex-col relative overflow-hidden font-sans select-none">
         {/* Local styles for premium silky page-load transitions */}
         <style>{`
           @keyframes cardFadeInUp {
@@ -433,6 +425,9 @@ export default function LibraryPage() {
           style={{ paddingBottom: "calc(180px + env(safe-area-inset-bottom, 0px))" }}
         >
           <div className="flex-1 flex flex-col animate-card-fade-in">
+            {/* Page title header (text only, no settings) */}
+            {!studyingSet && <StatsBar />}
+
             {/* Header */}
             <div className="flex items-center gap-3 p-[20px_16px_0]">
             {studyingSet && !flashcardStudying && (
@@ -1088,74 +1083,8 @@ export default function LibraryPage() {
         </div>
         )}
 
-        {/* Global Neobrutalist Navigation Tabbar (4 tabs) */}
-        {!flashcardStudying && (
-        <div 
-          className="absolute left-4 right-4 h-[80px] bg-card-bg border-3 border-border-color p-[8px_8px_14px] grid grid-cols-4 z-40 rounded-2xl shadow-nb-md"
-          style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
-        >
-          {/* Tab 1: Home */}
-          <a 
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-            onClick={() => handleNav("/home")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
-          </a>
-
-          {/* Tab 2: Library (ACTIVE) */}
-          <a className="flex flex-col items-center gap-1 cursor-pointer text-text-primary transition-colors">
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-pink-bg border-3 border-border-color shadow-nb-sm transition-all">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="4 7 4 4 20 4 20 7" />
-                <line x1="9" y1="20" x2="15" y2="20" />
-                <line x1="12" y1="4" x2="12" y2="20" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabLibrary}</span>
-          </a>
-
-          {/* Tab 3: AI Scan (Evely) */}
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-            onClick={() => handleNav("/chat")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
-              <svg width="22" height="22" viewBox="0 0 18 18" shapeRendering="crispEdges" style={{ display: 'block' }}>
-                <rect x="6" y="1" width="1" height="2" fill="currentColor" />
-                <rect x="11" y="1" width="1" height="2" fill="currentColor" />
-                <rect x="1" y="6" width="3" height="6" fill="currentColor" />
-                <rect x="14" y="6" width="3" height="6" fill="currentColor" />
-                <rect x="4" y="3" width="10" height="10" fill="currentColor" />
-                <rect x="8" y="13" width="2" height="4" fill="currentColor" />
-                <rect x="5" y="13" width="2" height="2" fill="currentColor" />
-                <rect x="11" y="13" width="2" height="2" fill="currentColor" />
-                <rect x="7" y="7" width="1" height="2" fill="#0b3d66" />
-                <rect x="10" y="7" width="1" height="2" fill="#0b3d66" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabAIScan}</span>
-          </a>
-
-          {/* Tab 4: Profile */}
-          <a
-            className="flex flex-col items-center gap-1 cursor-pointer text-text-secondary transition-colors"
-            onClick={() => handleNav("/profile")}
-          >
-            <span className="w-10 h-10 flex items-center justify-center rounded-xl transition-all">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M20 21a8 8 0 0 0-16 0" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
-          </a>
-        </div>
-        )}
+        {/* Global Neobrutalist Navigation Tabbar */}
+        {!flashcardStudying && <BottomNav active="library" />}
 
       </div>
     </ConfigProvider>

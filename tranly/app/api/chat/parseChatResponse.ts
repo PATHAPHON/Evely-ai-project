@@ -52,6 +52,15 @@ function extractStringField(src: string, key: string): string {
 function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
   if (typeof obj !== 'object' || obj === null) return false;
   const record = obj as Record<string, unknown>;
+
+  if (Array.isArray(record.sentences) && record.sentences.length > 0) {
+    return record.sentences.every((s) =>
+      typeof s === 'object' && s !== null &&
+      typeof (s as Record<string, unknown>).korean === 'string' &&
+      ((s as Record<string, unknown>).korean as string).trim().length > 0
+    );
+  }
+
   return (
     typeof record.korean === 'string' &&
     record.korean.trim().length > 0 &&
@@ -70,17 +79,52 @@ function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
 function extractChatResponse(
   obj: Record<string, unknown>
 ): ChatSuccessResponse | null {
+  const rawSentences = obj.sentences;
+  let sentences: ChatSuccessResponse['sentences'] = undefined;
+
+  if (Array.isArray(rawSentences)) {
+    sentences = [];
+    for (const s of rawSentences) {
+      if (typeof s === 'object' && s !== null) {
+        const rec = s as Record<string, unknown>;
+        sentences.push({
+          korean: typeof rec.korean === 'string' ? rec.korean.trim() : '',
+          reading: typeof rec.reading === 'string' ? rec.reading.trim() : '',
+          romanization:
+            typeof rec.romanization === 'string' ? rec.romanization.trim() : '',
+          translation:
+            typeof rec.translation === 'string' ? rec.translation.trim() : '',
+          english: typeof rec.english === 'string' ? rec.english.trim() : '',
+        });
+      }
+    }
+  }
+
+  const korean = typeof obj.korean === 'string' ? obj.korean.trim() : '';
+  const reading = typeof obj.reading === 'string' ? obj.reading.trim() : '';
+  const romanization =
+    typeof obj.romanization === 'string' ? obj.romanization.trim() : '';
+  const translation =
+    typeof obj.translation === 'string' ? obj.translation.trim() : '';
+  const english = typeof obj.english === 'string' ? obj.english.trim() : '';
+
+  if (!sentences && korean.length > 0) {
+    sentences = [{ korean, reading, romanization, translation, english }];
+  }
+
   const response: ChatSuccessResponse = {
-    korean: typeof obj.korean === 'string' ? obj.korean.trim() : '',
-    reading: typeof obj.reading === 'string' ? obj.reading.trim() : '',
+    sentences,
+    korean: korean || (sentences ? sentences.map((s) => s.korean).join(' ') : ''),
+    reading: reading || (sentences ? sentences.map((s) => s.reading).join(' ') : ''),
     romanization:
-      typeof obj.romanization === 'string' ? obj.romanization.trim() : '',
+      romanization || (sentences ? sentences.map((s) => s.romanization).join(' ') : ''),
     translation:
-      typeof obj.translation === 'string' ? obj.translation.trim() : '',
-    english: typeof obj.english === 'string' ? obj.english.trim() : '',
+      translation || (sentences ? sentences.map((s) => s.translation).join(' ') : ''),
+    english: english || (sentences ? sentences.map((s) => s.english).join(' ') : ''),
     suggestions: extractSuggestions(obj.suggestions),
     ended: typeof obj.ended === 'boolean' ? obj.ended : undefined,
   };
+
   return isValidChatResponse(response) ? response : null;
 }
 
@@ -89,12 +133,19 @@ function extractChatResponse(
  * Used as a fallback when JSON parsing fails.
  */
 function extractChatResponseFromString(src: string): ChatSuccessResponse | null {
+  const korean = extractStringField(src, 'korean');
+  const reading = extractStringField(src, 'reading');
+  const romanization = extractStringField(src, 'romanization');
+  const translation = extractStringField(src, 'translation');
+  const english = extractStringField(src, 'english');
+
   const response: ChatSuccessResponse = {
-    korean: extractStringField(src, 'korean'),
-    reading: extractStringField(src, 'reading'),
-    romanization: extractStringField(src, 'romanization'),
-    translation: extractStringField(src, 'translation'),
-    english: extractStringField(src, 'english'),
+    sentences: korean ? [{ korean, reading, romanization, translation, english }] : undefined,
+    korean,
+    reading,
+    romanization,
+    translation,
+    english,
   };
   return isValidChatResponse(response) ? response : null;
 }

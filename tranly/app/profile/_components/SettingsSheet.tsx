@@ -1,7 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { version } from "@/package.json";
 import { useStrings } from "@/app/_lib/strings";
+import { supabase } from "@/app/_lib/supabaseClient";
 import BottomSheet from "./BottomSheet";
 
 interface SettingsSheetProps {
@@ -9,7 +12,6 @@ interface SettingsSheetProps {
   onClose: () => void;
   onEditProfile: () => void;
   onOpenPreferences: () => void;
-  onOpenAI: () => void;
   onOpenDanger: () => void;
 }
 
@@ -70,10 +72,29 @@ export default function SettingsSheet({
   onClose,
   onEditProfile,
   onOpenPreferences,
-  onOpenAI,
   onOpenDanger,
 }: SettingsSheetProps) {
+  const router = useRouter();
   const t = useStrings();
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && !user.is_anonymous) {
+          setEmail(user.email || null);
+        } else {
+          setEmail(null);
+        }
+      } catch (err) {
+        console.error("Error checking user in SettingsSheet:", err);
+      }
+    };
+    if (open) {
+      checkUser();
+    }
+  }, [open]);
 
   // Close this sheet first, then open the requested detail popup.
   const openDetail = (fn: () => void) => () => {
@@ -88,12 +109,11 @@ export default function SettingsSheet({
       title={t.profile.settings}
       ariaLabel={t.profile.settings}
       closeAria={t.profile.closeAria}
-      heightClass="max-h-[72%]"
+      heightClass="max-h-[80%]"
     >
       <div className="pb-6">
         <Group title={t.profile.account}>
           <SettingsRow
-            last
             title={t.profile.accountItem}
             desc={t.profile.accountDesc}
             onClick={openDetail(onEditProfile)}
@@ -104,10 +124,51 @@ export default function SettingsSheet({
               </svg>
             }
           />
+          {email ? (
+            <SettingsRow
+              last
+              danger
+              title={t.auth.logoutBtn}
+              desc={`${t.auth.loggedInAs}: ${email}`}
+              onClick={async () => {
+                onClose();
+                try {
+                  await supabase.auth.signOut();
+                } catch (err) {
+                  console.error("Failed to sign out:", err);
+                }
+              }}
+              icon={
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              }
+            />
+          ) : (
+            <SettingsRow
+              last
+              title={`${t.auth.loginBtn} / ${t.auth.registerBtn}`}
+              desc={t.auth.anonymousAccountNotice}
+              onClick={() => {
+                onClose();
+                router.push("/auth");
+              }}
+              icon={
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
+                </svg>
+              }
+            />
+          )}
         </Group>
 
         <Group title={t.profile.settings}>
           <SettingsRow
+            last
             title={t.profile.generalSection}
             desc={t.profile.generalDesc}
             onClick={openDetail(onOpenPreferences)}
@@ -115,20 +176,6 @@ export default function SettingsSheet({
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            }
-          />
-          <SettingsRow
-            last
-            title={t.profile.aiSection}
-            desc={t.profile.aiDesc}
-            onClick={openDetail(onOpenAI)}
-            icon={
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-                <rect x="6" y="6" width="12" height="12" rx="3" />
-                <circle cx="9.5" cy="11" r="1" fill="currentColor" stroke="none" />
-                <circle cx="14.5" cy="11" r="1" fill="currentColor" stroke="none" />
               </svg>
             }
           />

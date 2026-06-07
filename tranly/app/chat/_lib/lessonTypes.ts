@@ -10,6 +10,8 @@ export type ExerciseType =
 export interface MatchingPair {
   korean: string;
   thai: string;
+  /** Pronunciation/romanization shown above the Korean word. */
+  reading?: string;
 }
 
 export interface LessonExercise {

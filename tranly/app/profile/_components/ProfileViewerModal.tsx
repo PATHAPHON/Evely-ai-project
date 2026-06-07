@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useStrings } from "@/app/_lib/strings";
-import type { UseUserProfileReturn } from "../_lib/useUserProfile";
+import type { UseUserProfileReturn } from "@/app/_lib/useUserProfile";
 import SlothMascot from "./SlothMascot";
 
 interface ProfileViewerModalProps {

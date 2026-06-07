@@ -250,7 +250,7 @@ export async function POST(
   // Construct KKU IntelSphere API request
   const dataUrl = `data:image/jpeg;base64,${image}`;
   const requestBody = {
-    model: customModel || 'gemini-3.1-flash-lite',
+    model: customModel || 'deepseek-v4-flash',
     messages: [
       {
         role: 'user' as const,

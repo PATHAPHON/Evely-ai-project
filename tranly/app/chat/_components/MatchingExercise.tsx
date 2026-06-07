@@ -7,6 +7,14 @@ interface MatchingExerciseProps {
   exercise: LessonExercise;
   answered: boolean;
   onAnswer: (isCorrect: boolean) => void;
+  /** Plays the tapped Korean word aloud (TTS). */
+  onSpeak?: (text: string) => void;
+}
+
+interface ColumnItem {
+  key: number;
+  text: string;
+  reading?: string;
 }
 
 type Side = 'korean' | 'thai';
@@ -29,11 +37,15 @@ export default function MatchingExercise({
   exercise,
   answered,
   onAnswer,
+  onSpeak,
 }: MatchingExerciseProps) {
   const pairs = useMemo(() => exercise.pairs ?? [], [exercise.pairs]);
   // Each pair gets a stable index used as the match key.
   const koreanItems = useMemo(
-    () => shuffle(pairs.map((p, i) => ({ key: i, text: p.korean }))),
+    () =>
+      shuffle(
+        pairs.map((p, i) => ({ key: i, text: p.korean, reading: p.reading }))
+      ),
     [pairs]
   );
   const thaiItems = useMemo(
@@ -58,7 +70,10 @@ export default function MatchingExercise({
   }, [matched, pairs.length, onAnswer]);
 
   const handleTap = useCallback(
-    (side: Side, key: number) => {
+    (side: Side, key: number, text: string) => {
+      // Always voice the Korean word on tap, even if it is already matched.
+      if (side === 'korean') onSpeak?.(text);
+
       if (answered || matched.has(key) || wrongKeys) return;
 
       if (!selected) {
@@ -86,11 +101,11 @@ export default function MatchingExercise({
         setTimeout(() => setWrongKeys(null), 600);
       }
     },
-    [answered, matched, selected, wrongKeys]
+    [answered, matched, selected, wrongKeys, onSpeak]
   );
 
-  const renderColumn = (side: Side, items: { key: number; text: string }[]) => (
-    <div className="flex flex-1 flex-col gap-3">
+  const renderColumn = (side: Side, items: ColumnItem[]) => (
+    <div className="flex flex-1 flex-col gap-4">
       {items.map((item) => {
         const isMatched = matched.has(item.key);
         const isSelected = selected?.side === side && selected.key === item.key;
@@ -117,11 +132,26 @@ export default function MatchingExercise({
           <button
             key={item.key}
             type="button"
-            onClick={() => handleTap(side, item.key)}
-            disabled={answered || isMatched}
-            className={`w-full rounded-xl border-3 border-border-color px-3 py-3 text-center text-base font-semibold transition-all ${stateClasses}`}
+            onClick={() => handleTap(side, item.key, item.text)}
+            disabled={answered}
+            className={`flex min-h-[68px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl border-3 border-border-color px-3 py-4 text-center transition-all ${stateClasses}`}
           >
-            {item.text}
+            {side === 'korean' && item.reading && (
+              <span
+                className={`text-xs font-medium leading-tight ${
+                  isMatched || isWrong
+                    ? 'text-white/80'
+                    : isSelected
+                      ? 'text-black/60'
+                      : 'text-text-secondary'
+                }`}
+              >
+                {item.reading}
+              </span>
+            )}
+            <span className="text-lg font-semibold leading-tight">
+              {item.text}
+            </span>
           </button>
         );
       })}

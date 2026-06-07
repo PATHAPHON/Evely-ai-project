@@ -5,9 +5,13 @@ const GOOGLE_TTS_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 const API_TIMEOUT_MS = 15_000;
 const MAX_TEXT_LENGTH = 500;
 const CACHE_MAX_ENTRIES = 500;
-const DEFAULT_VOICE = 'ko-KR-Chirp3-HD-Achernar';
+const DEFAULT_VOICE = 'ko-KR-Standard-A';
 
 const VOICE_WHITELIST: ReadonlySet<string> = new Set([
+  'ko-KR-Standard-A',
+  'ko-KR-Standard-B',
+  'ko-KR-Standard-C',
+  'ko-KR-Standard-D',
   'ko-KR-Chirp3-HD-Achernar',
   'ko-KR-Chirp3-HD-Charon',
   'ko-KR-Chirp3-HD-Aoede',

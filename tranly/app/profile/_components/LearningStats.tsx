@@ -6,19 +6,17 @@ interface LearningStatsProps {
   wordCount: number;
   flashcardSetCount: number;
   studySessionCount: number;
-  streak: number;
   isLoading: boolean;
 }
 
 /**
- * Four-column stat strip (words · flashcards · sessions · streak) in one
+ * Three-column stat strip (words · flashcards · sessions) in one
  * bordered Neobrutalist card with divided cells.
  */
 export default function LearningStats({
   wordCount,
   flashcardSetCount,
   studySessionCount,
-  streak,
   isLoading,
 }: LearningStatsProps) {
   const t = useStrings();
@@ -27,17 +25,16 @@ export default function LearningStats({
     { n: wordCount, label: t.profile.statWords },
     { n: flashcardSetCount, label: t.profile.statFlashcards },
     { n: studySessionCount, label: t.profile.statSessions },
-    { n: streak, label: t.profile.statStreak },
   ];
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-4 overflow-hidden rounded-2xl border-3 border-border-color bg-card-bg shadow-nb-md">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-3 overflow-hidden rounded-2xl border-3 border-border-color bg-card-bg shadow-nb-md">
+        {[0, 1, 2].map((i) => (
           <div
             key={i}
             className={`flex flex-col items-center gap-2 px-2 py-3.5 ${
-              i < 3 ? "border-r-3 border-border-color" : ""
+              i < 2 ? "border-r-3 border-border-color" : ""
             }`}
           >
             <div className="h-6 w-8 animate-pulse rounded bg-gray-200 dark:bg-[#4a4a6a]" />
@@ -49,7 +46,7 @@ export default function LearningStats({
   }
 
   return (
-    <div className="grid grid-cols-4 overflow-hidden rounded-2xl border-3 border-border-color bg-card-bg shadow-nb-md">
+    <div className="grid grid-cols-3 overflow-hidden rounded-2xl border-3 border-border-color bg-card-bg shadow-nb-md">
       {cells.map((c, i) => (
         <div
           key={c.label}

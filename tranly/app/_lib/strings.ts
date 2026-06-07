@@ -17,7 +17,9 @@ export interface UIStrings {
     tabAI: string;
     tabLibrary: string;
     tabAIScan: string;
+    tabTopik: string;
     tabProfile: string;
+    tabMore: string;
     loading: string;
   };
   landing: {
@@ -130,16 +132,85 @@ export interface UIStrings {
   chat: {
     navLockedHint: string;
   };
+  topik: {
+    title: string;
+    selectType: string;
+    topik1Label: string;
+    topik1Desc: string;
+    topik2Label: string;
+    topik2Desc: string;
+    reading: string;
+    listening: string;
+    questionOf: (n: number, total: number) => string;
+    playAudio: string;
+    replayAudio: string;
+    next: string;
+    submit: string;
+    scoreTitle: string;
+    scoreTotal: (correct: number, total: number) => string;
+    readingScore: string;
+    listeningScore: string;
+    correct: string;
+    incorrect: string;
+    retry: string;
+    changeType: string;
+    backToSelection: string;
+    startExam: string;
+    filterAll: string;
+    filterTopik1: string;
+    filterTopik2: string;
+    setName: (n: number) => string;
+    difficultyBeginner: string;
+    difficultyIntermediate: string;
+    difficultyAdvanced: string;
+    questionsCount: (count: number) => string;
+    examPageBack: string;
+    progress: (current: number, total: number) => string;
+  };
+  auth: {
+    loginTitle: string;
+    loginSubtitle: string;
+    registerTitle: string;
+    registerSubtitle: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    passwordLabel: string;
+    passwordPlaceholder: string;
+    confirmPasswordLabel: string;
+    confirmPasswordPlaceholder: string;
+    loginBtn: string;
+    registerBtn: string;
+    dontHaveAccount: string;
+    alreadyHaveAccount: string;
+    switchToRegister: string;
+    switchToLogin: string;
+    logoutBtn: string;
+    loggedInAs: string;
+    errorInvalidEmail: string;
+    errorPasswordLength: string;
+    errorPasswordMismatch: string;
+    errorGeneric: string;
+    successRegister: string;
+    successLogin: string;
+    successLogout: string;
+    anonymousAccountNotice: string;
+    backToProfile: string;
+    googleBtn: string;
+    guestBtn: string;
+    successGuest: string;
+  };
 }
 
 const en: UIStrings = {
   common: {
-    tabHome: 'Home',
+    tabHome: 'Daily',
     tabWord: 'Words',
     tabAI: 'AI',
     tabLibrary: 'Library',
     tabAIScan: 'Evely',
+    tabTopik: 'TOPIK',
     tabProfile: 'Profile',
+    tabMore: 'More',
     loading: 'Loading...',
   },
   landing: {
@@ -254,16 +325,85 @@ const en: UIStrings = {
   chat: {
     navLockedHint: 'Finish or end this session first',
   },
+  topik: {
+    title: 'TOPIK Practice',
+    selectType: 'Select Exam Level',
+    topik1Label: 'TOPIK I (Beginner)',
+    topik1Desc: 'Levels 1-2',
+    topik2Label: 'TOPIK II (Intermediate-Advanced)',
+    topik2Desc: 'Levels 3-6',
+    reading: 'Reading',
+    listening: 'Listening',
+    questionOf: (n: number, total: number) => `Question ${n}/${total}`,
+    playAudio: 'Play Audio',
+    replayAudio: 'Replay Audio',
+    next: 'Next',
+    submit: 'Submit',
+    scoreTitle: 'Your Score',
+    scoreTotal: (correct: number, total: number) => `${correct}/${total}`,
+    readingScore: 'Reading Score',
+    listeningScore: 'Listening Score',
+    correct: 'Correct',
+    incorrect: 'Incorrect',
+    retry: 'Try Again',
+    changeType: 'Change Level',
+    backToSelection: 'Back to Selection',
+    startExam: 'Start Exam',
+    filterAll: 'All',
+    filterTopik1: 'TOPIK I',
+    filterTopik2: 'TOPIK II',
+    setName: (n) => `Mock Exam ${n}`,
+    difficultyBeginner: 'Beginner',
+    difficultyIntermediate: 'Intermediate',
+    difficultyAdvanced: 'Advanced',
+    questionsCount: (n) => `${n} questions`,
+    examPageBack: 'Back',
+    progress: (current, total) => `${current}/${total}`,
+  },
+  auth: {
+    loginTitle: 'Welcome Back',
+    loginSubtitle: 'Log in to continue your Korean learning journey',
+    registerTitle: 'Create Account',
+    registerSubtitle: 'Save your progress and access your words anywhere',
+    emailLabel: 'Email Address',
+    emailPlaceholder: 'you@example.com',
+    passwordLabel: 'Password',
+    passwordPlaceholder: 'At least 6 characters',
+    confirmPasswordLabel: 'Confirm Password',
+    confirmPasswordPlaceholder: 'Re-enter your password',
+    loginBtn: 'Log In',
+    registerBtn: 'Sign Up',
+    dontHaveAccount: "Don't have an account?",
+    alreadyHaveAccount: 'Already have an account?',
+    switchToRegister: 'Sign Up',
+    switchToLogin: 'Log In',
+    logoutBtn: 'Log Out',
+    loggedInAs: 'Signed in as',
+    errorInvalidEmail: 'Please enter a valid email address.',
+    errorPasswordLength: 'Password must be at least 6 characters.',
+    errorPasswordMismatch: 'Passwords do not match.',
+    errorGeneric: 'An error occurred. Please try again.',
+    successRegister: 'Account created successfully! Check your email to confirm.',
+    successLogin: 'Logged in successfully!',
+    successLogout: 'Logged out successfully!',
+    anonymousAccountNotice: 'You are currently a guest. Sign up to save your words permanently.',
+    backToProfile: 'Back to Profile',
+    googleBtn: 'Continue with Google',
+    guestBtn: 'Continue as Guest',
+    successGuest: 'Logged in as guest!',
+  },
 };
 
 const th: UIStrings = {
   common: {
-    tabHome: 'หน้าหลัก',
+    tabHome: 'ประจำวัน',
     tabWord: 'คำศัพท์',
     tabAI: 'AI',
     tabLibrary: 'คลังข้อมูล',
     tabAIScan: 'Evely',
+    tabTopik: 'TOPIK',
     tabProfile: 'โปรไฟล์',
+    tabMore: 'เพิ่มเติม',
     loading: 'กำลังโหลด...',
   },
   landing: {
@@ -376,6 +516,73 @@ const th: UIStrings = {
   },
   chat: {
     navLockedHint: 'เรียนหรือสนทนาให้จบ หรือกดสิ้นสุดก่อน',
+  },
+  topik: {
+    title: 'ฝึกทำข้อสอบ TOPIK',
+    selectType: 'เลือกระดับข้อสอบ',
+    topik1Label: 'TOPIK I (ระดับต้น)',
+    topik1Desc: 'ระดับ 1-2',
+    topik2Label: 'TOPIK II (ระดับกลาง-สูง)',
+    topik2Desc: 'ระดับ 3-6',
+    reading: 'การอ่าน',
+    listening: 'การฟัง',
+    questionOf: (n: number, total: number) => `ข้อ ${n}/${total}`,
+    playAudio: 'เล่นเสียง',
+    replayAudio: 'เล่นเสียงอีกครั้ง',
+    next: 'ข้อถัดไป',
+    submit: 'ส่งคำตอบ',
+    scoreTitle: 'ผลคะแนน',
+    scoreTotal: (correct: number, total: number) => `${correct}/${total}`,
+    readingScore: 'คะแนนอ่าน',
+    listeningScore: 'คะแนนฟัง',
+    correct: 'ถูก',
+    incorrect: 'ผิด',
+    retry: 'ทำใหม่',
+    changeType: 'เปลี่ยนระดับ',
+    backToSelection: 'กลับไปเลือกระดับ',
+    startExam: 'เริ่มทำข้อสอบ',
+    filterAll: 'ทั้งหมด',
+    filterTopik1: 'TOPIK I',
+    filterTopik2: 'TOPIK II',
+    setName: (n) => `ข้อสอบจำลอง ${n}`,
+    difficultyBeginner: 'ระดับต้น',
+    difficultyIntermediate: 'ระดับกลาง',
+    difficultyAdvanced: 'ระดับสูง',
+    questionsCount: (n) => `${n} ข้อ`,
+    examPageBack: 'กลับ',
+    progress: (current, total) => `${current}/${total}`,
+  },
+  auth: {
+    loginTitle: 'ยินดีต้อนรับกลับมา',
+    loginSubtitle: 'เข้าสู่ระบบเพื่อเรียนภาษาเกาหลีต่อ',
+    registerTitle: 'สมัครสมาชิก',
+    registerSubtitle: 'บันทึกความก้าวหน้าและเข้าถึงคำศัพท์ได้จากทุกที่',
+    emailLabel: 'อีเมล',
+    emailPlaceholder: 'you@example.com',
+    passwordLabel: 'รหัสผ่าน',
+    passwordPlaceholder: 'อย่างน้อย 6 ตัวอักษร',
+    confirmPasswordLabel: 'ยืนยันรหัสผ่าน',
+    confirmPasswordPlaceholder: 'กรอกรหัสผ่านอีกครั้ง',
+    loginBtn: 'เข้าสู่ระบบ',
+    registerBtn: 'สมัครสมาชิก',
+    dontHaveAccount: 'ยังไม่มีบัญชีใช่หรือไม่?',
+    alreadyHaveAccount: 'มีบัญชีอยู่แล้วใช่หรือไม่?',
+    switchToRegister: 'สมัครสมาชิก',
+    switchToLogin: 'เข้าสู่ระบบ',
+    logoutBtn: 'ออกจากระบบ',
+    loggedInAs: 'เข้าสู่ระบบด้วย',
+    errorInvalidEmail: 'กรุณากรอกอีเมลที่ถูกต้อง',
+    errorPasswordLength: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร',
+    errorPasswordMismatch: 'รหัสผ่านไม่ตรงกัน',
+    errorGeneric: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
+    successRegister: 'สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยัน',
+    successLogin: 'เข้าสู่ระบบสำเร็จ!',
+    successLogout: 'ออกจากระบบสำเร็จแล้ว!',
+    anonymousAccountNotice: 'ขณะนี้คุณกำลังใช้งานในฐานะผู้ใช้ทั่วไป สมัครสมาชิกเพื่อบันทึกคำศัพท์อย่างถาวร',
+    backToProfile: 'กลับไปยังโปรไฟล์',
+    googleBtn: 'ดำเนินการต่อด้วย Google',
+    guestBtn: 'เข้าใช้งานแบบผู้ใช้ทั่วไป (Guest)',
+    successGuest: 'เข้าสู่ระบบในฐานะผู้ใช้ทั่วไปสำเร็จ!',
   },
 };
 

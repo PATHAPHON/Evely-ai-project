@@ -1,16 +1,15 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useStrings } from "@/app/_lib/strings";
-import { useUserProfile } from "./_lib/useUserProfile";
+import { useUserProfile } from "@/app/_lib/useUserProfile";
 import { useLanguageLearningStats } from "./_lib/useLearningStats";
 import { useStudyHeatmap } from "./_lib/useStudyHeatmap";
 import ProfileHeader from "./_components/ProfileHeader";
 import LearningStats from "./_components/LearningStats";
 import LearningHeatmap from "./_components/LearningHeatmap";
-import StreakCard from "./_components/StreakCard";
 import AppInfo from "./_components/AppInfo";
+import BottomNav from "@/app/_components/BottomNav";
 import ProfileViewerModal from "./_components/ProfileViewerModal";
 import EditProfileSheet from "./_components/EditProfileSheet";
 import SettingsSheet from "./_components/SettingsSheet";
@@ -18,23 +17,19 @@ import BottomSheet from "./_components/BottomSheet";
 import GlobalLanguageSelector from "@/app/_components/GlobalLanguageSelector";
 import LanguageSelector from "./_components/LanguageSelector";
 import ThemeToggle from "./_components/ThemeToggle";
-import AIConfigPanel from "./_components/AIConfigPanel";
 import DataManagement from "./_components/DataManagement";
 
 export default function ProfilePage() {
-  const router = useRouter();
   const t = useStrings();
 
   const profile = useUserProfile();
   const stats = useLanguageLearningStats();
   const heatmap = useStudyHeatmap(53);
-  const streak = heatmap?.currentStreak ?? 0;
 
   const [showSettings, setShowSettings] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showViewer, setShowViewer] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
-  const [showAI, setShowAI] = useState(false);
   const [showDanger, setShowDanger] = useState(false);
 
   // Lightweight toast.
@@ -58,11 +53,10 @@ export default function ProfilePage() {
   const viewerStats = [
     { n: stats.wordCount, label: t.profile.statWords },
     { n: stats.flashcardSetCount, label: t.profile.statFlashcards },
-    { n: streak, label: t.profile.statStreak },
   ];
 
   return (
-    <div className="relative flex h-dvh w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
+    <div className="relative flex h-dvh w-full select-none flex-col overflow-hidden dot-grid-bg font-sans text-foreground">
       <style>{`
         @keyframes cardFadeInUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
         .animate-card-fade-in { animation: cardFadeInUp 0.45s cubic-bezier(0.215,0.61,0.355,1) forwards; }
@@ -106,71 +100,17 @@ export default function ProfilePage() {
             wordCount={stats.wordCount}
             flashcardSetCount={stats.flashcardSetCount}
             studySessionCount={stats.studySessionCount}
-            streak={streak}
             isLoading={stats.isLoading}
           />
 
           <LearningHeatmap heatmap={heatmap} />
-
-          <StreakCard heatmap={heatmap} />
 
           <AppInfo />
         </div>
       </div>
 
       {/* Bottom nav */}
-      <div
-        className="absolute left-4 right-4 z-40 grid h-[80px] grid-cols-4 rounded-2xl border-3 border-border-color bg-card-bg p-[8px_8px_14px] shadow-nb-md"
-        style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
-      >
-        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-secondary" onClick={() => router.push("/home")}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
-            </svg>
-          </span>
-          <span className="text-[11px] font-bold tracking-wider">{t.common.tabHome}</span>
-        </a>
-
-        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-secondary" onClick={() => router.push("/library")}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="4 7 4 4 20 4 20 7" />
-              <line x1="9" y1="20" x2="15" y2="20" />
-              <line x1="12" y1="4" x2="12" y2="20" />
-            </svg>
-          </span>
-          <span className="text-[11px] font-bold tracking-wider">{t.common.tabLibrary}</span>
-        </a>
-
-        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-secondary" onClick={() => router.push("/chat")}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl">
-            <svg width="22" height="22" viewBox="0 0 18 18" shapeRendering="crispEdges" style={{ display: "block" }}>
-              <rect x="6" y="1" width="1" height="2" fill="currentColor" />
-              <rect x="11" y="1" width="1" height="2" fill="currentColor" />
-              <rect x="1" y="6" width="3" height="6" fill="currentColor" />
-              <rect x="14" y="6" width="3" height="6" fill="currentColor" />
-              <rect x="4" y="3" width="10" height="10" fill="currentColor" />
-              <rect x="8" y="13" width="2" height="4" fill="currentColor" />
-              <rect x="5" y="13" width="2" height="2" fill="currentColor" />
-              <rect x="11" y="13" width="2" height="2" fill="currentColor" />
-              <rect x="7" y="7" width="1" height="2" fill="#0b3d66" />
-              <rect x="10" y="7" width="1" height="2" fill="#0b3d66" />
-            </svg>
-          </span>
-          <span className="text-[11px] font-bold tracking-wider">{t.common.tabAIScan}</span>
-        </a>
-
-        <a className="flex cursor-pointer flex-col items-center gap-1 text-text-primary">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl border-3 border-border-color bg-accent-pink-bg shadow-nb-sm">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M20 21a8 8 0 0 0-16 0" />
-            </svg>
-          </span>
-          <span className="text-[11px] font-bold tracking-wider">{t.common.tabProfile}</span>
-        </a>
-      </div>
+      <BottomNav active="profile" />
 
       {/* Toast */}
       {toastMsg && (
@@ -204,7 +144,6 @@ export default function ProfilePage() {
         onClose={() => setShowSettings(false)}
         onEditProfile={() => setShowEdit(true)}
         onOpenPreferences={() => setShowPreferences(true)}
-        onOpenAI={() => setShowAI(true)}
         onOpenDanger={() => setShowDanger(true)}
       />
 
@@ -232,21 +171,7 @@ export default function ProfilePage() {
         </div>
       </BottomSheet>
 
-      {/* AI Assistant Settings */}
-      <BottomSheet
-        open={showAI}
-        onClose={() => setShowAI(false)}
-        title={t.profile.aiSection}
-        ariaLabel={t.profile.aiSection}
-        closeAria={t.profile.closeAria}
-        heightClass="h-[88%]"
-      >
-        <div className="p-4">
-          <div className="rounded-2xl border-3 border-border-color bg-card-bg p-4 shadow-nb-md">
-            <AIConfigPanel />
-          </div>
-        </div>
-      </BottomSheet>
+
 
       {/* Danger Zone */}
       <BottomSheet

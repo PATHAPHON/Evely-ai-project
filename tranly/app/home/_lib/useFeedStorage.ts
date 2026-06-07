@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import { FEED_WORDS_STORE, openDatabase } from '@/app/_lib/db';
+import { useCallback, useState } from 'react';
+import { supabase } from '@/app/_lib/supabaseClient';
 import type { FeedWord, FeedWordRecord } from './types';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
@@ -27,86 +27,134 @@ function getTodayDateKey(): string {
 export function useFeedStorage(): UseFeedStorageReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dbRef = useRef<IDBDatabase | null>(null);
-
-  const getDb = useCallback(async (): Promise<IDBDatabase> => {
-    if (dbRef.current) return dbRef.current;
-    const db = await openDatabase();
-    dbRef.current = db;
-    return db;
-  }, []);
 
   const loadTodayWords = useCallback(async (language: TargetLanguage): Promise<FeedWordRecord[]> => {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await getDb();
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) return [];
+
       const todayKey = getTodayDateKey();
-      const records = await new Promise<FeedWordRecord[]>((resolve, reject) => {
-        const tx = db.transaction(FEED_WORDS_STORE, 'readonly');
-        const store = tx.objectStore(FEED_WORDS_STORE);
-        const index = store.index('language_date');
-        const req = index.getAll(IDBKeyRange.only([language, todayKey]));
-        req.onsuccess = () => resolve(req.result as FeedWordRecord[]);
-        req.onerror = () => reject(req.error);
+      const { data, error: dbError } = await supabase
+        .from('feed_words')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('language', language)
+        .eq('generated_date', todayKey)
+        .order('created_at', { ascending: true });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      return (data || []).map((row) => {
+        let imageUrls: string[] = [];
+        let imageUrl = row.image_url;
+
+        if (row.image_url) {
+          if (row.image_url.startsWith('[')) {
+            try {
+              imageUrls = JSON.parse(row.image_url);
+              imageUrl = imageUrls[0] || '';
+            } catch {
+              imageUrls = [row.image_url];
+            }
+          } else {
+            imageUrls = [row.image_url];
+          }
+        }
+
+        return {
+          id: row.id,
+          language: row.language as TargetLanguage,
+          generatedDate: row.generated_date,
+          thai: row.thai,
+          bookmarked: row.bookmarked,
+          imageUrl: imageUrl,
+          imageUrls: imageUrls,
+          createdAt: new Date(row.created_at).getTime(),
+          partOfSpeech: row.part_of_speech,
+          kanji: row.kanji,
+          hiragana: row.hiragana,
+          romaji: row.romaji,
+          korean: row.korean,
+          reading: row.reading,
+          romanization: row.romanization,
+          english: row.english,
+          hanzi: row.hanzi,
+          pinyin: row.pinyin,
+          word: row.word,
+          ipa: row.ipa,
+        } as FeedWordRecord;
       });
-      records.sort((a, b) => a.createdAt - b.createdAt);
-      setIsLoading(false);
-      return records;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to load word.';
       setError(message);
       setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  }, [getDb]);
+  }, []);
 
   const saveWords = useCallback(
     async (words: FeedWord[], language: TargetLanguage): Promise<void> => {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
         const todayKey = getTodayDateKey();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(FEED_WORDS_STORE, 'readwrite');
-          const store = tx.objectStore(FEED_WORDS_STORE);
-          for (const word of words) {
-            const record: FeedWordRecord = {
-              id: crypto.randomUUID(),
-              language,
-              generatedDate: todayKey,
-              bookmarked: false,
-              imageBlob: null,
-              createdAt: Date.now(),
-              thai: word.thai,
-              // Spread language-specific fields from the FeedWord
-              ...(word.language === 'korean' && {
-                korean: word.korean,
-                reading: word.reading,
-                romanization: word.romanization,
-                english: word.english,
-              }),
-              ...(word.language === 'japanese' && {
-                kanji: word.kanji,
-                hiragana: word.hiragana,
-                romaji: word.romaji,
-              }),
-              ...(word.language === 'chinese' && {
-                hanzi: word.hanzi,
-                pinyin: word.pinyin,
-              }),
-              ...(word.language === 'english' && {
-                word: word.word,
-                ipa: word.ipa,
-              }),
-            };
-            store.put(record);
-          }
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
+        const records = words.map((word) => {
+          return {
+            id: crypto.randomUUID(),
+            user_id: userId,
+            language,
+            generated_date: todayKey,
+            bookmarked: false,
+            thai: word.thai,
+            part_of_speech: word.partOfSpeech,
+            image_url: word.imageUrls ? JSON.stringify(word.imageUrls) : word.imageUrl,
+            created_at: new Date().toISOString(),
+            ...(word.language === 'korean' && {
+              korean: word.korean,
+              reading: word.reading,
+              romanization: word.romanization,
+              english: word.english,
+            }),
+            ...(word.language === 'japanese' && {
+              kanji: word.kanji,
+              hiragana: word.hiragana,
+              romaji: word.romaji,
+              english: word.english,
+            }),
+            ...(word.language === 'chinese' && {
+              hanzi: word.hanzi,
+              pinyin: word.pinyin,
+              english: word.english,
+            }),
+            ...(word.language === 'english' && {
+              word: word.word,
+              ipa: word.ipa,
+            }),
+          };
         });
+
+        const { error: dbError } = await supabase
+          .from('feed_words')
+          .insert(records);
+
+        if (dbError) {
+          throw dbError;
+        }
+
         setIsLoading(false);
       } catch (err) {
         const message =
@@ -118,7 +166,7 @@ export function useFeedStorage(): UseFeedStorageReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   const updateImage = useCallback(
@@ -126,25 +174,38 @@ export function useFeedStorage(): UseFeedStorageReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(FEED_WORDS_STORE, 'readwrite');
-          const store = tx.objectStore(FEED_WORDS_STORE);
-          const getReq = store.get(wordId);
-          getReq.onsuccess = () => {
-            const record = getReq.result as FeedWordRecord | undefined;
-            if (!record) {
-              reject(new Error('Word not found.'));
-              return;
-            }
-            record.imageBlob = imageBlob;
-            const putReq = store.put(record);
-            putReq.onsuccess = () => resolve();
-            putReq.onerror = () => reject(putReq.error);
-          };
-          getReq.onerror = () => reject(getReq.error);
-          tx.onerror = () => reject(tx.error);
-        });
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
+        const filePath = `authenticated/${userId}/feed/${wordId}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('tarnly-media')
+          .upload(filePath, imageBlob, {
+            contentType: 'image/png',
+            upsert: true,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('tarnly-media')
+          .getPublicUrl(filePath);
+
+        const { error: dbError } = await supabase
+          .from('feed_words')
+          .update({ image_url: publicUrl })
+          .eq('id', wordId)
+          .eq('user_id', userId);
+
+        if (dbError) {
+          throw dbError;
+        }
+
         setIsLoading(false);
       } catch (err) {
         const message =
@@ -156,7 +217,7 @@ export function useFeedStorage(): UseFeedStorageReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   const toggleBookmark = useCallback(
@@ -164,25 +225,34 @@ export function useFeedStorage(): UseFeedStorageReturn {
       setIsLoading(true);
       setError(null);
       try {
-        const db = await getDb();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(FEED_WORDS_STORE, 'readwrite');
-          const store = tx.objectStore(FEED_WORDS_STORE);
-          const getReq = store.get(wordId);
-          getReq.onsuccess = () => {
-            const record = getReq.result as FeedWordRecord | undefined;
-            if (!record) {
-              reject(new Error('Word not found.'));
-              return;
-            }
-            record.bookmarked = !record.bookmarked;
-            const putReq = store.put(record);
-            putReq.onsuccess = () => resolve();
-            putReq.onerror = () => reject(putReq.error);
-          };
-          getReq.onerror = () => reject(getReq.error);
-          tx.onerror = () => reject(tx.error);
-        });
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
+        // Fetch current bookmarked value
+        const { data, error: selectError } = await supabase
+          .from('feed_words')
+          .select('bookmarked')
+          .eq('id', wordId)
+          .eq('user_id', userId)
+          .single();
+
+        if (selectError) {
+          throw selectError;
+        }
+
+        const { error: dbError } = await supabase
+          .from('feed_words')
+          .update({ bookmarked: !data.bookmarked })
+          .eq('id', wordId)
+          .eq('user_id', userId);
+
+        if (dbError) {
+          throw dbError;
+        }
+
         setIsLoading(false);
       } catch (err) {
         const message =
@@ -194,47 +264,64 @@ export function useFeedStorage(): UseFeedStorageReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   const removeWord = useCallback(
     async (wordId: string): Promise<void> => {
-      const db = await getDb();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(FEED_WORDS_STORE, 'readwrite');
-        const req = tx.objectStore(FEED_WORDS_STORE).delete(wordId);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
+      try {
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) return;
+
+        const { error: dbError } = await supabase
+          .from('feed_words')
+          .delete()
+          .eq('id', wordId)
+          .eq('user_id', userId);
+
+        if (dbError) {
+          throw dbError;
+        }
+
+        const filePath = `authenticated/${userId}/feed/${wordId}.png`;
+        await supabase.storage.from('tarnly-media').remove([filePath]);
+      } catch (err) {
+        console.error('Failed to remove feed word:', err);
+        throw err;
+      }
     },
-    [getDb]
+    []
   );
 
   const getAllKoreanWords = useCallback(async (): Promise<string[]> => {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await getDb();
-      const words = await new Promise<string[]>((resolve, reject) => {
-        const tx = db.transaction(FEED_WORDS_STORE, 'readonly');
-        const store = tx.objectStore(FEED_WORDS_STORE);
-        const req = store.getAll();
-        req.onsuccess = () => {
-          const records = req.result as FeedWordRecord[];
-          resolve(records.map((r) => r.korean).filter((k): k is string => !!k));
-        };
-        req.onerror = () => reject(req.error);
-      });
-      setIsLoading(false);
-      return words;
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) return [];
+
+      const { data, error: dbError } = await supabase
+        .from('feed_words')
+        .select('korean')
+        .eq('user_id', userId);
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      return (data || []).map((row) => row.korean).filter((k): k is string => !!k);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to load word.';
       setError(message);
       setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  }, [getDb]);
+  }, []);
 
   return {
     loadTodayWords,

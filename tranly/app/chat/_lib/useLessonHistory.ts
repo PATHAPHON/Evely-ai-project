@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import { LESSONS_STORE, openDatabase } from '@/app/_lib/db';
+import { useCallback, useState } from 'react';
+import { supabase } from '@/app/_lib/supabaseClient';
 import type { LessonRecord } from './lessonTypes';
 
 export interface UseLessonHistoryReturn {
@@ -15,59 +15,83 @@ export interface UseLessonHistoryReturn {
 
 /**
  * Persistence for generated lessons so they can be replayed later.
- * Mirrors useConversationHistory but uses a single object store.
+ * Communicates with public.lessons table in Supabase.
  */
 export function useLessonHistory(): UseLessonHistoryReturn {
   const [lessons, setLessons] = useState<LessonRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dbRef = useRef<IDBDatabase | null>(null);
-
-  const getDb = useCallback(async (): Promise<IDBDatabase> => {
-    if (dbRef.current) return dbRef.current;
-    const db = await openDatabase();
-    dbRef.current = db;
-    return db;
-  }, []);
 
   const loadLessons = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await getDb();
-      const records = await new Promise<LessonRecord[]>((resolve, reject) => {
-        const tx = db.transaction(LESSONS_STORE, 'readonly');
-        const store = tx.objectStore(LESSONS_STORE);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result as LessonRecord[]);
-        req.onerror = () => reject(req.error);
-      });
-      records.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setLessons(records);
-      setIsLoading(false);
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data.user?.id;
+      if (!userId) {
+        setLessons([]);
+        return;
+      }
+
+      const { data, error: dbError } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      const mappedLessons: LessonRecord[] = (data || []).map((row) => ({
+        id: row.id,
+        topic: row.topic,
+        proficiencyLevel: row.proficiency_level,
+        wordContext: row.word_context || [],
+        exercises: row.exercises || [],
+        createdAt: row.created_at,
+        lastScore: row.last_score,
+        total: row.total,
+        timesCompleted: row.times_completed,
+      }));
+
+      setLessons(mappedLessons);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'โหลดบทเรียนที่บันทึกไว้ไม่สำเร็จ';
       setError(message);
-      setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  }, [getDb]);
+  }, []);
 
   const saveLesson = useCallback(
     async (lesson: LessonRecord): Promise<void> => {
       setError(null);
       try {
-        const db = await getDb();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(LESSONS_STORE, 'readwrite');
-          tx.objectStore(LESSONS_STORE).put(lesson);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
+        const { error: dbError } = await supabase.from('lessons').upsert({
+          id: lesson.id,
+          user_id: userId,
+          topic: lesson.topic,
+          proficiency_level: lesson.proficiencyLevel,
+          word_context: lesson.wordContext,
+          exercises: lesson.exercises,
+          created_at: lesson.createdAt,
+          last_score: lesson.lastScore,
+          total: lesson.total,
+          times_completed: lesson.timesCompleted,
         });
+
+        if (dbError) {
+          throw dbError;
+        }
       } catch (err) {
         const message =
           err instanceof Error
@@ -77,20 +101,29 @@ export function useLessonHistory(): UseLessonHistoryReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   const deleteLesson = useCallback(
     async (lessonId: string): Promise<void> => {
       setError(null);
       try {
-        const db = await getDb();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(LESSONS_STORE, 'readwrite');
-          tx.objectStore(LESSONS_STORE).delete(lessonId);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          throw new Error('User not authenticated.');
+        }
+
+        const { error: dbError } = await supabase
+          .from('lessons')
+          .delete()
+          .eq('id', lessonId)
+          .eq('user_id', userId);
+
+        if (dbError) {
+          throw dbError;
+        }
+
         setLessons((prev) => prev.filter((l) => l.id !== lessonId));
       } catch (err) {
         const message =
@@ -101,7 +134,7 @@ export function useLessonHistory(): UseLessonHistoryReturn {
         throw err;
       }
     },
-    [getDb]
+    []
   );
 
   return {

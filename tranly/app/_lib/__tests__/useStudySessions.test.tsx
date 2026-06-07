@@ -1,15 +1,64 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import 'fake-indexeddb/auto';
-import { IDBFactory } from 'fake-indexeddb';
 import type { ReactNode } from 'react';
 import { useStudySessions } from '../useStudySessions';
 import { ActiveLanguageProvider, STORAGE_KEY } from '../ActiveLanguageContext';
-import { openDatabase, STUDY_SESSIONS_STORE } from '../db';
 import type { StudySession } from '../studySessionTypes';
 
+// --- In-memory mock database ---
+let mockSessions: any[] = [];
+let mockUser: any = { id: 'test-user-id' };
+
+// --- Mock Supabase Client ---
+vi.mock('@/app/_lib/supabaseClient', () => {
+  return {
+    supabase: {
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user: mockUser } })),
+        getSession: vi.fn(async () => ({ data: { session: mockUser ? { user: mockUser } : null } })),
+        onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+      },
+      from: vi.fn((table: string) => {
+        if (table === 'study_sessions') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn((field1: string, val1: any) => {
+                // If it's eq('user_id', userId)
+                return {
+                  eq: vi.fn((field2: string, val2: any) => {
+                    // If it's eq('language', activeLanguage)
+                    return {
+                      order: vi.fn(async (sortField: string, { ascending }: { ascending: boolean }) => {
+                        let filtered = mockSessions.filter(
+                          (s) => s.user_id === val1 && s.language === val2
+                        );
+                        filtered.sort((a, b) => {
+                          const timeA = new Date(a.completed_at).getTime();
+                          const timeB = new Date(b.completed_at).getTime();
+                          return ascending ? timeA - timeB : timeB - timeA;
+                        });
+                        return { data: filtered, error: null };
+                      }),
+                    };
+                  }),
+                };
+              }),
+            })),
+            insert: vi.fn(async (record: any) => {
+              mockSessions.push(record);
+              return { error: null };
+            }),
+          };
+        }
+        return {};
+      }),
+    },
+  };
+});
+
 beforeEach(() => {
-  globalThis.indexedDB = new IDBFactory();
+  mockSessions = [];
+  mockUser = { id: 'test-user-id' };
   localStorage.clear();
 });
 
@@ -25,17 +74,14 @@ function createWrapper(language: string) {
 }
 
 async function seedSessions(sessions: StudySession[]) {
-  const db = await openDatabase();
-  const tx = db.transaction(STUDY_SESSIONS_STORE, 'readwrite');
-  const store = tx.objectStore(STUDY_SESSIONS_STORE);
-  for (const session of sessions) {
-    store.put(session);
-  }
-  await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
+  mockSessions = sessions.map((s) => ({
+    id: s.id,
+    user_id: 'test-user-id',
+    language: s.language,
+    flashcard_set_id: s.flashcardSetId,
+    completed_at: new Date(s.completedAt).toISOString(),
+    cards_reviewed: s.cardsReviewed,
+  }));
 }
 
 describe('useStudySessions', () => {

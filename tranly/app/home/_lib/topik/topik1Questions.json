@@ -1,0 +1,199 @@
+{
+  "examType": "topik1",
+  "reading": [
+    {
+      "id": "t1-r-001",
+      "type": "reading",
+      "passage": "오늘 날씨가 좋습니다. 공원에 사람이 많습니다.",
+      "question": "오늘 날씨는 어떻습니까?",
+      "choices": ["좋습니다", "나쁩니다", "춥습니다", "덥습니다"],
+      "correctAnswer": 0
+    },
+    {
+      "id": "t1-r-002",
+      "type": "reading",
+      "passage": "저는 매일 아침 7시에 일어납니다. 아침을 먹고 학교에 갑니다.",
+      "question": "이 사람은 아침에 무엇을 합니까?",
+      "choices": ["운동합니다", "일어나서 학교에 갑니다", "텔레비전을 봅니다", "친구를 만납니다"],
+      "correctAnswer": 1
+    },
+    {
+      "id": "t1-r-003",
+      "type": "reading",
+      "passage": "이것은 사과입니다. 사과는 빨간색입니다. 맛있습니다.",
+      "question": "사과는 무슨 색입니까?",
+      "choices": ["파란색", "노란색", "빨간색", "초록색"],
+      "correctAnswer": 2
+    },
+    {
+      "id": "t1-r-004",
+      "type": "reading",
+      "passage": "저는 한국어를 공부합니다. 한국어는 재미있습니다. 매일 2시간 공부합니다.",
+      "question": "이 사람은 매일 얼마나 공부합니까?",
+      "choices": ["1시간", "30분", "3시간", "2시간"],
+      "correctAnswer": 3
+    },
+    {
+      "id": "t1-r-005",
+      "type": "reading",
+      "passage": "서울은 한국의 수도입니다. 서울에는 사람이 많습니다.",
+      "question": "서울은 무엇입니까?",
+      "choices": ["한국의 수도", "한국의 산", "한국의 강", "한국의 섬"],
+      "correctAnswer": 0
+    },
+    {
+      "id": "t1-r-006",
+      "type": "reading",
+      "passage": "도서관에서 책을 읽습니다. 도서관은 조용합니다. 여기에서 공부도 합니다.",
+      "question": "도서관은 어떻습니까?",
+      "choices": ["시끄럽습니다", "조용합니다", "넓습니다", "작습니다"],
+      "correctAnswer": 1
+    },
+    {
+      "id": "t1-r-007",
+      "type": "reading",
+      "passage": "저는 커피를 좋아합니다. 매일 아침에 커피를 마십니다. 카페에 자주 갑니다.",
+      "question": "이 사람은 무엇을 좋아합니까?",
+      "choices": ["차", "주스", "커피", "물"],
+      "correctAnswer": 2
+    },
+    {
+      "id": "t1-r-008",
+      "type": "reading",
+      "passage": "오늘은 토요일입니다. 내일은 일요일입니다. 주말에는 쉽니다.",
+      "question": "내일은 무슨 요일입니까?",
+      "choices": ["금요일", "토요일", "월요일", "일요일"],
+      "correctAnswer": 3
+    },
+    {
+      "id": "t1-r-009",
+      "type": "reading",
+      "passage": "가: 안녕하세요. 만나서 반갑습니다.\n나: 안녕하세요. 저도 반갑습니다.",
+      "question": "두 사람은 무엇을 합니까?",
+      "choices": ["인사합니다", "식사합니다", "공부합니다", "운동합니다"],
+      "correctAnswer": 0
+    },
+    {
+      "id": "t1-r-010",
+      "type": "reading",
+      "passage": "이 가방은 3만 원입니다. 저 가방은 5만 원입니다. 저 가방이 더 비쌉니다.",
+      "question": "어느 가방이 더 비쌉니까?",
+      "choices": ["이 가방", "저 가방", "둘 다 같습니다", "모릅니다"],
+      "correctAnswer": 1
+    },
+    {
+      "id": "t1-r-011",
+      "type": "reading",
+      "passage": "병원에 갑니다. 머리가 아픕니다. 의사 선생님을 만납니다.",
+      "question": "이 사람은 왜 병원에 갑니까?",
+      "choices": ["배가 아파서", "다리가 아파서", "머리가 아파서", "이가 아파서"],
+      "correctAnswer": 2
+    },
+    {
+      "id": "t1-r-012",
+      "type": "reading",
+      "passage": "우리 가족은 4명입니다. 아버지, 어머니, 언니, 그리고 저입니다.",
+      "question": "가족은 몇 명입니까?",
+      "choices": ["2명", "3명", "5명", "4명"],
+      "correctAnswer": 3
+    }
+  ],
+  "listening": [
+    {
+      "id": "t1-l-001",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-001.mp3",
+      "question": "남자는 어디에 갑니까?",
+      "choices": ["학교", "회사", "병원", "시장"],
+      "correctAnswer": 0
+    },
+    {
+      "id": "t1-l-002",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-002.mp3",
+      "question": "여자는 무엇을 먹습니까?",
+      "choices": ["빵", "비빔밥", "피자", "샌드위치"],
+      "correctAnswer": 1
+    },
+    {
+      "id": "t1-l-003",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-003.mp3",
+      "question": "오늘 날씨는 어떻습니까?",
+      "choices": ["맑습니다", "흐립니다", "비가 옵니다", "눈이 옵니다"],
+      "correctAnswer": 2
+    },
+    {
+      "id": "t1-l-004",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-004.mp3",
+      "question": "남자는 몇 시에 만납니까?",
+      "choices": ["1시", "2시", "3시", "4시"],
+      "correctAnswer": 3
+    },
+    {
+      "id": "t1-l-005",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-005.mp3",
+      "question": "여자는 무엇을 삽니까?",
+      "choices": ["구두", "가방", "모자", "옷"],
+      "correctAnswer": 0
+    },
+    {
+      "id": "t1-l-006",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-006.mp3",
+      "question": "남자의 직업은 무엇입니까?",
+      "choices": ["학생", "선생님", "의사", "요리사"],
+      "correctAnswer": 1
+    },
+    {
+      "id": "t1-l-007",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-007.mp3",
+      "question": "여자는 주말에 무엇을 합니까?",
+      "choices": ["일합니다", "공부합니다", "운동합니다", "여행합니다"],
+      "correctAnswer": 2
+    },
+    {
+      "id": "t1-l-008",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-008.mp3",
+      "question": "이 사람은 어느 나라 사람입니까?",
+      "choices": ["중국", "일본", "미국", "태국"],
+      "correctAnswer": 3
+    },
+    {
+      "id": "t1-l-009",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-009.mp3",
+      "question": "남자는 무엇을 마십니까?",
+      "choices": ["물", "커피", "주스", "우유"],
+      "correctAnswer": 0
+    },
+    {
+      "id": "t1-l-010",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-010.mp3",
+      "question": "여자는 몇 살입니까?",
+      "choices": ["18살", "20살", "22살", "25살"],
+      "correctAnswer": 1
+    },
+    {
+      "id": "t1-l-011",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-011.mp3",
+      "question": "두 사람은 어디에서 만납니까?",
+      "choices": ["학교", "집", "카페", "공원"],
+      "correctAnswer": 2
+    },
+    {
+      "id": "t1-l-012",
+      "type": "listening",
+      "audioSrc": "/audio/topik/topik1/l-012.mp3",
+      "question": "남자는 언제 한국에 옵니까?",
+      "choices": ["월요일", "수요일", "금요일", "다음 주"],
+      "correctAnswer": 3
+    }
+  ]
+}

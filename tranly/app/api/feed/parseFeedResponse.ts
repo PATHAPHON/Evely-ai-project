@@ -32,8 +32,8 @@ function extractStringField(src: string, key: string): string {
  */
 const REQUIRED_FIELDS: Record<TargetLanguage, string[]> = {
   korean: ['korean', 'reading', 'romanization', 'english', 'thai'],
-  japanese: ['kanji', 'hiragana', 'romaji', 'thai'],
-  chinese: ['hanzi', 'pinyin', 'thai'],
+  japanese: ['kanji', 'hiragana', 'romaji', 'english', 'thai'],
+  chinese: ['hanzi', 'pinyin', 'english', 'thai'],
   english: ['word', 'ipa', 'thai'],
 };
 
@@ -54,6 +54,43 @@ function isValidFeedWordForLanguage(obj: unknown, language: TargetLanguage): boo
  * based on the target language.
  */
 function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage): FeedWord | null {
+  const partOfSpeechVal = typeof obj.part_of_speech === 'string'
+    ? obj.part_of_speech.trim()
+    : typeof obj.partOfSpeech === 'string'
+    ? obj.partOfSpeech.trim()
+    : undefined;
+
+  const partOfSpeech = partOfSpeechVal || undefined;
+
+  // Extract image_queries array if present, otherwise default to a fallback array
+  let imageQueries: string[] = [];
+  const rawQueries = obj.image_queries || obj.imageQueries;
+  if (Array.isArray(rawQueries)) {
+    imageQueries = rawQueries.map((q) => typeof q === 'string' ? q.trim() : '').filter(Boolean);
+  }
+
+  // Fallback if we don't have exactly 3 queries
+  const englishWord = typeof obj.english === 'string' 
+    ? obj.english.trim() 
+    : typeof obj.word === 'string' 
+    ? obj.word.trim() 
+    : typeof obj.thai === 'string' 
+    ? obj.thai.trim() 
+    : '';
+
+  if (imageQueries.length === 0) {
+    imageQueries = [
+      englishWord,
+      `${englishWord} details`,
+      `${englishWord} background`
+    ];
+  } else {
+    while (imageQueries.length < 3) {
+      imageQueries.push(`${englishWord} ${imageQueries.length + 1}`);
+    }
+    imageQueries = imageQueries.slice(0, 3);
+  }
+
   switch (language) {
     case 'korean': {
       const word: KoreanFeedWord = {
@@ -63,7 +100,9 @@ function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage)
         romanization: typeof obj.romanization === 'string' ? obj.romanization.trim() : '',
         english: typeof obj.english === 'string' ? obj.english.trim() : '',
         thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+        imageQueries,
       };
+      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
       return isValidFeedWordForLanguage(word, language) ? word : null;
     }
     case 'japanese': {
@@ -73,7 +112,10 @@ function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage)
         hiragana: typeof obj.hiragana === 'string' ? obj.hiragana.trim() : '',
         romaji: typeof obj.romaji === 'string' ? obj.romaji.trim() : '',
         thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+        english: typeof obj.english === 'string' ? obj.english.trim() : '',
+        imageQueries,
       };
+      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
       return isValidFeedWordForLanguage(word, language) ? word : null;
     }
     case 'chinese': {
@@ -82,7 +124,10 @@ function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage)
         hanzi: typeof obj.hanzi === 'string' ? obj.hanzi.trim() : '',
         pinyin: typeof obj.pinyin === 'string' ? obj.pinyin.trim() : '',
         thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+        english: typeof obj.english === 'string' ? obj.english.trim() : '',
+        imageQueries,
       };
+      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
       return isValidFeedWordForLanguage(word, language) ? word : null;
     }
     case 'english': {
@@ -91,7 +136,9 @@ function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage)
         word: typeof obj.word === 'string' ? obj.word.trim() : '',
         ipa: typeof obj.ipa === 'string' ? obj.ipa.trim() : '',
         thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+        imageQueries,
       };
+      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
       return isValidFeedWordForLanguage(word, language) ? word : null;
     }
   }
@@ -107,6 +154,7 @@ function extractFeedWordFromString(src: string, language: TargetLanguage): FeedW
   for (const field of fields) {
     extracted[field] = extractStringField(src, field);
   }
+  extracted['part_of_speech'] = extractStringField(src, 'part_of_speech') || extractStringField(src, 'partOfSpeech');
   return extractFeedWord(extracted as Record<string, unknown>, language);
 }
 

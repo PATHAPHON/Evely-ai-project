@@ -9,6 +9,7 @@ const validWord: KoreanFeedWord = {
   romanization: 'sagwa',
   english: 'apple',
   thai: 'แอปเปิ้ล',
+  imageQueries: ['apple', 'apple details', 'apple background'],
 };
 
 const validWord2: KoreanFeedWord = {
@@ -18,6 +19,7 @@ const validWord2: KoreanFeedWord = {
   romanization: 'banana',
   english: 'banana',
   thai: 'กล้วย',
+  imageQueries: ['banana', 'banana details', 'banana background'],
 };
 
 const validJapaneseWord: JapaneseFeedWord = {
@@ -26,6 +28,8 @@ const validJapaneseWord: JapaneseFeedWord = {
   hiragana: 'ねこ',
   romaji: 'neko',
   thai: 'แมว',
+  english: 'cat',
+  imageQueries: ['cat', 'cat details', 'cat background'],
 };
 
 const validChineseWord: ChineseFeedWord = {
@@ -33,6 +37,8 @@ const validChineseWord: ChineseFeedWord = {
   hanzi: '猫',
   pinyin: 'māo',
   thai: 'แมว',
+  english: 'cat',
+  imageQueries: ['cat', 'cat details', 'cat background'],
 };
 
 const validEnglishWord: EnglishFeedWord = {
@@ -40,6 +46,7 @@ const validEnglishWord: EnglishFeedWord = {
   word: 'cat',
   ipa: '/kæt/',
   thai: 'แมว',
+  imageQueries: ['cat', 'cat details', 'cat background'],
 };
 
 describe('parseFeedResponse', () => {
@@ -164,9 +171,16 @@ describe('parseFeedResponse', () => {
     expect(result).toEqual([validWord]);
   });
 
+  it('parses part_of_speech if present in the input', () => {
+    const rawWord = { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', part_of_speech: 'คำนาม' };
+    const content = JSON.stringify([rawWord]);
+    const result = parseFeedResponse(content, 'korean');
+    expect(result).toEqual([{ ...validWord, partOfSpeech: 'คำนาม' }]);
+  });
+
   // --- Japanese language tests ---
   it('parses Japanese feed words', () => {
-    const rawWord = { kanji: '猫', hiragana: 'ねこ', romaji: 'neko', thai: 'แมว' };
+    const rawWord = { kanji: '猫', hiragana: 'ねこ', romaji: 'neko', thai: 'แมว', english: 'cat' };
     const content = JSON.stringify([rawWord]);
     const result = parseFeedResponse(content, 'japanese');
     expect(result).toEqual([validJapaneseWord]);
@@ -174,7 +188,7 @@ describe('parseFeedResponse', () => {
 
   it('skips Japanese words missing required fields', () => {
     const incomplete = { kanji: '猫', hiragana: 'ねこ' };
-    const rawValid = { kanji: '猫', hiragana: 'ねこ', romaji: 'neko', thai: 'แมว' };
+    const rawValid = { kanji: '猫', hiragana: 'ねこ', romaji: 'neko', thai: 'แมว', english: 'cat' };
     const content = JSON.stringify([incomplete, rawValid]);
     const result = parseFeedResponse(content, 'japanese');
     expect(result).toEqual([validJapaneseWord]);
@@ -182,7 +196,7 @@ describe('parseFeedResponse', () => {
 
   // --- Chinese language tests ---
   it('parses Chinese feed words', () => {
-    const rawWord = { hanzi: '猫', pinyin: 'māo', thai: 'แมว' };
+    const rawWord = { hanzi: '猫', pinyin: 'māo', thai: 'แมว', english: 'cat' };
     const content = JSON.stringify([rawWord]);
     const result = parseFeedResponse(content, 'chinese');
     expect(result).toEqual([validChineseWord]);
@@ -190,7 +204,7 @@ describe('parseFeedResponse', () => {
 
   it('skips Chinese words missing required fields', () => {
     const incomplete = { hanzi: '猫' };
-    const rawValid = { hanzi: '猫', pinyin: 'māo', thai: 'แมว' };
+    const rawValid = { hanzi: '猫', pinyin: 'māo', thai: 'แมว', english: 'cat' };
     const content = JSON.stringify([incomplete, rawValid]);
     const result = parseFeedResponse(content, 'chinese');
     expect(result).toEqual([validChineseWord]);

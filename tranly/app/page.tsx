@@ -6,6 +6,7 @@ import { Button, ConfigProvider, Card, Typography, Spin } from "antd";
 import { RocketOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import useIllustrationTheme from "@/app/theme/illustrationTheme";
 import { useStrings } from "@/app/_lib/strings";
+import { supabase } from "@/app/_lib/supabaseClient";
 
 const { Title, Paragraph } = Typography;
 
@@ -15,16 +16,30 @@ export default function LandingPage() {
   const t = useStrings();
 
   useEffect(() => {
-    // Automatically redirect to the mobile app home screen after 1.5 seconds
+    const checkAuthAndRedirect = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.push("/home");
+        } else {
+          router.push("/auth");
+        }
+      } catch (err) {
+        console.error("Failed to check auth on landing page:", err);
+        router.push("/auth");
+      }
+    };
+
+    // Automatically redirect to the correct screen after 1.5 seconds
     const timer = setTimeout(() => {
-      router.push("/home");
+      checkAuthAndRedirect();
     }, 1500);
     return () => clearTimeout(timer);
   }, [router]);
 
   return (
     <ConfigProvider {...configProps}>
-      <div className="flex flex-col items-center justify-center bg-white min-h-dvh py-16 px-6 font-sans">
+      <div className="flex flex-col items-center justify-center dot-grid-bg min-h-dvh py-16 px-6 font-sans">
         <main className="w-full max-w-md transition-all duration-300">
           
           <Card 

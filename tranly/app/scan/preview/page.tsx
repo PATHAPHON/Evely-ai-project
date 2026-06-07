@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   getCapturedImage,
   clearCapturedImage,
 } from '../_lib/capturedImageStore';
-import { computeFitDimensions } from '../_lib/computeFitDimensions';
 import { blobToBase64 } from '../flashcard/_lib/blobToBase64';
 import { ERROR_MESSAGES } from '../flashcard/_lib/constants';
 import type {
@@ -16,13 +15,18 @@ import type {
 import { useWordStorage } from '@/app/learn/_lib/useWordStorage';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
+import { trimTransparentPixels, resizeImage } from '@/app/_lib/imageUtils';
+
+import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
 import {
   extractWordsForLanguage,
   detectTextLanguage,
 } from '../_lib/languageDetection';
+import { saveCaptureRecord } from '../_lib/saveCapture';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
-import { WORDS_STORE, openDatabase } from '@/app/_lib/db';
-import { createWordRecord } from '../_lib/createWordRecord';
+import type { SaveWordInput } from '@/app/learn/_lib/useWordStorage';
+import type { ChatSuccessResponse } from '@/app/chat/_lib/types';
+import ScanLoadingMascot, { type ScanPhase } from './_components/ScanLoadingMascot';
 
 /** Maximum number of words to display from a scan */
 const MAX_WORDS = 50;
@@ -45,17 +49,23 @@ const LANGUAGE_NAMES: Record<TargetLanguage, string> = {
 export default function PreviewPage() {
   const router = useRouter();
   const { activeLanguage } = useActiveLanguage();
+  const { language } = useLanguagePreference();
+  const isThai = language === 'thai';
+
   const { save } = useWordStorage();
 
   const [blob, setBlob] = useState<Blob | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
-  const [dimensions, setDimensions] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
+
+  // Background removal states
+  const [isBgRemovalEnabled, setIsBgRemovalEnabled] = useState(false);
+  const [bgRemovedBlob, setBgRemovedBlob] = useState<Blob | null>(null);
+  const [bgRemovedUrl, setBgRemovedUrl] = useState<string | null>(null);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
 
   // Text extraction state
   const [isExtracting, setIsExtracting] = useState(false);
+  const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
   const [extractedWords, setExtractedWords] = useState<string[]>([]);
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set());
   const [mismatchMessage, setMismatchMessage] = useState<string | null>(null);
@@ -70,10 +80,6 @@ export default function PreviewPage() {
   // Legacy single-word flow state (fallback when no text extraction)
   const [legacyMode, setLegacyMode] = useState(false);
 
-  const imageNaturalSize = useRef<{ width: number; height: number } | null>(
-    null
-  );
-
   // Retrieve captured image on mount; redirect if none available
   useEffect(() => {
     const captured = getCapturedImage();
@@ -81,53 +87,60 @@ export default function PreviewPage() {
       router.replace('/scan');
       return;
     }
-    setBlob(captured);
+
     const url = URL.createObjectURL(captured);
-    setObjectUrl(url);
+    const timer = setTimeout(() => {
+      setBlob(captured);
+      setObjectUrl(url);
+    }, 0);
 
     return () => {
+      clearTimeout(timer);
       URL.revokeObjectURL(url);
     };
   }, [router]);
 
-  // Auto-extract text when blob is available
+  // Handle clean up of bg removed URL separately
   useEffect(() => {
-    if (!blob) return;
-    extractText(blob);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blob]);
-
-  // Compute fit dimensions based on natural image size and viewport
-  const updateDimensions = useCallback(() => {
-    if (!imageNaturalSize.current) return;
-    const { width: natW, height: natH } = imageNaturalSize.current;
-    const containerWidth = window.innerWidth;
-    const containerHeight = window.innerHeight - 320; // Reserve space for word list and buttons
-    const fit = computeFitDimensions(natW, natH, containerWidth, containerHeight);
-    setDimensions(fit);
-  }, []);
-
-  useEffect(() => {
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    window.addEventListener('orientationchange', updateDimensions);
     return () => {
-      window.removeEventListener('resize', updateDimensions);
-      window.removeEventListener('orientationchange', updateDimensions);
+      if (bgRemovedUrl) {
+        URL.revokeObjectURL(bgRemovedUrl);
+      }
     };
-  }, [updateDimensions]);
+  }, [bgRemovedUrl]);
 
-  const handleImageLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      const img = e.currentTarget;
-      imageNaturalSize.current = {
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-      };
-      updateDimensions();
-    },
-    [updateDimensions]
-  );
+  const handleBgRemovalToggle = useCallback(async (enabled: boolean) => {
+    setIsBgRemovalEnabled(enabled);
+    if (!enabled) return;
+    if (bgRemovedBlob) return;
+    if (!blob) return;
+
+    setIsRemovingBg(true);
+    setSaveError(null);
+    try {
+      // 1. Resize image to 600px max dimension to speed up processing and prevent memory crash on mobile devices
+      const resizedBlob = await resizeImage(blob, 600);
+      
+      // 2. Load background removal library and execute with WebGPU acceleration and optimized 'isnet_quint8' model
+      const { removeBackground } = await import('@imgly/background-removal');
+      const processed = await removeBackground(resizedBlob, {
+        device: 'gpu',
+        model: 'isnet_quint8',
+      });
+      
+      // 3. Trim the transparent pixels from margins to crop it nicely as a sticker
+      const trimmed = await trimTransparentPixels(processed);
+      setBgRemovedBlob(trimmed);
+      const url = URL.createObjectURL(trimmed);
+      setBgRemovedUrl(url);
+    } catch (err) {
+      console.error('Failed to remove background:', err);
+      setSaveError('Failed to remove background. Please try again.');
+      setIsBgRemovalEnabled(false);
+    } finally {
+      setIsRemovingBg(false);
+    }
+  }, [blob, bgRemovedBlob]);
 
   /**
    * Extract text from the image using the identify API, then filter words
@@ -140,6 +153,12 @@ export default function PreviewPage() {
       setMismatchMessage(null);
       setExtractedWords([]);
       setSelectedWords(new Set());
+
+      // Mascot loading sequence: suck the photo in, then think while the AI works.
+      setScanPhase('suck');
+      const suckTimer = setTimeout(() => {
+        setScanPhase((p) => (p === 'suck' ? 'think' : p));
+      }, 1000);
 
       try {
         const base64 = await blobToBase64(imageBlob);
@@ -158,16 +177,26 @@ export default function PreviewPage() {
           setExtractError(data.error.message);
           setLegacyMode(true);
           setIsExtracting(false);
+          clearTimeout(suckTimer);
+          setScanPhase('idle');
           return;
         }
 
         const data: IdentifySuccessResponse = await response.json();
 
+        // Log capture to database asynchronously in the background
+        saveCaptureRecord(imageBlob, data).catch((err) => {
+          console.error('Failed to save capture record:', err);
+        });
+
         // Combine all text fields from the response for word extraction
         const allText = extractAllTextFromResponse(data);
 
         // Extract words matching the active language's character set
-        const words = extractWordsForLanguage(allText, activeLanguage);
+        const words = filterMeaningfulWords(
+          extractWordsForLanguage(allText, activeLanguage),
+          activeLanguage
+        );
         const uniqueWords = [...new Set(words)].slice(0, MAX_WORDS);
 
         if (uniqueWords.length === 0) {
@@ -183,10 +212,16 @@ export default function PreviewPage() {
             // Fall back to legacy single-word mode
             setLegacyMode(true);
           }
+          clearTimeout(suckTimer);
+          setScanPhase('idle');
         } else {
           setExtractedWords(uniqueWords);
           // Auto-select all words by default
           setSelectedWords(new Set(uniqueWords));
+          // Reveal: mascot pops happy, then the overlay clears to show the chips.
+          clearTimeout(suckTimer);
+          setScanPhase('reveal');
+          setTimeout(() => setScanPhase('idle'), 800);
         }
 
         setIsExtracting(false);
@@ -194,10 +229,22 @@ export default function PreviewPage() {
         setExtractError(ERROR_MESSAGES.network_error);
         setLegacyMode(true);
         setIsExtracting(false);
+        clearTimeout(suckTimer);
+        setScanPhase('idle');
       }
     },
     [activeLanguage]
   );
+
+  // Auto-extract text when blob is available
+  useEffect(() => {
+    if (!blob) return;
+    const timer = setTimeout(() => {
+      extractText(blob);
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blob]);
 
   /** Toggle word selection */
   const toggleWord = useCallback((word: string) => {
@@ -223,7 +270,9 @@ export default function PreviewPage() {
   }, []);
 
   /**
-   * Save selected words as WordRecords in the active language's store.
+   * Save selected words as WordRecords. Each word is enriched via /api/translate
+   * to populate its reading/romanization/translation before saving, so the
+   * Library can show the word, its reading, and play its pronunciation.
    */
   const handleSaveWords = useCallback(async () => {
     if (selectedWords.size === 0 || !blob || isSaving) return;
@@ -231,21 +280,21 @@ export default function PreviewPage() {
     setSaveError(null);
 
     try {
-      const db = await openDatabase();
-      const tx = db.transaction(WORDS_STORE, 'readwrite');
-      const store = tx.objectStore(WORDS_STORE);
-
       const wordsToSave = Array.from(selectedWords);
+      const headers = getCustomAIHeaders();
 
-      for (const word of wordsToSave) {
-        const record = createWordRecord(word, activeLanguage, blob);
-        store.put(record);
+      // Enrich each word in parallel; fall back to the raw word on failure so
+      // it still displays and remains pronounceable in the Library.
+      const inputs = await Promise.all(
+        wordsToSave.map((word) => enrichWord(word, headers))
+      );
+
+      // Use transparent background blob if enabled
+      const blobToSave = (isBgRemovalEnabled && bgRemovedBlob) ? bgRemovedBlob : blob;
+
+      for (const input of inputs) {
+        await save(blobToSave, input);
       }
-
-      await new Promise<void>((resolve, reject) => {
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
 
       setSaveSuccess(true);
       setTimeout(() => {
@@ -260,7 +309,7 @@ export default function PreviewPage() {
       setSaveError(message);
       setIsSaving(false);
     }
-  }, [selectedWords, blob, isSaving, activeLanguage, router]);
+  }, [selectedWords, blob, isSaving, save, router, isBgRemovalEnabled, bgRemovedBlob]);
 
   /**
    * Legacy confirm handler - sends image to identify API and saves single word.
@@ -299,14 +348,17 @@ export default function PreviewPage() {
 
       // Build save input based on response type
       const saveInput = buildSaveInputFromResponse(data);
-      await save(blob, saveInput);
+      
+      // Use transparent background blob if enabled
+      const blobToSave = (isBgRemovalEnabled && bgRemovedBlob) ? bgRemovedBlob : blob;
+      await save(blobToSave, saveInput);
       clearCapturedImage();
       router.push('/learn');
     } catch {
       setSaveError(ERROR_MESSAGES.network_error);
       setIsSaving(false);
     }
-  }, [blob, isSaving, save, router, activeLanguage]);
+  }, [blob, isSaving, save, router, activeLanguage, isBgRemovalEnabled, bgRemovedBlob]);
 
   const handleRetake = useCallback(() => {
     if (isSaving) return;
@@ -319,30 +371,67 @@ export default function PreviewPage() {
     return null;
   }
 
+  const displayUrl = (isBgRemovalEnabled && bgRemovedUrl) ? bgRemovedUrl : objectUrl;
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* Image preview area */}
-      <div className="flex shrink-0 items-center justify-center overflow-hidden px-2 pt-2">
-        <img
-          src={objectUrl}
-          alt="Captured image"
-          onLoad={handleImageLoad}
-          style={
-            dimensions
-              ? { width: dimensions.width, height: dimensions.height }
-              : undefined
-          }
-          className="object-contain"
-        />
+    <div className="fixed inset-0 z-50 flex flex-col dot-grid-bg text-text-primary">
+
+      {/* Mascot loading overlay: sucks the photo in, thinks, then reveals words */}
+      <ScanLoadingMascot phase={scanPhase} imageUrl={objectUrl} />
+
+      {/* Image preview area — neobrutalist framed card with a dark overlay layer */}
+      <div className="flex flex-1 items-center justify-center overflow-hidden p-3 relative">
+        <div className="relative max-h-full max-w-full overflow-hidden rounded-2xl border-3 border-border-color bg-black shadow-nb-md">
+          <img
+            src={displayUrl}
+            alt="Captured image"
+            className="block max-h-full max-w-full object-contain"
+          />
+          {/* Subtle dark gradient layer for depth, matching the design system */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
+
+          {/* Loading overlay for background removal */}
+          {isRemovingBg && (
+            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3 text-white z-20">
+              <div className="h-8 w-8 animate-spin rounded-full border-3 border-accent-green border-t-transparent" />
+              <p className="text-sm font-bold">กำลังลบพื้นหลัง...</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Background Removal Toggle */}
+      <div className="px-6 py-3.5 flex items-center justify-between bg-card-bg border-y-3 border-border-color shrink-0">
+        <div className="flex flex-col">
+          <span className="text-sm font-extrabold text-text-primary">ลบพื้นหลังรูปภาพ (Sticker)</span>
+          <span className="text-[10px] text-text-secondary font-medium">ตัดเฉพาะวัตถุเพื่อสร้างสติกเกอร์โค้งเว้า</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => handleBgRemovalToggle(!isBgRemovalEnabled)}
+          disabled={isRemovingBg || isSaving}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-border-color transition-colors duration-200 ease-in-out focus:outline-none ${
+            isBgRemovalEnabled ? 'bg-accent-green' : 'bg-gray-200 dark:bg-gray-700'
+          }`}
+          role="switch"
+          aria-checked={isBgRemovalEnabled}
+        >
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white border-2 border-border-color shadow transition duration-200 ease-in-out ${
+              isBgRemovalEnabled ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          />
+        </button>
       </div>
 
       {/* Word extraction results */}
-      <div className="flex-1 overflow-y-auto px-4 pt-3">
-        {/* Loading state */}
-        {isExtracting && (
+      <div className="max-h-[40%] shrink-0 overflow-y-auto px-4 pt-3">
+        {/* Loading state (only when the mascot overlay isn't showing) */}
+        {isExtracting && scanPhase === 'idle' && (
           <div className="flex items-center justify-center gap-3 py-6">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            <p className="text-sm font-bold text-white">Extracting text...</p>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent-green border-t-transparent" />
+            <p className="text-sm font-bold text-text-secondary">Extracting text...</p>
           </div>
         )}
 
@@ -373,7 +462,7 @@ export default function PreviewPage() {
         {extractedWords.length > 0 && (
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-bold text-white/70">
+              <p className="text-xs font-bold text-text-secondary">
                 {selectedWords.size} / {extractedWords.length} words selected
               </p>
               <div className="flex gap-2">
@@ -387,7 +476,7 @@ export default function PreviewPage() {
                 <button
                   type="button"
                   onClick={deselectAll}
-                  className="text-xs font-bold text-white/50 underline cursor-pointer"
+                  className="text-xs font-bold text-text-meta underline cursor-pointer"
                 >
                   None
                 </button>
@@ -399,10 +488,10 @@ export default function PreviewPage() {
                   key={word}
                   type="button"
                   onClick={() => toggleWord(word)}
-                  className={`rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition-all duration-100 cursor-pointer ${
+                  className={`rounded-lg border-3 px-3 py-1.5 text-sm font-bold transition-all duration-100 cursor-pointer ${
                     selectedWords.has(word)
-                      ? 'border-accent-green bg-accent-green/20 text-white'
-                      : 'border-white/30 bg-white/10 text-white/60'
+                      ? 'border-border-color bg-accent-green text-white shadow-nb-sm'
+                      : 'border-border-color bg-card-bg text-text-secondary'
                   }`}
                 >
                   {word}
@@ -481,25 +570,74 @@ export default function PreviewPage() {
 }
 
 /**
- * Extracts all text fields from an identify response regardless of language type.
+ * Extracts the target-language text from an identify response for word
+ * extraction. Pronunciation/romanization fields (ipa, romaji, romanization,
+ * pinyin) are intentionally excluded — they are written in Latin letters and
+ * would otherwise fragment into spurious single-letter "words" (e.g. the IPA
+ * "/ˈpɜːr.sən/" yielding p, r, s, n) when extracting English.
  */
 function extractAllTextFromResponse(data: IdentifySuccessResponse): string {
   const parts: string[] = [data.label || ''];
 
   if ('korean' in data) {
-    parts.push(data.korean || '', data.reading || '', data.romanization || '', data.english || '');
+    parts.push(data.korean || '');
   }
   if ('kanji' in data) {
-    parts.push(data.kanji || '', data.hiragana || '', data.romaji || '', data.english || '');
+    parts.push(data.kanji || '', data.hiragana || '');
   }
   if ('hanzi' in data) {
-    parts.push(data.hanzi || '', data.pinyin || '', data.english || '');
+    parts.push(data.hanzi || '');
   }
   if ('word' in data) {
-    parts.push(data.word || '', data.ipa || '', data.thai || '');
+    parts.push(data.word || '');
   }
 
   return parts.join(' ');
+}
+
+/** Single-letter English words that are meaningful on their own. */
+const VALID_SINGLE_LETTERS = new Set(['a', 'i']);
+
+/**
+ * Drops spurious single-character fragments from extracted English words while
+ * keeping real one-letter words ("a", "i"). CJK words are left untouched since
+ * a single character is a valid word there.
+ */
+function filterMeaningfulWords(words: string[], language: TargetLanguage): string[] {
+  if (language !== 'english') return words;
+  return words.filter(
+    (w) => w.length > 1 || VALID_SINGLE_LETTERS.has(w.toLowerCase())
+  );
+}
+
+/**
+ * Enriches a single scanned word into a SaveWordInput by asking /api/translate
+ * for its reading, romanization and translation. On any failure it falls back
+ * to a minimal record that keeps the word visible and pronounceable.
+ */
+async function enrichWord(
+  word: string,
+  headers: Record<string, string>
+): Promise<SaveWordInput> {
+  const fallback: SaveWordInput = { label: word, korean: word };
+  try {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ text: word }),
+    });
+    if (!response.ok) return fallback;
+    const data: ChatSuccessResponse = await response.json();
+    return {
+      label: data.translation || word,
+      korean: data.korean || word,
+      reading: data.reading || undefined,
+      romanization: data.romanization || undefined,
+      english: data.english || undefined,
+    };
+  } catch {
+    return fallback;
+  }
 }
 
 /**

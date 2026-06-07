@@ -1,4 +1,4 @@
-import { FEED_WORDS_STORE, openDatabase } from '@/app/_lib/db';
+import { supabase } from '@/app/_lib/supabaseClient';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 function getTodayDateKey(): string {
@@ -20,68 +20,56 @@ function getRetentionCutoffDate(): string {
 
 /**
  * Deletes feed word records older than 30 days for the given language.
- * Uses the language_date compound index for efficient querying.
  */
 async function cleanupOldRecords(
-  db: IDBDatabase,
+  userId: string,
   language: TargetLanguage
 ): Promise<void> {
   const cutoffDate = getRetentionCutoffDate();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(FEED_WORDS_STORE, 'readwrite');
-    const store = tx.objectStore(FEED_WORDS_STORE);
-    const index = store.index('language_date');
-
-    // Query all records for this language with dates up to (but not including) the cutoff
-    // The compound index is [language, generatedDate], so we use a range from
-    // [language, ''] to [language, cutoffDate) to find old records
-    const range = IDBKeyRange.bound(
-      [language, ''],
-      [language, cutoffDate],
-      false,
-      true // exclude upper bound (cutoff date itself is kept)
-    );
-
-    const request = index.openCursor(range);
-
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (cursor) {
-        cursor.delete();
-        cursor.continue();
-      }
-    };
-
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  try {
+    await supabase
+      .from('feed_words')
+      .delete()
+      .eq('user_id', userId)
+      .eq('language', language)
+      .lt('generated_date', cutoffDate);
+  } catch (err) {
+    console.error('Failed to cleanup old feed words:', err);
+  }
 }
 
 /**
  * Returns `true` if no records with today's generatedDate exist for the given language
- * in the feed-words store, meaning new words should be fetched from the API.
+ * in the feed-words table in Supabase, meaning new words should be fetched from the API.
  *
  * Also performs cleanup of records older than 30 days for the given language.
  */
 export async function shouldFetchToday(language: TargetLanguage): Promise<boolean> {
-  const db = await openDatabase();
-  const todayKey = getTodayDateKey();
+  try {
+    const userRes = await supabase.auth.getUser();
+    const userId = userRes.data.user?.id;
+    if (!userId) return true;
 
-  // Check if entries already exist for today and this language using compound index
-  const count = await new Promise<number>((resolve, reject) => {
-    const tx = db.transaction(FEED_WORDS_STORE, 'readonly');
-    const store = tx.objectStore(FEED_WORDS_STORE);
-    const index = store.index('language_date');
-    const req = index.count(IDBKeyRange.only([language, todayKey]));
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+    const todayKey = getTodayDateKey();
 
-  // Perform 30-day retention cleanup in the background
-  cleanupOldRecords(db, language).catch(() => {
-    // Cleanup failure is non-critical; don't block the feed check
-  });
+    // Query entries count for today and this language in Supabase
+    const { count, error } = await supabase
+      .from('feed_words')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('language', language)
+      .eq('generated_date', todayKey);
 
-  return count === 0;
+    if (error) {
+      throw error;
+    }
+
+    // Perform 30-day retention cleanup in the background
+    cleanupOldRecords(userId, language).catch(() => {});
+
+    return (count || 0) === 0;
+  } catch (err) {
+    console.error('Failed check shouldFetchToday:', err);
+    return true;
+  }
 }

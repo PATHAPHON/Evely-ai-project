@@ -75,15 +75,30 @@ function buildSystemPrompt(
     `CONTEXT IS CRITICAL: The messages above are the real conversation so far. Read ALL of them and reply DIRECTLY to the user's most recent message. Acknowledge what they just said, answer their questions, and keep the dialogue flowing on this topic. Never ignore their message, never change the subject randomly, and never repeat one of your earlier replies.\n\n` +
     `The user may write in ${lang.label}, Thai, or English — understand their meaning either way, but ALWAYS reply in ${lang.label}.\n\n` +
     `${levelInstructions[level]} ${wordInstruction} Keep each reply SHORT — 1-2 sentences, like real texting.\n\n` +
+    `OPEN-ENDED QUESTION RULE: Unless the conversation has ended (i.e. "ended" is true), the last sentence of your reply (the last item in your "sentences" array) MUST always be a friendly, natural, open-ended question in ${lang.label} related to the conversation flow and topic to keep the conversation active (e.g. asking how they feel, what they think, what they did next, etc.).\n\n` +
     `${goalInstruction}\n\n` +
     `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction). When "ended" is true you may use an empty suggestions array.\n\n` +
     `Respond with ONLY a valid JSON object — no prose, no markdown, no code fences, no text before or after it. Exactly this structure:\n` +
-    `{"korean":"<your reply in ${lang.script}>","reading":"<${lang.readingDesc}, e.g. ${lang.readingExample}>","romanization":"<${lang.romanizationDesc}>","translation":"<Thai meaning of your reply>","english":"<English meaning of your reply>","suggestions":[{"korean":"<a reply the user could send, in ${lang.script}>","translation":"<its Thai meaning>"},{"korean":"<another option>","translation":"<its Thai meaning>"}],"ended":false}\n\n` +
+    `{\n` +
+    `  "sentences": [\n` +
+    `    {\n` +
+    `      "korean": "<sentence in ${lang.script}>",\n` +
+    `      "reading": "<${lang.readingDesc}, e.g. ${lang.readingExample}>",\n` +
+    `      "romanization": "<${lang.romanizationDesc}>",\n` +
+    `      "translation": "<Thai meaning of this sentence>",\n` +
+    `      "english": "<English meaning of this sentence>"\n` +
+    `    }\n` +
+    `  ],\n` +
+    `  "suggestions": [\n` +
+    `    { "korean": "<a reply the user could send, in ${lang.script}>", "translation": "<its Thai meaning>" }\n` +
+    `  ],\n` +
+    `  "ended": false\n` +
+    `}\n\n` +
     `RULES:\n` +
+    `- "sentences" is an array of sentence objects, splitting your reply into natural, shorter sentences.\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
-    `- The "korean" field always holds your ${lang.label} reply text, regardless of its key name\n` +
+    `- The "korean" field in each sentence always holds the ${lang.label} text, regardless of its key name\n` +
     `- "ended" is a boolean: true ONLY when the conversation's goal has been achieved and you are closing the chat\n` +
-    `- The top-level "korean"/"reading"/"romanization"/"translation"/"english" fields describe YOUR ${lang.label} reply, not the user's message\n` +
     `- "suggestions" are replies for the USER to choose from (${lang.label} + Thai meaning), NOT your reply\n` +
     `- "reading" = ${lang.readingDesc}, NOT a translation\n` +
     `- Do NOT add any text before or after the JSON`
@@ -244,7 +259,7 @@ export async function POST(
     : [{ role: 'user' as const, content: [{ type: 'text' as const, text: systemPrompt + '\n\nStart the conversation.' }] }];
 
   const requestBody = {
-    model: customModel || 'gemini-3.1-flash-lite',
+    model: customModel || 'deepseek-v4-flash',
     messages: apiMessages,
     max_tokens: 2048,
   };

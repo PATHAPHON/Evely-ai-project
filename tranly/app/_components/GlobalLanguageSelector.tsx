@@ -12,10 +12,7 @@ interface LanguageOption {
 }
 
 const LANGUAGE_OPTIONS: LanguageOption[] = [
-  { value: 'english', label: 'English', icon: '🇺🇸', nativeName: 'English' },
-  { value: 'japanese', label: 'Japanese', icon: '🇯🇵', nativeName: '日本語' },
   { value: 'korean', label: 'Korean', icon: '🇰🇷', nativeName: '한국어' },
-  { value: 'chinese', label: 'Chinese', icon: '🇨🇳', nativeName: '中文' },
 ];
 
 export default function GlobalLanguageSelector() {
