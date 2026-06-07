@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { parseFeedResponse } from './parseFeedResponse';
 import type {
   FeedSuccessResponse,
@@ -383,26 +383,28 @@ export async function POST(
 
     // Save the new pool to database cache (asynchronously)
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-    supabaseServer
-      .from('ai_feed_pool_cache')
-      .upsert({
-        cache_key: cacheKey,
-        language,
-        topic: topicKey,
-        model,
-        words: wordsWithImages,
-        expires_at: expiresAt.toISOString(),
-      }, { onConflict: 'cache_key' })
-      .then(({ error: saveErr }) => {
+    after(async () => {
+      try {
+        const { error: saveErr } = await supabaseServer
+          .from('ai_feed_pool_cache')
+          .upsert({
+            cache_key: cacheKey,
+            language,
+            topic: topicKey,
+            model,
+            words: wordsWithImages,
+            expires_at: expiresAt.toISOString(),
+          }, { onConflict: 'cache_key' });
+
         if (saveErr) {
           console.error('[feed] Cache pool write error:', saveErr);
         } else {
           console.log(`[feed] Cache pool stored for key: ${cacheKey}`);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('[feed] Cache pool write failed:', err);
-      });
+      }
+    });
 
     // Filter and return the requested count
     const filtered = wordsWithImages.filter((w) => !isExcluded(w));

@@ -23,6 +23,17 @@ vi.mock('@/app/_lib/supabaseServer', () => {
   };
 });
 
+vi.mock('next/server', async (importOriginal) => {
+  const original = await importOriginal<typeof import('next/server')>();
+  return {
+    ...original,
+    after: vi.fn().mockImplementation((fn) => {
+      // Execute the callback synchronously in tests
+      fn();
+    }),
+  };
+});
+
 // Mock external KKU AI and Pexels fetch calls
 const mockFetch = vi.fn();
 global.fetch = mockFetch;

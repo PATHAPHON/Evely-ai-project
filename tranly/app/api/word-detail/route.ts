@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/languagePrompt';
 import crypto from 'crypto';
@@ -279,30 +279,32 @@ export async function POST(
 
     // Write to cache in database (asynchronously, so we don't block the client response)
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-    supabaseServer
-      .from('ai_word_detail_cache')
-      .upsert({
-        cache_key: cacheKey,
-        word,
-        language,
-        reading: reading || null,
-        romanization: romanization || null,
-        english: english || null,
-        part_of_speech: partOfSpeech || null,
-        model: modelName,
-        response_json: parsed,
-        expires_at: expiresAt.toISOString(),
-      }, { onConflict: 'cache_key' })
-      .then(({ error: saveErr }) => {
+    after(async () => {
+      try {
+        const { error: saveErr } = await supabaseServer
+          .from('ai_word_detail_cache')
+          .upsert({
+            cache_key: cacheKey,
+            word,
+            language,
+            reading: reading || null,
+            romanization: romanization || null,
+            english: english || null,
+            part_of_speech: partOfSpeech || null,
+            model: modelName,
+            response_json: parsed,
+            expires_at: expiresAt.toISOString(),
+          }, { onConflict: 'cache_key' });
+
         if (saveErr) {
           console.error('[word-detail] Cache write error:', saveErr);
         } else {
           console.log(`[word-detail] Cache stored for key: ${cacheKey} (${word})`);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('[word-detail] Cache write failed:', err);
-      });
+      }
+    });
 
     return NextResponse.json(parsed, { status: 200 });
   } catch (error: unknown) {
