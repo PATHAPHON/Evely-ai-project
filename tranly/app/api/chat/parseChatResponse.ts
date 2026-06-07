@@ -57,7 +57,13 @@ function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
     return record.sentences.every((s) =>
       typeof s === 'object' && s !== null &&
       typeof (s as Record<string, unknown>).korean === 'string' &&
-      ((s as Record<string, unknown>).korean as string).trim().length > 0
+      ((s as Record<string, unknown>).korean as string).trim().length > 0 &&
+      typeof (s as Record<string, unknown>).reading === 'string' &&
+      ((s as Record<string, unknown>).reading as string).trim().length > 0 &&
+      typeof (s as Record<string, unknown>).romanization === 'string' &&
+      ((s as Record<string, unknown>).romanization as string).trim().length > 0 &&
+      typeof (s as Record<string, unknown>).translation === 'string' &&
+      ((s as Record<string, unknown>).translation as string).trim().length > 0
     );
   }
 
@@ -121,9 +127,15 @@ function extractChatResponse(
     translation:
       translation || (sentences ? sentences.map((s) => s.translation).join(' ') : ''),
     english: english || (sentences ? sentences.map((s) => s.english).join(' ') : ''),
-    suggestions: extractSuggestions(obj.suggestions),
-    ended: typeof obj.ended === 'boolean' ? obj.ended : undefined,
   };
+
+  const suggestions = extractSuggestions(obj.suggestions);
+  if (suggestions !== undefined) {
+    response.suggestions = suggestions;
+  }
+  if (typeof obj.ended === 'boolean') {
+    response.ended = obj.ended;
+  }
 
   return isValidChatResponse(response) ? response : null;
 }

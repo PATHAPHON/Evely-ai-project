@@ -182,9 +182,10 @@ export async function POST(
   const partOfSpeech = typeof b.partOfSpeech === 'string' ? b.partOfSpeech : undefined;
 
   // Read custom API credentials from headers
-  const apiKey = request.headers.get('x-custom-api-key');
+  const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
+  const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
   }

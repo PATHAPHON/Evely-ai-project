@@ -10,23 +10,36 @@ const validResponse: ChatSuccessResponse = {
   english: 'Hello',
 };
 
+const expectedResponse: ChatSuccessResponse = {
+  ...validResponse,
+  sentences: [
+    {
+      korean: '안녕하세요',
+      reading: 'อันนยองฮาเซโย',
+      romanization: 'annyeonghaseyo',
+      translation: 'สวัสดี',
+      english: 'Hello',
+    },
+  ],
+};
+
 describe('parseChatResponse', () => {
   it('parses a valid JSON object', () => {
     const content = JSON.stringify(validResponse);
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('parses JSON wrapped in markdown code fences', () => {
     const content = '```json\n' + JSON.stringify(validResponse) + '\n```';
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('parses JSON wrapped in plain code fences', () => {
     const content = '```\n' + JSON.stringify(validResponse) + '\n```';
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('handles extra prose before and after JSON', () => {
@@ -35,7 +48,7 @@ describe('parseChatResponse', () => {
       JSON.stringify(validResponse) +
       '\nHope this helps!';
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('handles extra prose with markdown fences', () => {
@@ -44,7 +57,7 @@ describe('parseChatResponse', () => {
       JSON.stringify(validResponse) +
       '\n```\nLet me know if you need more.';
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('trims whitespace from field values', () => {
@@ -57,7 +70,7 @@ describe('parseChatResponse', () => {
     };
     const content = JSON.stringify(responseWithSpaces);
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('throws error for empty input', () => {
@@ -91,14 +104,14 @@ describe('parseChatResponse', () => {
     const content =
       '{"korean":"안녕하세요","reading":"อันนยองฮาเซโย","romanization":"annyeonghaseyo","translation":"สวัสดี","english":"Hello"';
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('handles double-encoded JSON (backslash-escaped)', () => {
     const inner = JSON.stringify(validResponse);
     const doubleEncoded = inner.replace(/"/g, '\\"');
     const result = parseChatResponse(doubleEncoded);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('extracts reply suggestions when present', () => {
@@ -161,7 +174,7 @@ describe('parseChatResponse', () => {
     };
     const content = JSON.stringify(withExtra);
     const result = parseChatResponse(content);
-    expect(result).toEqual(validResponse);
+    expect(result).toEqual(expectedResponse);
   });
 
   it('handles response with escaped characters in field values', () => {
@@ -172,8 +185,20 @@ describe('parseChatResponse', () => {
       translation: 'เขาพูดว่า "สวัสดี"',
       english: 'He said "Hello"',
     };
+    const expectedResponseWithEscapes: ChatSuccessResponse = {
+      ...responseWithEscapes,
+      sentences: [
+        {
+          korean: '그는 "안녕"이라고 말했어요',
+          reading: 'คือนึน "อันนยอง"อีราโก มาแรซอโย',
+          romanization: 'geuneun "annyeong"irago malhaesseoyo',
+          translation: 'เขาพูดว่า "สวัสดี"',
+          english: 'He said "Hello"',
+        },
+      ],
+    };
     const content = JSON.stringify(responseWithEscapes);
     const result = parseChatResponse(content);
-    expect(result).toEqual(responseWithEscapes);
+    expect(result).toEqual(expectedResponseWithEscapes);
   });
 });

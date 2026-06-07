@@ -154,7 +154,7 @@ export async function POST(
   const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
-  const apiKey = customApiKey;
+  const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 401);
   }

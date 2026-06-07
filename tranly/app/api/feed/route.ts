@@ -194,8 +194,8 @@ export async function POST(
   const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
-  // Use custom API key provided in request headers
-  const apiKey = customApiKey;
+  // Use custom API key provided in request headers (fallback to server key)
+  const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 401);
   }

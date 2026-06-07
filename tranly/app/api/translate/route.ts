@@ -42,7 +42,7 @@ export async function POST(
   }
 
   const customApiKey = request.headers.get('x-custom-api-key');
-  const apiKey = customApiKey;
+  const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 'API key is missing. Please add your API key in settings.', 401);
   }
