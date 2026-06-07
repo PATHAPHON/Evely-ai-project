@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/languagePrompt';
+import crypto from 'crypto';
+import { supabaseServer } from '@/app/_lib/supabaseServer';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
@@ -185,6 +187,40 @@ export async function POST(
   const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
+  // Generate unique cache key
+  const modelName = customModel || 'deepseek-v4-flash';
+  const cacheRawString = [
+    word.toLowerCase(),
+    language,
+    reading || '',
+    romanization || '',
+    english || '',
+    partOfSpeech || '',
+    modelName
+  ].join(':');
+
+  const cacheKey = crypto.createHash('sha256').update(cacheRawString).digest('hex');
+
+  // Check database cache first
+  try {
+    const { data: cachedData, error: cacheErr } = await supabaseServer
+      .from('ai_word_detail_cache')
+      .select('response_json')
+      .eq('cache_key', cacheKey)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (cachedData && !cacheErr) {
+      console.log(`[word-detail] Cache HIT for key: ${cacheKey} (${word})`);
+      return NextResponse.json(cachedData.response_json, { status: 200 });
+    }
+    if (cacheErr && cacheErr.code !== 'PGRST116') {
+      console.error('[word-detail] Cache lookup error:', cacheErr);
+    }
+  } catch (err) {
+    console.error('[word-detail] Cache lookup failed:', err);
+  }
+
   const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
@@ -193,7 +229,7 @@ export async function POST(
   const prompt = buildPrompt(word, language, reading, romanization, english, partOfSpeech);
 
   const requestBody = {
-    model: customModel || 'deepseek-v4-flash',
+    model: modelName,
     messages: [{ role: 'user' as const, content: prompt }],
     max_tokens: 2048,
   };
@@ -240,6 +276,33 @@ export async function POST(
       console.error('[word-detail] Failed to parse AI response:', content);
       return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 502 });
     }
+
+    // Write to cache in database (asynchronously, so we don't block the client response)
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    supabaseServer
+      .from('ai_word_detail_cache')
+      .upsert({
+        cache_key: cacheKey,
+        word,
+        language,
+        reading: reading || null,
+        romanization: romanization || null,
+        english: english || null,
+        part_of_speech: partOfSpeech || null,
+        model: modelName,
+        response_json: parsed,
+        expires_at: expiresAt.toISOString(),
+      }, { onConflict: 'cache_key' })
+      .then(({ error: saveErr }) => {
+        if (saveErr) {
+          console.error('[word-detail] Cache write error:', saveErr);
+        } else {
+          console.log(`[word-detail] Cache stored for key: ${cacheKey} (${word})`);
+        }
+      })
+      .catch((err) => {
+        console.error('[word-detail] Cache write failed:', err);
+      });
 
     return NextResponse.json(parsed, { status: 200 });
   } catch (error: unknown) {

@@ -6,6 +6,8 @@ import type {
   FeedWord,
 } from '@/app/home/_lib/types';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
+import crypto from 'crypto';
+import { supabaseServer } from '@/app/_lib/supabaseServer';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
@@ -194,11 +196,73 @@ export async function POST(
   const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
+  // Generate unique cache key based on language + topic + model
+  const model = customModel || 'deepseek-v4-flash';
+  const topicKey = topic ? topic.toLowerCase().trim() : '';
+  const cacheRawString = [
+    language,
+    topicKey,
+    model
+  ].join(':');
+
+  const cacheKey = crypto.createHash('sha256').update(cacheRawString).digest('hex');
+
+  // Exclusion check helper
+  const isExcluded = (word: any) => {
+    const normalizedExclude = excludeWords.map((w) => w.toLowerCase().trim());
+    const checkFields = [
+      word.korean,
+      word.kanji,
+      word.hiragana,
+      word.hanzi,
+      word.word,
+      word.english,
+      word.thai,
+    ]
+      .filter(Boolean)
+      .map((f) => f.toLowerCase().trim());
+
+    return checkFields.some((field) => normalizedExclude.includes(field));
+  };
+
+  // Try to load cached pool
+  let cachedWords: FeedWord[] | null = null;
+  try {
+    const { data: cachedData, error: cacheErr } = await supabaseServer
+      .from('ai_feed_pool_cache')
+      .select('words')
+      .eq('cache_key', cacheKey)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (cachedData && !cacheErr && Array.isArray(cachedData.words)) {
+      cachedWords = cachedData.words as FeedWord[];
+    }
+  } catch (err) {
+    console.error('[feed] Cache lookup failed:', err);
+  }
+
+  if (cachedWords) {
+    const filtered = cachedWords.filter((w) => !isExcluded(w));
+    if (filtered.length >= count) {
+      console.log(
+        `[feed] Cache HIT for key: ${cacheKey}. Serving ${count} words from pool of ${filtered.length}.`
+      );
+      return NextResponse.json({ words: filtered.slice(0, count) }, { status: 200 });
+    }
+    console.log(
+      `[feed] Cache pool exhausted or too small (available: ${filtered.length}, requested: ${count}). Regenerating pool...`
+    );
+  }
+
   // Use custom API key provided in request headers (fallback to server key)
   const apiKey = customApiKey || process.env.KKU_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 401);
   }
+
+  // Generate a pool of 20 words (or count if count > 20)
+  const poolSize = Math.max(20, count);
 
   // Build exclusion instruction
   const exclusionText =
@@ -206,11 +270,8 @@ export async function POST(
       ? `Do NOT include any of these words: ${excludeWords.join(', ')}. `
       : '';
 
-  // Use custom model if provided, otherwise fall back to default
-  const model = customModel || 'deepseek-v4-flash';
-
   // Build language-specific prompt
-  const promptText = buildPrompt(language, count, exclusionText, topic);
+  const promptText = buildPrompt(language, poolSize, exclusionText, topic);
 
 
   // Construct KKU IntelSphere API request
@@ -320,9 +381,37 @@ export async function POST(
       })
     );
 
-    return NextResponse.json({ words: wordsWithImages }, { status: 200 });
+    // Save the new pool to database cache (asynchronously)
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    supabaseServer
+      .from('ai_feed_pool_cache')
+      .upsert({
+        cache_key: cacheKey,
+        language,
+        topic: topicKey,
+        model,
+        words: wordsWithImages,
+        expires_at: expiresAt.toISOString(),
+      }, { onConflict: 'cache_key' })
+      .then(({ error: saveErr }) => {
+        if (saveErr) {
+          console.error('[feed] Cache pool write error:', saveErr);
+        } else {
+          console.log(`[feed] Cache pool stored for key: ${cacheKey}`);
+        }
+      })
+      .catch((err) => {
+        console.error('[feed] Cache pool write failed:', err);
+      });
+
+    // Filter and return the requested count
+    const filtered = wordsWithImages.filter((w) => !isExcluded(w));
+    const resultWords = filtered.length >= count ? filtered.slice(0, count) : wordsWithImages.slice(0, count);
+
+    return NextResponse.json({ words: resultWords }, { status: 200 });
   } catch (error: unknown) {
     clearTimeout(timeoutId);
+    console.error('[feed] API error:', error);
 
     // Handle timeout (AbortError)
     if (error instanceof Error && error.name === 'AbortError') {
