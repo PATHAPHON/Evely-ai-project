@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, useRef } from "react";
-import { SoundOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
+import { SoundOutlined } from "@ant-design/icons";
 import type { FeedWordRecord } from "../_lib/types";
 import type { SpeechLang } from "@/app/chat/_lib/types";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
@@ -9,7 +9,6 @@ import { useTTS } from "@/app/chat/_lib/useTTS";
 
 interface WordCardProps {
   word: FeedWordRecord;
-  onToggleBookmark: (wordId: string) => void;
   activeImageIndex: number;
   setActiveImageIndex: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -54,11 +53,10 @@ const SPEECH_LANG_BY_LANGUAGE: Record<FeedWordRecord['language'], SpeechLang> = 
  * Displays a single vocabulary word card for the active learning language with:
  * - Native-script word, pronunciation guide, Thai translation
  * - Audio button (cloud TTS with Web Speech fallback) for the native word
- * - Bookmark toggle button with visual indicator
  *
  * Styled with Neobrutalist design system.
  */
-export default function WordCard({ word, onToggleBookmark, activeImageIndex, setActiveImageIndex }: WordCardProps) {
+export default function WordCard({ word, activeImageIndex, setActiveImageIndex }: WordCardProps) {
   const { language } = useLanguagePreference();
   const { speak, isSupported } = useTTS(SPEECH_LANG_BY_LANGUAGE[word.language]);
   const touchStartX = useRef<number | null>(null);

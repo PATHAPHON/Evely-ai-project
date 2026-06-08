@@ -2,38 +2,56 @@
 
 import { useCallback } from 'react';
 import { supabase } from '@/app/_lib/supabaseClient';
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 export interface UseExclusionListReturn {
-  getExclusionList: () => Promise<string[]>;
+  getExclusionList: (language?: TargetLanguage) => Promise<string[]>;
+}
+
+function extractWords(rows: Record<string, string | null>[]): string[] {
+  return rows
+    .flatMap((r) => [r.korean, r.kanji, r.hanzi, r.word, r.english])
+    .filter((v): v is string => !!v);
 }
 
 export function useExclusionList(): UseExclusionListReturn {
-  const getExclusionList = useCallback(async (): Promise<string[]> => {
+  const getExclusionList = useCallback(async (language?: TargetLanguage): Promise<string[]> => {
     try {
       const userRes = await supabase.auth.getUser();
       const userId = userRes.data.user?.id;
       if (!userId) return [];
 
-      const [wordsRes, feedRes] = await Promise.all([
+      const allFields = 'korean,kanji,hanzi,word,english';
+
+      let feedQuery = supabase
+        .from('feed_words')
+        .select(allFields)
+        .eq('user_id', userId);
+
+      let rejectedQuery = supabase
+        .from('rejected_words')
+        .select(allFields)
+        .eq('user_id', userId);
+
+      if (language) {
+        feedQuery = feedQuery.eq('language', language);
+        rejectedQuery = rejectedQuery.eq('language', language);
+      }
+
+      const [wordsRes, feedRes, rejectedRes] = await Promise.all([
         supabase
           .from('words')
-          .select('korean')
+          .select(allFields)
           .eq('user_id', userId),
-        supabase
-          .from('feed_words')
-          .select('korean')
-          .eq('user_id', userId)
+        feedQuery,
+        rejectedQuery,
       ]);
 
-      const scannedWords = (wordsRes.data || [])
-        .map((r) => r.korean)
-        .filter((k): k is string => !!k);
-
-      const feedWords = (feedRes.data || [])
-        .map((r) => r.korean)
-        .filter((k): k is string => !!k);
-
-      const combined = [...scannedWords, ...feedWords];
+      const combined = [
+        ...extractWords(wordsRes.data || []),
+        ...extractWords(feedRes.data || []),
+        ...extractWords(rejectedRes.data || []),
+      ];
       return [...new Set(combined)];
     } catch (err) {
       console.error('Failed to load exclusion list from DB:', err);

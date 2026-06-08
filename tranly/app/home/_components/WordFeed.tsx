@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { 
-  ReloadOutlined, 
+import {
+  ReloadOutlined,
   UndoOutlined,
   CloseOutlined,
   HeartFilled,
-  StarOutlined,
-  StarFilled,
   SoundOutlined
 } from "@ant-design/icons";
 import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
@@ -17,6 +15,7 @@ import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
 import { message as antdMessage } from "antd";
 import type { FeedWordRecord, FeedWord } from "../_lib/types";
 import { useFeedStorage } from "../_lib/useFeedStorage";
+import { useRejectedStorage } from "../_lib/useRejectedStorage";
 import { useExclusionList } from "../_lib/useExclusionList";
 import { useWordStorage } from "@/app/learn/_lib/useWordStorage";
 import WordCard from "./WordCard";
@@ -73,6 +72,16 @@ function getTodayDateKey(): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Fisher-Yates shuffle returning a new array. */
+function shuffle<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 
 
 const SPEECH_LANG_BY_LANGUAGE: Record<TargetLanguage, SpeechLang> = {
@@ -81,6 +90,9 @@ const SPEECH_LANG_BY_LANGUAGE: Record<TargetLanguage, SpeechLang> = {
   chinese: 'zh-CN',
   english: 'en-US',
 };
+
+/** How long the card flies off-screen before the next one is dequeued (ms). */
+const SWIPE_OUT_MS = 320;
 
 /**
  * Shows a single word card at a time for the active language.
@@ -129,8 +141,8 @@ export default function WordFeed() {
   const mouseStartY = useRef<number | null>(null);
   const wheelLockRef = useRef(false);
 
-  const { loadTodayWords, saveWords, toggleBookmark, removeWord } =
-    useFeedStorage();
+  const { loadTodayWords, saveWords, removeWord } = useFeedStorage();
+  const { saveRejected, loadRejected, removeRejected } = useRejectedStorage();
   const { getExclusionList } = useExclusionList();
   const { save: saveLearnWord, list: listLearnWords } = useWordStorage();
   const [messageApi, contextHolder] = antdMessage.useMessage();
@@ -139,7 +151,7 @@ export default function WordFeed() {
   const { speak } = useTTS(speechLang);
 
   const fetchBatch = useCallback(async (count: number): Promise<FeedWordRecord[]> => {
-    const exclusionList = await getExclusionList();
+    const exclusionList = await getExclusionList(activeLanguage);
     const apiTopic = undefined;
 
     const response = await fetch("/api/feed", {
@@ -165,10 +177,14 @@ export default function WordFeed() {
     }
 
     const data = await response.json();
-    await saveWords(data.words, activeLanguage);
+    // saveWords returns void — load only the freshly saved words by tracking IDs
+    const freshWords: FeedWord[] = data.words;
+    await saveWords(freshWords, activeLanguage);
+    // Mix freshly fetched words with all previously rejected words, shuffled.
     const stored = await loadTodayWords(activeLanguage);
-    return stored;
-  }, [getExclusionList, saveWords, loadTodayWords, activeLanguage]);
+    const rejected = await loadRejected(activeLanguage);
+    return shuffle([...stored, ...rejected]);
+  }, [getExclusionList, saveWords, loadTodayWords, loadRejected, activeLanguage]);
 
   const handleRetry = useCallback(async () => {
     setLoading(true);
@@ -221,117 +237,109 @@ export default function WordFeed() {
     };
   }, [fetchBatch, loadTodayWords, activeLanguage]);
 
-  const handleToggleBookmark = useCallback(
-    async (wordId: string) => {
-      const wasBookmarked = word?.bookmarked ?? false;
-      await toggleBookmark(wordId);
-      setWordsQueue((prev) =>
-        prev.map((w) =>
-          w.id === wordId ? { ...w, bookmarked: !w.bookmarked } : w
-        )
-      );
+  // "รับ" a word: persist it to the Word page storage (/learn) as a sticker, and
+  // drop it from the rejected pool in case it had been rejected before.
+  const acceptWord = useCallback(
+    async (target: FeedWordRecord) => {
+      const primaryWord = getPrimaryWord(target);
+      void removeRejected(target.language, primaryWord);
 
-      // On bookmark ON: also persist to the Word page storage so the user
-      // can find it under /learn. Skip if already saved.
-      if (!wasBookmarked && word) {
-        const key = 'sticker-loading';
-        setTimeout(() => {
-          messageApi.open({
-            key,
-            type: 'loading',
-            content: 'กำลังแปลงเป็นสติกเกอร์...',
-            duration: 0,
-          });
-        }, 0);
-        try {
-          const primaryWord = getPrimaryWord(word);
-          const existing = await listLearnWords();
-          if (existing.some((w) => w.korean === primaryWord)) {
-            setTimeout(() => {
-              messageApi.destroy(key);
-            }, 0);
-            return;
-          }
-
-          let blob: Blob | null = null;
-          const coverUrl = (word.imageUrls && word.imageUrls.length > 0)
-            ? (word.imageUrls[activeImageIndex] || word.imageUrls[0])
-            : word.imageUrl;
-
-          if (coverUrl) {
-            try {
-              const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(coverUrl)}`;
-              const res = await fetch(proxyUrl);
-              if (res.ok) {
-                blob = await res.blob();
-              }
-            } catch (err) {
-              console.error("Failed to fetch image via proxy:", err);
-            }
-          }
-
-          // Fallback to text placeholder if image fetching fails or no image is set
-          if (!blob) {
-            blob = await generateWordPlaceholderBlob(primaryWord);
-          }
-
-          if (blob) {
-            try {
-              const resizedBlob = await resizeImage(blob, 600);
-              
-              try {
-                // @ts-ignore
-                const { env } = await import('onnxruntime-web');
-                env.logLevel = 'error';
-              } catch (e) {
-                console.warn("Failed to set ONNX Runtime log level:", e);
-              }
-
-              const { removeBackground } = await import('@imgly/background-removal');
-              const processed = await removeBackground(resizedBlob, {
-                device: 'gpu',
-                model: 'isnet',
-                debug: false,
-              });
-              const trimmed = await trimTransparentPixels(processed);
-              blob = trimmed;
-            } catch (err) {
-              console.error("Failed to remove background for feed word:", err);
-            }
-          }
-
-          if (!blob) {
-            setTimeout(() => {
-              messageApi.destroy(key);
-            }, 0);
-            return;
-          }
-
-          await saveLearnWord(blob, {
-            label: word.thai,
-            korean: word.korean || primaryWord,
-            reading: word.reading || '',
-            romanization: word.romanization || '',
-            english: word.english || '',
-            partOfSpeech: word.partOfSpeech || '',
-          });
-          setTimeout(() => {
-            messageApi.open({
-              key,
-              type: 'success',
-              content: 'สร้างสติกเกอร์และบันทึกในสมุดแล้ว! ✨',
-              duration: 3,
-            });
-          }, 0);
-        } catch (err) {
+      const key = 'sticker-loading';
+      setTimeout(() => {
+        messageApi.open({
+          key,
+          type: 'loading',
+          content: 'กำลังแปลงเป็นสติกเกอร์...',
+          duration: 0,
+        });
+      }, 0);
+      try {
+        const existing = await listLearnWords();
+        if (existing.some((w) => w.korean === primaryWord)) {
           setTimeout(() => {
             messageApi.destroy(key);
           }, 0);
-          console.error("Bookmark save failed:", err);
+          return;
         }
+
+        let blob: Blob | null = null;
+        const coverUrl = (target.imageUrls && target.imageUrls.length > 0)
+          ? (target.imageUrls[activeImageIndex] || target.imageUrls[0])
+          : target.imageUrl;
+
+        if (coverUrl) {
+          try {
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(coverUrl)}`;
+            const res = await fetch(proxyUrl);
+            if (res.ok) {
+              blob = await res.blob();
+            }
+          } catch (err) {
+            console.error("Failed to fetch image via proxy:", err);
+          }
+        }
+
+        // Fallback to text placeholder if image fetching fails or no image is set
+        if (!blob) {
+          blob = await generateWordPlaceholderBlob(primaryWord);
+        }
+
+        if (blob) {
+          try {
+            const resizedBlob = await resizeImage(blob, 600);
+
+            try {
+              // @ts-ignore
+              const { env } = await import('onnxruntime-web');
+              env.logLevel = 'error';
+            } catch (e) {
+              console.warn("Failed to set ONNX Runtime log level:", e);
+            }
+
+            const { removeBackground } = await import('@imgly/background-removal');
+            const processed = await removeBackground(resizedBlob, {
+              device: 'gpu',
+              model: 'isnet',
+              debug: false,
+            });
+            const trimmed = await trimTransparentPixels(processed);
+            blob = trimmed;
+          } catch (err) {
+            console.error("Failed to remove background for feed word:", err);
+          }
+        }
+
+        if (!blob) {
+          setTimeout(() => {
+            messageApi.destroy(key);
+          }, 0);
+          return;
+        }
+
+        await saveLearnWord(blob, {
+          label: target.thai,
+          korean: target.korean || primaryWord,
+          reading: target.reading || '',
+          romanization: target.romanization || '',
+          english: target.english || '',
+          partOfSpeech: target.partOfSpeech || '',
+        });
+        setTimeout(() => {
+          messageApi.open({
+            key,
+            type: 'success',
+            content: 'สร้างสติกเกอร์และบันทึกในสมุดแล้ว! ✨',
+            duration: 3,
+          });
+        }, 0);
+      } catch (err) {
+        setTimeout(() => {
+          messageApi.destroy(key);
+        }, 0);
+        console.error("Accept word save failed:", err);
       }
     },
-    [word, toggleBookmark, listLearnWords, saveLearnWord, messageApi, activeImageIndex]
+    [removeRejected, listLearnWords, saveLearnWord, messageApi, activeImageIndex]
   );
 
   const advance = useCallback(async () => {
@@ -343,6 +351,12 @@ export default function WordFeed() {
     setAdvancing(true);
     setExiting(true);
     setError(null);
+
+    // Let the current card fly off-screen (CSS transition) before we swap the
+    // next one in — otherwise React replaces the card instantly and the swipe
+    // animation is never visible.
+    await new Promise((resolve) => setTimeout(resolve, SWIPE_OUT_MS));
+
     try {
       // Save current word to history stack for Rewind
       setHistoryStack((prev) => [...prev, currentWord]);
@@ -360,7 +374,11 @@ export default function WordFeed() {
         setIsFetchingMore(true);
         fetchBatch(50)
           .then((nextBatch) => {
-            setWordsQueue((prev) => [...prev, ...nextBatch]);
+            setWordsQueue((prev) => {
+              const existingIds = new Set(prev.map((w) => w.id));
+              const newWords = nextBatch.filter((w) => !existingIds.has(w.id));
+              return [...prev, ...newWords];
+            });
           })
           .catch((err) => {
             console.error("Background prefetch failed:", err);
@@ -441,23 +459,30 @@ export default function WordFeed() {
 
     if (absX > absY && absX > threshold) {
       if (dragX > 0) {
-        // Swipe Right: Bookmark and Next
+        // Swipe Right: Accept (save to Word page) and Next.
+        // Run the (slow) save in the background so the card flies off instantly.
         setExitingDirection('right');
         setExiting(true);
-        if (word && !word.bookmarked) {
-          await handleToggleBookmark(word.id);
+        if (word) {
+          void acceptWord(word);
         }
         await advance();
       } else {
-        // Swipe Left: Skip
+        // Swipe Left: Reject (store for reuse) and Next
         setExitingDirection('left');
         setExiting(true);
+        if (word) {
+          void saveRejected(word, word.language);
+        }
         await advance();
       }
     } else if (absY > absX && dragY < -threshold) {
-      // Swipe Up: Next
+      // Swipe Up: Reject (store for reuse) and Next
       setExitingDirection('up');
       setExiting(true);
+      if (word) {
+        void saveRejected(word, word.language);
+      }
       await advance();
     } else {
       // Snap back
@@ -465,7 +490,7 @@ export default function WordFeed() {
       setDragY(0);
       setExitingDirection(null);
     }
-  }, [dragX, dragY, word, handleToggleBookmark, advance]);
+  }, [dragX, dragY, word, acceptWord, saveRejected, advance]);
 
   // Touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -520,10 +545,11 @@ export default function WordFeed() {
         setExiting(true);
         setDragX(0);
         setDragY(-600);
+        if (word) void saveRejected(word, word.language);
         void advance();
       }
     },
-    [advancing, exiting, advance]
+    [advancing, exiting, advance, word, saveRejected]
   );
 
   // Tinder Action Button Press Handlers
@@ -567,6 +593,9 @@ export default function WordFeed() {
 
       if (dbError) throw dbError;
 
+      // If the word had been rejected on the way out, take it back out of the pool.
+      void removeRejected(prevWord.language, getPrimaryWord(prevWord));
+
       // Pop from stack and set as current
       setHistoryStack((prev) => prev.slice(0, -1));
       setWordsQueue((prev) => [prevWord, ...prev]);
@@ -584,26 +613,23 @@ export default function WordFeed() {
     } finally {
       setAdvancing(false);
     }
-  }, [historyStack, advancing, messageApi]);
+  }, [historyStack, advancing, messageApi, removeRejected]);
 
-  const handleSkipPress = useCallback(() => {
+  const handleSkipPress = useCallback(async () => {
     if (advancing || exiting || !word) return;
     setExitingDirection('left');
     setExiting(true);
-    void advance();
-  }, [advance, advancing, exiting, word]);
+    void saveRejected(word, word.language);
+    await advance();
+  }, [advance, advancing, exiting, word, saveRejected]);
 
-  const handleBookmarkPress = useCallback(async () => {
-    if (!word || advancing) return;
-    await handleToggleBookmark(word.id);
-  }, [word, advancing, handleToggleBookmark]);
-
-  const handleLikePress = useCallback(() => {
+  const handleLikePress = useCallback(async () => {
     if (advancing || exiting || !word) return;
     setExitingDirection('right');
     setExiting(true);
-    void advance();
-  }, [advance, advancing, exiting, word]);
+    void acceptWord(word);
+    await advance();
+  }, [advance, advancing, exiting, word, acceptWord]);
 
   const handleTTSPress = useCallback(() => {
     if (!word) return;
@@ -746,7 +772,6 @@ export default function WordFeed() {
 
           <WordCard
             word={word}
-            onToggleBookmark={handleToggleBookmark}
             activeImageIndex={activeImageIndex}
             setActiveImageIndex={setActiveImageIndex}
           />
@@ -779,22 +804,7 @@ export default function WordFeed() {
               <CloseOutlined style={{ fontSize: 22, fontWeight: 'bold' }} />
             </button>
 
-            {/* 3. Star Button (Bookmark toggle) */}
-            <button
-              type="button"
-              onClick={handleBookmarkPress}
-              disabled={advancing}
-              className={`flex h-11 w-11 items-center justify-center rounded-full border-3 border-black shadow-nb-sm transition-all hover:scale-105 active:translate-y-[2px] active:shadow-[1px_1px_0_#000] cursor-pointer ${
-                word.bookmarked 
-                  ? "bg-[#FAAD14] text-white" 
-                  : "bg-white dark:bg-[#2d2d44] text-black dark:text-white"
-              }`}
-              aria-label="Bookmark"
-            >
-              {word.bookmarked ? <StarFilled style={{ fontSize: 18 }} /> : <StarOutlined style={{ fontSize: 18 }} />}
-            </button>
-
-            {/* 4. Like (Heart) Button */}
+            {/* 3. Like (Heart) Button */}
             <button
               type="button"
               onClick={handleLikePress}
@@ -805,7 +815,7 @@ export default function WordFeed() {
               <HeartFilled style={{ fontSize: 22 }} />
             </button>
 
-            {/* 5. TTS Audio Button */}
+            {/* 4. TTS Audio Button */}
             <button
               type="button"
               onClick={handleTTSPress}
@@ -823,7 +833,7 @@ export default function WordFeed() {
       </p>
 
 
-      {advancing && (
+      {advancing && wordsQueue.length <= 1 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none bg-background/80 backdrop-blur-sm z-50">
           <Mascot state="thinking" size={64} />
           <div className="flex items-center gap-1.5">

@@ -382,7 +382,7 @@ export async function POST(
     );
 
     // Save the new pool to database cache (asynchronously)
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const expiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
     after(async () => {
       try {
         const { error: saveErr } = await supabaseServer
