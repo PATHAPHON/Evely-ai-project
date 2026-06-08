@@ -38,7 +38,6 @@ export function useDataReset(): UseDataResetReturn {
           supabase.from("captures").delete().eq("user_id", userId),
           supabase.from("study_sessions").delete().eq("user_id", userId),
           supabase.from("flashcard_sets").delete().eq("user_id", userId),
-          supabase.from("xp_history").delete().eq("user_id", userId),
         ]);
 
         // 2. Reset profile settings, gems, and energy
@@ -49,7 +48,6 @@ export function useDataReset(): UseDataResetReturn {
             energy: 15,
             streak: 0,
             max_streak: 0,
-            total_xp: 0,
             claimed_chests: [],
             completed_exams: [],
           })

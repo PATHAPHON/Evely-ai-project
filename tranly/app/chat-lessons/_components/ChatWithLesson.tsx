@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { StopOutlined } from '@ant-design/icons';
 import { message as antdMessage } from 'antd';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
-import { useGems } from '@/app/_lib/GemsContext';
+
 import { speechLangForLanguage } from '@/app/chat/_lib/speechLangForLanguage';
 import { useConversationSession } from '@/app/chat/_lib/useConversationSession';
 import { useScriptConversationSession } from '../_lib/useScriptConversationSession';
@@ -31,8 +31,8 @@ export default function ChatWithLesson({ lesson, onEndChat }: ChatWithLessonProp
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
   const [showEndConfirm, setShowEndConfirm] = useState(false);
-  const { earnGems } = useGems();
-  const [gemAwarded, setGemAwarded] = useState(false);
+
+
   const searchParams = useSearchParams();
   const isAutoStarted = !!searchParams.get('lessonId');
 
@@ -52,19 +52,8 @@ export default function ChatWithLesson({ lesson, onEndChat }: ChatWithLessonProp
     endSession,
   } = isScriptLesson ? scriptSession : aiSession;
 
-  // Award gems when the lesson ends
-  useEffect(() => {
-    if (isEnded && !gemAwarded) {
-      const award = lesson.category === 'greetings' ? 20 : 15;
-      earnGems(award);
-      setGemAwarded(true);
-      antdMessage.success(
-        isThai
-          ? `ยินดีด้วย! คุณได้รับ ${award} 💎`
-          : `Congratulations! You earned ${award} 💎`
-      );
-    }
-  }, [isEnded, gemAwarded, lesson.category, earnGems, isThai]);
+
+
 
   // TTS/STT setup — uses the lesson's target language
   const speechLang = speechLangForLanguage(lesson.targetLanguage);

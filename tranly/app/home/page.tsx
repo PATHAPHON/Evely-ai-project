@@ -20,7 +20,6 @@ import {
 import useIllustrationTheme from "@/app/theme/illustrationTheme";
 import BottomNav from "@/app/_components/BottomNav";
 import WordFeed from "@/app/home/_components/WordFeed";
-import StatsBar from "@/app/_components/StatsBar";
 
 export default function HomePage() {
   const configProps = useIllustrationTheme();
@@ -159,11 +158,6 @@ export default function HomePage() {
           <CoffeeOutlined />
         </div>
         
-        {/* Top stats bar (replaces the page title) */}
-        <div className="relative z-10">
-          <StatsBar />
-        </div>
-
         {/* Scroll Container — daily word feed */}
         <div
           className="flex-1 overflow-y-auto flex flex-col"

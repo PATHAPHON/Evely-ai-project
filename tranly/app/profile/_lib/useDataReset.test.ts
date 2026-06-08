@@ -68,7 +68,6 @@ describe('useDataReset', () => {
       energy: 15,
       streak: 0,
       max_streak: 0,
-      total_xp: 0,
       claimed_chests: [],
       completed_exams: [],
     });

@@ -12,7 +12,7 @@ import {
 } from "@ant-design/icons";
 import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
 import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
-import { useGems } from "@/app/_lib/GemsContext";
+
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
 import { message as antdMessage } from "antd";
 import type { FeedWordRecord, FeedWord } from "../_lib/types";
@@ -93,11 +93,12 @@ export default function WordFeed() {
   const { activeLanguage } = useActiveLanguage();
   const { language } = useLanguagePreference();
   const isThai = language === 'thai';
-  const { gems, earnGems, spendGems } = useGems();
 
-  const [showGemsToast, setShowGemsToast] = useState(false);
+  const [wordsQueue, setWordsQueue] = useState<FeedWordRecord[]>([]);
+  const word = wordsQueue[0] || null;
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const prefetchingRef = useRef(false);
 
-  const [word, setWord] = useState<FeedWordRecord | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
@@ -137,7 +138,7 @@ export default function WordFeed() {
   const speechLang = word ? SPEECH_LANG_BY_LANGUAGE[word.language] : 'ko-KR';
   const { speak } = useTTS(speechLang);
 
-  const fetchOne = useCallback(async (): Promise<FeedWordRecord> => {
+  const fetchBatch = useCallback(async (count: number): Promise<FeedWordRecord[]> => {
     const exclusionList = await getExclusionList();
     const apiTopic = undefined;
 
@@ -150,7 +151,7 @@ export default function WordFeed() {
       body: JSON.stringify({
         language: activeLanguage,
         excludeWords: exclusionList,
-        count: 1,
+        count: count,
         topic: apiTopic
       }),
     });
@@ -160,42 +161,54 @@ export default function WordFeed() {
       if (errorData?.error?.message) {
         throw new Error(errorData.error.message);
       }
-      throw new Error("Failed to generate word. Please try again.");
+      throw new Error("Failed to generate words. Please try again.");
     }
 
     const data = await response.json();
     await saveWords(data.words, activeLanguage);
     const stored = await loadTodayWords(activeLanguage);
-    const latest = stored[stored.length - 1];
-    if (!latest) throw new Error("ไม่สามารถสร้างคำศัพท์ได้ กรุณาลองอีกครั้ง");
-    return latest;
+    return stored;
   }, [getExclusionList, saveWords, loadTodayWords, activeLanguage]);
 
-  // Initial load and re-load on language switch: use existing stored word, or fetch one.
+  const handleRetry = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let stored = await loadTodayWords(activeLanguage);
+      if (stored.length === 0) {
+        stored = await fetchBatch(50);
+      }
+      setWordsQueue(stored);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load words. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchBatch, loadTodayWords, activeLanguage]);
+
+  // Initial load and re-load on language switch: use existing stored words, or fetch a batch of 50.
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
-      const isFree = true;
-      if (!isFree && gems < 5) {
-        setWord(null);
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
       setError(null);
       try {
-        const next = await fetchOne();
-        if (!cancelled) setWord(next);
+        let stored = await loadTodayWords(activeLanguage);
+        if (stored.length === 0) {
+          stored = await fetchBatch(50);
+        }
+        if (!cancelled) setWordsQueue(stored);
       } catch (err) {
         if (!cancelled) {
           setError(
             err instanceof Error
               ? err.message
-              : "Failed to load word. Please try again."
+              : "Failed to load words. Please try again."
           );
-          setWord(null);
+          setWordsQueue([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -206,16 +219,16 @@ export default function WordFeed() {
     return () => {
       cancelled = true;
     };
-  }, [fetchOne, activeLanguage]);
+  }, [fetchBatch, loadTodayWords, activeLanguage]);
 
   const handleToggleBookmark = useCallback(
     async (wordId: string) => {
       const wasBookmarked = word?.bookmarked ?? false;
       await toggleBookmark(wordId);
-      setWord((prev) =>
-        prev && prev.id === wordId
-          ? { ...prev, bookmarked: !prev.bookmarked }
-          : prev
+      setWordsQueue((prev) =>
+        prev.map((w) =>
+          w.id === wordId ? { ...w, bookmarked: !w.bookmarked } : w
+        )
       );
 
       // On bookmark ON: also persist to the Word page storage so the user
@@ -265,10 +278,20 @@ export default function WordFeed() {
           if (blob) {
             try {
               const resizedBlob = await resizeImage(blob, 600);
+              
+              try {
+                // @ts-ignore
+                const { env } = await import('onnxruntime-web');
+                env.logLevel = 'error';
+              } catch (e) {
+                console.warn("Failed to set ONNX Runtime log level:", e);
+              }
+
               const { removeBackground } = await import('@imgly/background-removal');
               const processed = await removeBackground(resizedBlob, {
                 device: 'gpu',
-                model: 'isnet_quint8',
+                model: 'isnet',
+                debug: false,
               });
               const trimmed = await trimTransparentPixels(processed);
               blob = trimmed;
@@ -312,33 +335,43 @@ export default function WordFeed() {
   );
 
   const advance = useCallback(async () => {
-    if (!word || advancing) return;
+    if (wordsQueue.length === 0 || advancing) return;
+    const currentWord = wordsQueue[0];
+    if (!currentWord) return;
 
-    const isFree = true;
-    if (!isFree) {
-      const success = spendGems(5);
-      if (!success) {
-        setTimeout(() => {
-          messageApi.error(isThai ? "เพชรไม่พอใช้ AI! 💎" : "Not enough gems for AI! 💎");
-        }, 0);
-        return;
-      }
-    }
 
     setAdvancing(true);
     setExiting(true);
     setError(null);
     try {
       // Save current word to history stack for Rewind
-      setHistoryStack((prev) => [...prev, word]);
+      setHistoryStack((prev) => [...prev, currentWord]);
 
-      await removeWord(word.id);
-      const next = await fetchOne();
-      
-      if (isFree) {
-        earnGems(10);
-        setShowGemsToast(true);
-        setTimeout(() => setShowGemsToast(false), 1200);
+      // Dequeue locally immediately for instant transition!
+      setWordsQueue((prev) => prev.slice(1));
+
+      // Remove from DB in the background
+      void removeWord(currentWord.id);
+
+      // Check if we need to prefetch more words
+      const remainingCount = wordsQueue.length - 1;
+      if (remainingCount <= 5 && !prefetchingRef.current) {
+        prefetchingRef.current = true;
+        setIsFetchingMore(true);
+        fetchBatch(50)
+          .then((nextBatch) => {
+            setWordsQueue((prev) => [...prev, ...nextBatch]);
+          })
+          .catch((err) => {
+            console.error("Background prefetch failed:", err);
+            setError(
+              err instanceof Error ? err.message : "ไม่สามารถโหลดคำศัพท์เพิ่มได้"
+            );
+          })
+          .finally(() => {
+            prefetchingRef.current = false;
+            setIsFetchingMore(false);
+          });
       }
 
       // Reset drag parameters for the new card
@@ -346,25 +379,12 @@ export default function WordFeed() {
       setDragY(0);
       setExitingDirection(null);
       setExiting(false);
-      setWord(next);
     } catch (err) {
-      // On error, retain existing entries and show error message (Req 3.6)
       setError(
         err instanceof Error
           ? err.message
           : "ไม่สามารถสร้างคำศัพท์ได้ กรุณาลองอีกครั้ง"
       );
-      // Don't clear the word — try to reload from storage
-      try {
-        const stored = await loadTodayWords(activeLanguage);
-        if (stored.length > 0) {
-          setWord(stored[stored.length - 1]);
-        } else {
-          setWord(null);
-        }
-      } catch {
-        setWord(null);
-      }
       setExiting(false);
       setDragX(0);
       setDragY(0);
@@ -372,7 +392,7 @@ export default function WordFeed() {
     } finally {
       setAdvancing(false);
     }
-  }, [word, advancing, removeWord, fetchOne, loadTodayWords, activeLanguage, spendGems, earnGems, isThai, messageApi]);
+  }, [wordsQueue, advancing, removeWord, fetchBatch, isThai, messageApi]);
 
   // Touch and mouse dragging mechanics
   const handleDragStart = useCallback((clientX: number, clientY: number, isMouse: boolean, target: EventTarget) => {
@@ -549,7 +569,7 @@ export default function WordFeed() {
 
       // Pop from stack and set as current
       setHistoryStack((prev) => prev.slice(0, -1));
-      setWord(prevWord);
+      setWordsQueue((prev) => [prevWord, ...prev]);
       
       // Reset animations
       setDragX(0);
@@ -591,7 +611,9 @@ export default function WordFeed() {
     if (primaryWord) speak(primaryWord);
   }, [word, speak]);
 
-  if (loading) {
+  const isQueueEmptyAndLoading = wordsQueue.length === 0 && isFetchingMore;
+
+  if (loading || isQueueEmptyAndLoading) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4">
         <Mascot state="thinking" size={64} />
@@ -611,7 +633,7 @@ export default function WordFeed() {
         <p className="text-base text-accent-red font-bold">{error}</p>
         <button
           type="button"
-          onClick={advance}
+          onClick={handleRetry}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-3 border-black dark:border-[#4a4a6a] bg-white dark:bg-[#2d2d44] font-bold text-sm text-black dark:text-white shadow-nb-sm transition-all duration-100 active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shadow-color)] cursor-pointer"
         >
           <ReloadOutlined />
@@ -800,12 +822,6 @@ export default function WordFeed() {
         ปัด หรือ ใช้ปุ่มควบคุมในการเรียนรู้
       </p>
 
-      {/* Floating Gems Earned Toast */}
-      {showGemsToast && (
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-50 bg-[#E6F7FF] border-3 border-black px-5 py-3 rounded-2xl shadow-nb-lg text-base font-black text-accent-blue flex items-center gap-2 pointer-events-none gems-toast">
-          <span>+10 💎 Earned!</span>
-        </div>
-      )}
 
       {advancing && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none bg-background/80 backdrop-blur-sm z-50">

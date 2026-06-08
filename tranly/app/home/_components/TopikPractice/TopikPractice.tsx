@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { message as antdMessage } from 'antd';
+import { useEffect, useRef } from 'react';
 import { useTopikExam } from '../../_lib/topik/useTopikExam';
 import type { TopikQuestion, TopikListeningQuestion } from '../../_lib/topik/types';
-import { useGems } from '@/app/_lib/GemsContext';
+
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
 import QuestionBankGrid from './QuestionBankGrid';
 import ReadingQuestion from './ReadingQuestion';
@@ -35,25 +34,9 @@ export default function TopikPractice() {
   } = useTopikExam();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const { earnGems } = useGems();
   const { language } = useLanguagePreference();
-  const isThai = language === 'thai';
-  const [examGemsAwarded, setExamGemsAwarded] = useState(false);
 
-  // Award gems when exam is completed
-  useEffect(() => {
-    if (examState === 'completed' && !examGemsAwarded) {
-      earnGems(20);
-      setExamGemsAwarded(true);
-      antdMessage.success(
-        isThai
-          ? 'ยินดีด้วย! คุณสอบเสร็จแล้วและได้รับ 20 💎'
-          : 'Congratulations! You completed the exam and earned 20 💎'
-      );
-    } else if (examState === 'selecting') {
-      setExamGemsAwarded(false);
-    }
-  }, [examState, examGemsAwarded, earnGems, isThai]);
+
 
   // Scroll to top when the question index changes or exam state transitions
   useEffect(() => {

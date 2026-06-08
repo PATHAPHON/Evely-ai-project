@@ -29,7 +29,6 @@ import type { ConversationSessionRecord, ChatMessage } from "@/app/chat/_lib/typ
 import { useTTS } from "@/app/chat/_lib/useTTS";
 import BottomNav from "@/app/_components/BottomNav";
 import { FlashcardMode } from "@/app/learn/_components/FlashcardMode";
-import StatsBar from "@/app/_components/StatsBar";
 
 type TabType = "words" | "flashcards" | "lessons" | "chats";
 
@@ -425,9 +424,6 @@ export default function LibraryPage() {
           style={{ paddingBottom: "calc(180px + env(safe-area-inset-bottom, 0px))" }}
         >
           <div className="flex-1 flex flex-col animate-card-fade-in">
-            {/* Page title header (text only, no settings) */}
-            {!studyingSet && <StatsBar />}
-
             {/* Header */}
             <div className="flex items-center gap-3 p-[20px_16px_0]">
             {studyingSet && !flashcardStudying && (

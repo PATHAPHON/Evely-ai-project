@@ -4,7 +4,7 @@ import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
-import { useGems } from '@/app/_lib/GemsContext';
+
 import { speechLangForLanguage } from './_lib/speechLangForLanguage';
 import { useConversationSession } from './_lib/useConversationSession';
 import { useTTS } from './_lib/useTTS';
@@ -27,8 +27,6 @@ import type { ChatMessage, SessionConfig } from './_lib/types';
 export default function ChatPage() {
   const router = useRouter();
   const { activeLanguage } = useActiveLanguage();
-  const { gems } = useGems();
-
   const {
     messages,
     sendMessage,
@@ -111,23 +109,6 @@ export default function ChatPage() {
           <h1 className="text-lg font-black text-text-primary">Evely</h1>
         </div>
 
-        {/* Gems — chat costs 5 gems per message, so keep the balance visible. */}
-        <div className="flex items-center gap-1.5">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="text-accent-blue"
-            aria-hidden
-          >
-            <path d="M6 2h12l4 6-10 14L2 8z" opacity="0.95" />
-            <path d="M2 8h20l-10 14z" opacity="0.5" />
-          </svg>
-          <span className="font-extrabold tabular-nums text-accent-blue">
-            {gems}
-          </span>
-        </div>
       </header>
 
       <main

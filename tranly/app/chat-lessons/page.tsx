@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
-import StatsBar from '@/app/_components/StatsBar';
 import LessonCatalog from './_components/LessonCatalog';
 import ChatWithLesson from './_components/ChatWithLesson';
 import { getLessonsByLanguage, fetchLessonsByLanguage } from './_lib/lessonCatalogData';
@@ -169,9 +168,6 @@ export function ChatLessonsContent() {
 
       {view === 'catalog' ? (
         <div className={`flex flex-col flex-1 min-h-0 ${getAnimationClass()}`}>
-          {/* StatsBar at the top */}
-          <StatsBar />
-
           {/* Page header with back button and bilingual title */}
           <div className="flex items-center justify-between px-4 pt-2 pb-3">
             <div className="flex items-center gap-3">

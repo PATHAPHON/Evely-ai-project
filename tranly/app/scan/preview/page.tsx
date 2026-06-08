@@ -121,11 +121,20 @@ export default function PreviewPage() {
       // 1. Resize image to 600px max dimension to speed up processing and prevent memory crash on mobile devices
       const resizedBlob = await resizeImage(blob, 600);
       
-      // 2. Load background removal library and execute with WebGPU acceleration and optimized 'isnet_quint8' model
+      try {
+        // @ts-ignore
+        const { env } = await import('onnxruntime-web');
+        env.logLevel = 'error';
+      } catch (e) {
+        console.warn("Failed to set ONNX Runtime log level:", e);
+      }
+
+      // 2. Load background removal library and execute with WebGPU acceleration and high-quality 'isnet' model
       const { removeBackground } = await import('@imgly/background-removal');
       const processed = await removeBackground(resizedBlob, {
         device: 'gpu',
-        model: 'isnet_quint8',
+        model: 'isnet',
+        debug: false,
       });
       
       // 3. Trim the transparent pixels from margins to crop it nicely as a sticker

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 import { useLessonHistory } from './useLessonHistory';
-import { useGems } from '@/app/_lib/GemsContext';
+
 import type {
   LessonConfig,
   LessonErrorResponse,
@@ -44,8 +44,6 @@ export function useLessonSession(): UseLessonSessionReturn {
   const [error, setError] = useState<string | null>(null);
   const [lastConfig, setLastConfig] = useState<LessonConfig | null>(null);
 
-  const { earnGems, spendGems } = useGems();
-
   // The persisted record backing the active run, plus a live mirror of answers
   // so completion can compute the final score without an effect.
   const recordRef = useRef<LessonRecord | null>(null);
@@ -69,15 +67,6 @@ export function useLessonSession(): UseLessonSessionReturn {
   const startLesson = useCallback(
     async (config: LessonConfig) => {
       setError(null);
-
-      const success = spendGems(15);
-      if (!success) {
-        setError(
-          'เพชรสะสมไม่เพียงพอ! 💎 คุณต้องมีอย่างน้อย 15 เพชรเพื่อสร้างบทเรียนสุ่ม กรุณาสะสมเพชรฟรีโดยการเล่นบทเรียน "ทักทาย" (Basic Greetings) หรือสุ่มปัดคำหัวข้อ "ทักทาย" ครับ'
-        );
-        setStatus('error');
-        return;
-      }
 
       setStatus('loading');
       setLastConfig(config);
@@ -185,13 +174,12 @@ export function useLessonSession(): UseLessonSessionReturn {
             // Non-fatal.
           });
         }
-        earnGems(15);
         setStatus('complete');
         return prev;
       }
       return next;
     });
-  }, [exercises.length, saveLesson, earnGems]);
+  }, [exercises.length, saveLesson]);
 
 
   const reset = useCallback(() => {

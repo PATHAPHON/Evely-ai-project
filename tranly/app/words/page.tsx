@@ -8,9 +8,9 @@ import { useStrings } from "@/app/_lib/strings";
 import { useWordStorage, type WordRecord } from "@/app/learn/_lib/useWordStorage";
 import { useTTS } from "@/app/chat/_lib/useTTS";
 import BottomNav from "@/app/_components/BottomNav";
-import StatsBar from "@/app/_components/StatsBar";
 import WordDetailSheet from "@/app/_components/WordDetailSheet";
 import ScanButton from "@/app/scan/_components/ScanButton";
+import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
 
 function formatDate(ts: number | string) {
   const d = new Date(ts);
@@ -126,26 +126,56 @@ export default function WordsPage() {
 
   const { speak } = useTTS("ko-KR");
   const { listByLanguage } = useWordStorage();
+  const { activeLanguage } = useActiveLanguage();
 
   const [words, setWords] = useState<WordRecord[] | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<{ word: WordRecord; rect: DOMRect } | null>(null);
 
-  // Load saved words on mount
+  // Load saved words on mount with Stale-While-Revalidate caching
   useEffect(() => {
     let cancelled = false;
+    const cacheKey = `tarnly:words:cache:${activeLanguage}`;
+
+    // 1. Read from localStorage cache first for instant UI loading
+    const cachedDataStr = typeof window !== 'undefined' ? localStorage.getItem(cacheKey) : null;
+    let cachedList: WordRecord[] = [];
+    if (cachedDataStr) {
+      try {
+        cachedList = JSON.parse(cachedDataStr);
+        setWords(cachedList);
+      } catch (e) {
+        console.error("Failed to parse cached words:", e);
+      }
+    }
+
+    // 2. Fetch from DB in background to revalidate and update cache if needed
     const loadData = async () => {
       try {
         const list = await listByLanguage();
-        if (!cancelled) setWords(list);
+        if (!cancelled) {
+          const newStringified = JSON.stringify(list);
+          if (cachedDataStr !== newStringified) {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(cacheKey, newStringified);
+            }
+            setWords(list);
+          } else {
+            // If cache matches DB, ensure loading state is cleared when words state is null
+            setWords((current) => (current === null ? list : current));
+          }
+        }
       } catch {
-        // ignore load failures
+        if (!cancelled && !cachedDataStr) {
+          setWords([]);
+        }
       }
     };
     loadData();
+
     return () => {
       cancelled = true;
     };
-  }, [listByLanguage]);
+  }, [listByLanguage, activeLanguage]);
 
   // Grouping by local date
   const groupsMap: { [dateStr: string]: WordRecord[] } = {};
@@ -223,8 +253,6 @@ export default function WordsPage() {
           style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}
         >
           <div className="flex-1 flex flex-col animate-card-fade-in">
-            <StatsBar />
-
             <div className="px-4 mt-6 flex flex-col gap-5 flex-1">
               {words === null ? (
                 null
