@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback } from "react";
 import { SoundOutlined } from "@ant-design/icons";
 import type { FeedWordRecord } from "../_lib/types";
 import type { SpeechLang } from "@/app/chat/_lib/types";
@@ -59,7 +59,6 @@ const SPEECH_LANG_BY_LANGUAGE: Record<FeedWordRecord['language'], SpeechLang> = 
 export default function WordCard({ word, activeImageIndex, setActiveImageIndex }: WordCardProps) {
   const { language } = useLanguagePreference();
   const { speak, isSupported } = useTTS(SPEECH_LANG_BY_LANGUAGE[word.language]);
-  const touchStartX = useRef<number | null>(null);
 
   const primaryWord = getPrimaryWord(word);
   const pronunciation = getPronunciation(word);
@@ -75,46 +74,20 @@ export default function WordCard({ word, activeImageIndex, setActiveImageIndex }
     setActiveImageIndex((prev) => (prev + 1) % images.length);
   }, [images.length]);
 
-  const handlePrevImage = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  }, [images.length]);
-
   const setIndex = useCallback((index: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveImageIndex(index);
   }, []);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-
-    const threshold = 50;
-    if (dx > threshold) {
-      // Swipe Right -> Prev Image
-      setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
-    } else if (dx < -threshold) {
-      // Swipe Left -> Next Image
-      setActiveImageIndex((prev) => (prev + 1) % images.length);
-    }
-  }, [images.length]);
 
   return (
     <div className="relative w-full h-[58vh] max-h-[500px] rounded-3xl border-3 border-black dark:border-[#4a4a6a] bg-black overflow-hidden shadow-nb-lg">
       
       {/* Top Header Image Carousel */}
       {images.length > 0 && (
-        <div 
-          className={`image-carousel absolute inset-0 w-full h-full select-none overflow-hidden touch-pan-y z-0 ${
+        <div
+          className={`image-carousel absolute inset-0 w-full h-full select-none overflow-hidden z-0 ${
             images.length > 1 ? "cursor-pointer" : ""
           }`}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
           onClick={images.length > 1 ? handleNextImage : undefined}
         >
           {/* Active Image */}

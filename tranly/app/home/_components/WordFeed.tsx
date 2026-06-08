@@ -416,11 +416,11 @@ export default function WordFeed() {
   const handleDragStart = useCallback((clientX: number, clientY: number, isMouse: boolean, target: EventTarget) => {
     if (advancing || exiting) return;
     
-    // Ignore drags that start on interactive elements like buttons
-    const isInteractive = (target as HTMLElement).closest('button') || 
+    // Ignore drags that start on interactive elements like buttons.
+    // (The image carousel itself IS draggable so the card follows the finger.)
+    const isInteractive = (target as HTMLElement).closest('button') ||
                           (target as HTMLElement).closest('a') ||
-                          (target as HTMLElement).closest('input') ||
-                          (target as HTMLElement).closest('.image-carousel');
+                          (target as HTMLElement).closest('input');
     if (isInteractive) return;
 
     setIsDragging(true);
@@ -730,7 +730,7 @@ export default function WordFeed() {
       {word && (
         <div
           key={word.id}
-          className="will-change-transform w-full max-w-md cursor-grab active:cursor-grabbing select-none relative animate-card-enter touch-none"
+          className="will-change-transform w-full max-w-md cursor-grab active:cursor-grabbing select-none relative touch-none"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -744,6 +744,11 @@ export default function WordFeed() {
             opacity: exiting ? 0 : 1,
           }}
         >
+          {/* Inner wrapper plays the entrance animation. It must be a SEPARATE
+              element from the dragged card above: a CSS animation with
+              `forwards` fill pins `transform`, which would otherwise override
+              the inline drag transform and freeze the card in place. */}
+          <div className="animate-card-enter relative w-full">
           {/* Swipe Badges Overlay */}
           {dragX > 20 && (
             <div 
@@ -824,6 +829,7 @@ export default function WordFeed() {
             >
               <SoundOutlined style={{ fontSize: 18 }} />
             </button>
+          </div>
           </div>
         </div>
       )}
