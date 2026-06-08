@@ -492,18 +492,13 @@ export default function WordFeed() {
     }
   }, [dragX, dragY, word, acceptWord, saveRejected, advance]);
 
-  // Touch handlers
+  // Touch handlers — only the *start* lives on the element so we can read the
+  // initial target/coords. move & end are bound to `window` (see effect below)
+  // with passive:false so we can preventDefault and stop the page scrolling /
+  // cancelling the touch mid-drag (which is why mobile dragging failed before).
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     handleDragStart(e.touches[0].clientX, e.touches[0].clientY, false, e.target);
   }, [handleDragStart]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    handleDragMove(e.touches[0].clientX, e.touches[0].clientY, false);
-  }, [handleDragMove]);
-
-  const handleTouchEnd = useCallback(() => {
-    void handleDragEnd();
-  }, [handleDragEnd]);
 
   // Mouse handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -511,7 +506,10 @@ export default function WordFeed() {
     handleDragStart(e.clientX, e.clientY, true, e.target);
   }, [handleDragStart]);
 
-  // Handle document level mousemove & mouseup when dragging is active
+  // Handle window-level move & end for BOTH mouse and touch while dragging.
+  // Binding to window (instead of the element) keeps the drag alive even when
+  // the finger/cursor leaves the card, and the non-passive touchmove lets us
+  // preventDefault so the page doesn't scroll and abort the gesture on mobile.
   useEffect(() => {
     if (!isDragging) return;
 
@@ -523,12 +521,29 @@ export default function WordFeed() {
       void handleDragEnd();
     };
 
+    const handleWindowTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      // Stop the browser from scrolling/zooming so the card follows the finger.
+      e.preventDefault();
+      handleDragMove(e.touches[0].clientX, e.touches[0].clientY, false);
+    };
+
+    const handleWindowTouchEnd = () => {
+      void handleDragEnd();
+    };
+
     window.addEventListener("mousemove", handleWindowMouseMove);
     window.addEventListener("mouseup", handleWindowMouseUp);
+    window.addEventListener("touchmove", handleWindowTouchMove, { passive: false });
+    window.addEventListener("touchend", handleWindowTouchEnd);
+    window.addEventListener("touchcancel", handleWindowTouchEnd);
 
     return () => {
       window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
+      window.removeEventListener("touchmove", handleWindowTouchMove);
+      window.removeEventListener("touchend", handleWindowTouchEnd);
+      window.removeEventListener("touchcancel", handleWindowTouchEnd);
     };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
@@ -732,8 +747,6 @@ export default function WordFeed() {
           key={word.id}
           className="will-change-transform w-full max-w-md cursor-grab active:cursor-grabbing select-none relative touch-none"
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
           onMouseDown={handleMouseDown}
           style={{
             transform: transformStyle,
