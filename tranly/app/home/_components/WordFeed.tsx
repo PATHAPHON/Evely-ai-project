@@ -6,7 +6,8 @@ import {
   UndoOutlined,
   CloseOutlined,
   HeartFilled,
-  SoundOutlined
+  SoundOutlined,
+  BookOutlined
 } from "@ant-design/icons";
 import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
 import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
@@ -19,75 +20,23 @@ import { useRejectedStorage } from "../_lib/useRejectedStorage";
 import { useExclusionList } from "../_lib/useExclusionList";
 import { useWordStorage } from "@/app/learn/_lib/useWordStorage";
 import WordCard from "./WordCard";
+import { useRouter } from "next/navigation";
+import { DETAIL_WORD_STORAGE_KEY } from "../_lib/types";
 import Mascot from "@/app/chat/_components/Mascot";
 import { useTTS } from "@/app/chat/_lib/useTTS";
 import type { SpeechLang } from "@/app/chat/_lib/types";
 import { supabase } from "@/app/_lib/supabaseClient";
 import type { TargetLanguage } from "@/app/_lib/wordTypes";
 import { trimTransparentPixels, resizeImage } from "@/app/_lib/imageUtils";
-
-/**
- * Render the word's native script onto a canvas and return a JPEG Blob — used as
- * a placeholder image when a feed word is bookmarked into the Word page,
- * since feed words don't have an associated photo.
- */
-async function generateWordPlaceholderBlob(text: string): Promise<Blob | null> {
-  if (typeof document === "undefined") return null;
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-
-  ctx.fillStyle = "#FFF0F6";
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = "#000000";
-  ctx.font = "bold 96px 'Apple SD Gothic Neo', 'Noto Sans KR', 'Noto Sans JP', 'Noto Sans SC', sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, size / 2, size / 2 + 8);
-
-  return new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.9);
-  });
-}
-
-/**
- * Gets the primary display word from a FeedWordRecord based on its language.
- */
-function getPrimaryWord(word: FeedWordRecord): string {
-  if (word.korean) return word.korean;
-  if (word.kanji) return word.kanji;
-  if (word.hanzi) return word.hanzi;
-  if (word.word) return word.word;
-  return '';
-}
-
-function getTodayDateKey(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-/** Fisher-Yates shuffle returning a new array. */
-function shuffle<T>(items: T[]): T[] {
-  const arr = [...items];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-
+import {
+  generateWordPlaceholderBlob,
+  getPrimaryWord,
+  getTodayDateKey,
+  shuffle,
+  computeCardTransform,
+} from "../_lib/feedHelpers";
 
 const SPEECH_LANG_BY_LANGUAGE: Record<TargetLanguage, SpeechLang> = {
-  korean: 'ko-KR',
-  japanese: 'ja-JP',
-  chinese: 'zh-CN',
   english: 'en-US',
 };
 
@@ -115,6 +64,20 @@ export default function WordFeed() {
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const openWordDetail = useCallback(() => {
+    if (!word) return;
+    try {
+      sessionStorage.setItem(
+        DETAIL_WORD_STORAGE_KEY,
+        JSON.stringify({ ...word, imageBlob: null })
+      );
+    } catch {
+      return;
+    }
+    router.push("/word-detail");
+  }, [word, router]);
 
   // Reset active image index when word changes
   useEffect(() => {
@@ -133,13 +96,12 @@ export default function WordFeed() {
   const [isDragging, setIsDragging] = useState(false);
   // When true, the card animates out before the next one slides in.
   const [exiting, setExiting] = useState(false);
-  const [exitingDirection, setExitingDirection] = useState<'left' | 'right' | 'up' | null>(null);
+  const [exitingDirection, setExitingDirection] = useState<'left' | 'right' | null>(null);
 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const mouseStartX = useRef<number | null>(null);
   const mouseStartY = useRef<number | null>(null);
-  const wheelLockRef = useRef(false);
 
   const { loadTodayWords, saveWords, removeWord } = useFeedStorage();
   const { saveRejected, loadRejected, removeRejected } = useRejectedStorage();
@@ -255,7 +217,7 @@ export default function WordFeed() {
       }, 0);
       try {
         const existing = await listLearnWords();
-        if (existing.some((w) => w.korean === primaryWord)) {
+        if (existing.some((w) => w.word === primaryWord)) {
           setTimeout(() => {
             messageApi.destroy(key);
           }, 0);
@@ -318,10 +280,9 @@ export default function WordFeed() {
 
         await saveLearnWord(blob, {
           label: target.thai,
-          korean: target.korean || primaryWord,
-          reading: target.reading || '',
-          romanization: target.romanization || '',
-          english: target.english || '',
+          word: target.word || primaryWord,
+          ipa: target.ipa || '',
+          english: target.word || '',
           partOfSpeech: target.partOfSpeech || '',
         });
         setTimeout(() => {
@@ -476,16 +437,8 @@ export default function WordFeed() {
         }
         await advance();
       }
-    } else if (absY > absX && dragY < -threshold) {
-      // Swipe Up: Reject (store for reuse) and Next
-      setExitingDirection('up');
-      setExiting(true);
-      if (word) {
-        void saveRejected(word, word.language);
-      }
-      await advance();
     } else {
-      // Snap back
+      // Snap back (vertical swipes no longer advance)
       setDragX(0);
       setDragY(0);
       setExitingDirection(null);
@@ -547,26 +500,6 @@ export default function WordFeed() {
     };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
-  // Wheel handler for desktop — wheel down = next word.
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (advancing || exiting || wheelLockRef.current) return;
-      if (e.deltaY > 30) {
-        wheelLockRef.current = true;
-        setTimeout(() => {
-          wheelLockRef.current = false;
-        }, 800);
-        setExitingDirection('up');
-        setExiting(true);
-        setDragX(0);
-        setDragY(-600);
-        if (word) void saveRejected(word, word.language);
-        void advance();
-      }
-    },
-    [advancing, exiting, advance, word, saveRejected]
-  );
-
   // Tinder Action Button Press Handlers
   const handleRewind = useCallback(async () => {
     if (historyStack.length === 0 || advancing) return;
@@ -593,15 +526,6 @@ export default function WordFeed() {
           part_of_speech: prevWord.partOfSpeech,
           image_url: prevWord.imageUrls ? JSON.stringify(prevWord.imageUrls) : prevWord.imageUrl,
           created_at: new Date().toISOString(),
-          kanji: prevWord.kanji,
-          hiragana: prevWord.hiragana,
-          romaji: prevWord.romaji,
-          korean: prevWord.korean,
-          reading: prevWord.reading,
-          romanization: prevWord.romanization,
-          english: prevWord.english,
-          hanzi: prevWord.hanzi,
-          pinyin: prevWord.pinyin,
           word: prevWord.word,
           ipa: prevWord.ipa,
         });
@@ -684,28 +608,33 @@ export default function WordFeed() {
     );
   }
 
-  // Dynamic card transforms
-  let transformStyle = "";
-  if (isDragging) {
-    transformStyle = `translate(${dragX}px, ${dragY}px) rotate(${dragX * 0.04}deg) scale(0.98)`;
-  } else if (exiting) {
-    if (exitingDirection === 'right') {
-      transformStyle = `translate(600px, ${dragY}px) rotate(20deg) scale(0.95)`;
-    } else if (exitingDirection === 'left') {
-      transformStyle = `translate(-600px, ${dragY}px) rotate(-20deg) scale(0.95)`;
-    } else if (exitingDirection === 'up') {
-      transformStyle = `translate(${dragX}px, -800px) rotate(${dragX * 0.04}deg) scale(0.95)`;
-    } else {
-      transformStyle = `translate(0px, 0px) rotate(0deg) scale(1)`;
-    }
-  } else {
-    transformStyle = `translate(${dragX}px, ${dragY}px) rotate(${dragX * 0.04}deg) scale(1)`;
+  // Queue is empty after loading finished with no error: the curated word pool
+  // is exhausted (every word already learned or rejected). Show a completion
+  // state instead of recycling duplicates.
+  if (!word) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+        <Mascot state="happy" size={72} />
+        <p className="text-lg font-bold text-black dark:text-white">เรียนครบทุกคำแล้ว 🎉</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          คุณเรียนคำศัพท์ทั้งหมดในคลังแล้ว เยี่ยมมาก!
+        </p>
+      </div>
+    );
   }
+
+  // Dynamic card transforms
+  const transformStyle = computeCardTransform({
+    isDragging,
+    exiting,
+    exitingDirection,
+    dragX,
+    dragY,
+  });
 
   return (
     <div
       className="relative flex flex-1 flex-col px-4 overflow-hidden items-center justify-center min-h-0 w-full"
-      onWheel={handleWheel}
     >
       {contextHolder}
       <style>{`
@@ -779,15 +708,6 @@ export default function WordFeed() {
               ข้ามคำนี้ ➔
             </div>
           )}
-          {dragY < -20 && Math.abs(dragY) > Math.abs(dragX) && (
-            <div 
-              className="absolute top-6 left-1/2 -translate-x-1/2 z-30 border-3 border-black bg-[#FF85C0] text-white font-black px-4 py-2 rounded-xl text-sm uppercase tracking-wider shadow-nb-sm pointer-events-none select-none"
-              style={{ opacity: Math.min(1, (-dragY - 20) / 80) }}
-            >
-              ถัดไป ⬆
-            </div>
-          )}
-
           <WordCard
             word={word}
             activeImageIndex={activeImageIndex}
@@ -842,6 +762,16 @@ export default function WordFeed() {
             >
               <SoundOutlined style={{ fontSize: 18 }} />
             </button>
+
+            {/* 5. Word Detail Button */}
+            <button
+              type="button"
+              onClick={openWordDetail}
+              className="flex h-11 w-11 items-center justify-center rounded-full border-3 border-black bg-[#52C41A] text-white shadow-nb-sm transition-all hover:scale-105 active:translate-y-[2px] active:shadow-[1px_1px_0_#000] cursor-pointer"
+              aria-label="รายละเอียดคำ"
+            >
+              <BookOutlined style={{ fontSize: 18 }} />
+            </button>
           </div>
           </div>
         </div>
@@ -871,6 +801,7 @@ export default function WordFeed() {
           <p className="text-sm text-accent-red font-bold">{error}</p>
         </div>
       )}
+
     </div>
   );
 }
