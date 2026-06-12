@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import ChatInput, { type ChatInputProps } from './ChatInput';
-import type { SavedWord } from '../_lib/types';
+import ChatInput, { type ChatInputProps } from '../ChatInput';
+import type { SavedWord } from '../../_lib/types';
 
 const defaultProps: ChatInputProps = {
   onSend: vi.fn(),

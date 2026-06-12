@@ -3,7 +3,7 @@ import {
   CHARACTER_RANGES,
   extractWordsForLanguage,
   detectTextLanguage,
-} from './languageDetection';
+} from '../languageDetection';
 
 describe('languageDetection', () => {
   describe('CHARACTER_RANGES', () => {

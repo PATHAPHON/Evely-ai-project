@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { validateSessionConfig } from './validateSessionConfig';
-import type { SessionConfig } from './types';
+import { validateSessionConfig } from '../validateSessionConfig';
+import type { SessionConfig } from '../types';
 
 const validConfig: SessionConfig = {
   topic: 'Korean food',

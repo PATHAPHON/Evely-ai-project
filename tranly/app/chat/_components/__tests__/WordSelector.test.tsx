@@ -1,7 +1,14 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import WordSelector from "./WordSelector";
-import type { SavedWord } from "../_lib/types";
+import WordSelector from "../WordSelector";
+import type { SavedWord } from "../../_lib/types";
+
+vi.mock("@/app/_lib/useLanguagePreference", () => ({
+  useLanguagePreference: () => ({
+    language: "thai",
+    setLanguage: vi.fn(),
+  }),
+}));
 
 function makeWord(id: string, korean = `단어${id}`): SavedWord {
   return {

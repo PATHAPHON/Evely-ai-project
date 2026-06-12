@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateTopic } from './validateTopic';
+import { validateTopic } from '../validateTopic';
 
 describe('validateTopic', () => {
   it('accepts a topic with trimmed length of 2 characters', () => {

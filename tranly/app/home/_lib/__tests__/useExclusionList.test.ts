@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useExclusionList } from './useExclusionList';
+import { useExclusionList } from '../useExclusionList';
 
 let mockWords: any[] = [];
 let mockFeedWords: any[] = [];
@@ -61,10 +61,10 @@ describe('useExclusionList', () => {
     expect(exclusionList).toEqual([]);
   });
 
-  it('returns korean words from the words store (scanned)', async () => {
+  it('returns words from the words store (scanned)', async () => {
     seedWordsStore([
-      { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
-      { id: '2', korean: '바นานา', label: 'banana', createdAt: 2, imageBlob: new Blob() },
+      { id: '1', word: 'apple', english: 'apple', label: 'แอปเปิ้ล', createdAt: 1, imageBlob: new Blob() },
+      { id: '2', word: 'banana', english: 'banana', label: 'กล้วย', createdAt: 2, imageBlob: new Blob() },
     ]);
 
     const { result } = renderHook(() => useExclusionList());
@@ -74,15 +74,15 @@ describe('useExclusionList', () => {
       exclusionList = await result.current.getExclusionList();
     });
 
-    expect(exclusionList).toContain('사과');
-    expect(exclusionList).toContain('바นานา');
+    expect(exclusionList).toContain('apple');
+    expect(exclusionList).toContain('banana');
     expect(exclusionList).toHaveLength(2);
   });
 
-  it('returns korean words from the feed-words store (generated)', async () => {
+  it('returns words from the feed-words store (generated)', async () => {
     seedFeedWordsStore([
-      { id: '1', korean: '고양이', reading: 'โกยางอี', romanization: 'goyangi', english: 'cat', thai: 'แมว', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
-      { id: '2', korean: '강าจี', reading: 'คังอาจี', romanization: 'gangaji', english: 'dog', thai: 'สุนัข', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 2 },
+      { id: '1', word: 'cat', ipa: '/kæt/', english: 'cat', thai: 'แมว', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
+      { id: '2', word: 'dog', ipa: '/dɔːɡ/', english: 'dog', thai: 'สุนัข', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 2 },
     ]);
 
     const { result } = renderHook(() => useExclusionList());
@@ -92,17 +92,17 @@ describe('useExclusionList', () => {
       exclusionList = await result.current.getExclusionList();
     });
 
-    expect(exclusionList).toContain('고양이');
-    expect(exclusionList).toContain('강าจี');
+    expect(exclusionList).toContain('cat');
+    expect(exclusionList).toContain('dog');
     expect(exclusionList).toHaveLength(2);
   });
 
   it('combines words from both stores', async () => {
     seedWordsStore([
-      { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
+      { id: '1', word: 'apple', english: 'apple', label: 'แอปเปิ้ล', createdAt: 1, imageBlob: new Blob() },
     ]);
     seedFeedWordsStore([
-      { id: '2', korean: '고양이', reading: 'โกยางอี', romanization: 'goyangi', english: 'cat', thai: 'แมว', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
+      { id: '2', word: 'cat', ipa: '/kæt/', english: 'cat', thai: 'แมว', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
     ]);
 
     const { result } = renderHook(() => useExclusionList());
@@ -112,17 +112,17 @@ describe('useExclusionList', () => {
       exclusionList = await result.current.getExclusionList();
     });
 
-    expect(exclusionList).toContain('사과');
-    expect(exclusionList).toContain('고양이');
+    expect(exclusionList).toContain('apple');
+    expect(exclusionList).toContain('cat');
     expect(exclusionList).toHaveLength(2);
   });
 
   it('deduplicates words that appear in both stores', async () => {
     seedWordsStore([
-      { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
+      { id: '1', word: 'apple', english: 'apple', label: 'แอปเปิ้ล', createdAt: 1, imageBlob: new Blob() },
     ]);
     seedFeedWordsStore([
-      { id: '2', korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
+      { id: '2', word: 'apple', ipa: '/ˈæpəl/', english: 'apple', thai: 'แอปเปิ้ล', generatedDate: '2024-01-01', bookmarked: false, imageBlob: null, createdAt: 1 },
     ]);
 
     const { result } = renderHook(() => useExclusionList());
@@ -132,13 +132,13 @@ describe('useExclusionList', () => {
       exclusionList = await result.current.getExclusionList();
     });
 
-    expect(exclusionList).toEqual(['사과']);
+    expect(exclusionList).toEqual(['apple']);
   });
 
-  it('skips words store records without korean field', async () => {
+  it('skips words store records without word field', async () => {
     seedWordsStore([
-      { id: '1', korean: '사과', label: 'apple', createdAt: 1, imageBlob: new Blob() },
-      { id: '2', korean: undefined, label: 'unknown', createdAt: 2, imageBlob: new Blob() },
+      { id: '1', word: 'apple', english: 'apple', label: 'แอปเปิ้ล', createdAt: 1, imageBlob: new Blob() },
+      { id: '2', word: undefined, english: undefined, label: 'unknown', createdAt: 2, imageBlob: new Blob() },
     ]);
 
     const { result } = renderHook(() => useExclusionList());
@@ -148,6 +148,6 @@ describe('useExclusionList', () => {
       exclusionList = await result.current.getExclusionList();
     });
 
-    expect(exclusionList).toEqual(['사과']);
+    expect(exclusionList).toEqual(['apple']);
   });
 });

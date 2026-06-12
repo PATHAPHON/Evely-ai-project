@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { shouldFetchToday } from './shouldFetchToday';
-import type { TargetLanguage } from '@/app/_lib/wordTypes';
+import { shouldFetchToday } from '../shouldFetchToday';
+
 
 let mockFeedWords: any[] = [];
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
