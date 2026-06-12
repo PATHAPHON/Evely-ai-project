@@ -17,16 +17,19 @@ import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import { trimTransparentPixels, resizeImage } from '@/app/_lib/imageUtils';
 
-import { useLanguagePreference } from '@/app/_lib/useLanguagePreference';
 import {
   extractWordsForLanguage,
   detectTextLanguage,
 } from '../_lib/languageDetection';
 import { saveCaptureRecord } from '../_lib/saveCapture';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
-import type { SaveWordInput } from '@/app/learn/_lib/useWordStorage';
-import type { ChatSuccessResponse } from '@/app/chat/_lib/types';
 import ScanLoadingMascot, { type ScanPhase } from './_components/ScanLoadingMascot';
+import {
+  extractAllTextFromResponse,
+  filterMeaningfulWords,
+  enrichWord,
+  buildSaveInputFromResponse,
+} from './_lib/wordExtraction';
 
 /** Maximum number of words to display from a scan */
 const MAX_WORDS = 50;
@@ -34,9 +37,6 @@ const MAX_WORDS = 50;
 /** Language display names for UI messages */
 const LANGUAGE_NAMES: Record<TargetLanguage, string> = {
   english: 'English',
-  japanese: '日本語',
-  korean: '한국어',
-  chinese: '中文',
 };
 
 /**
@@ -49,8 +49,7 @@ const LANGUAGE_NAMES: Record<TargetLanguage, string> = {
 export default function PreviewPage() {
   const router = useRouter();
   const { activeLanguage } = useActiveLanguage();
-  const { language } = useLanguagePreference();
-  const isThai = language === 'thai';
+
 
   const { save } = useWordStorage();
 
@@ -203,8 +202,7 @@ export default function PreviewPage() {
 
         // Extract words matching the active language's character set
         const words = filterMeaningfulWords(
-          extractWordsForLanguage(allText, activeLanguage),
-          activeLanguage
+          extractWordsForLanguage(allText, activeLanguage)
         );
         const uniqueWords = [...new Set(words)].slice(0, MAX_WORDS);
 
@@ -308,7 +306,7 @@ export default function PreviewPage() {
       setSaveSuccess(true);
       setTimeout(() => {
         clearCapturedImage();
-        router.push('/learn');
+        router.push('/words');
       }, 1000);
     } catch (err) {
       const message =
@@ -362,7 +360,7 @@ export default function PreviewPage() {
       const blobToSave = (isBgRemovalEnabled && bgRemovedBlob) ? bgRemovedBlob : blob;
       await save(blobToSave, saveInput);
       clearCapturedImage();
-      router.push('/learn');
+      router.push('/words');
     } catch {
       setSaveError(ERROR_MESSAGES.network_error);
       setIsSaving(false);
@@ -576,111 +574,5 @@ export default function PreviewPage() {
       </div>
     </div>
   );
-}
-
-/**
- * Extracts the target-language text from an identify response for word
- * extraction. Pronunciation/romanization fields (ipa, romaji, romanization,
- * pinyin) are intentionally excluded — they are written in Latin letters and
- * would otherwise fragment into spurious single-letter "words" (e.g. the IPA
- * "/ˈpɜːr.sən/" yielding p, r, s, n) when extracting English.
- */
-function extractAllTextFromResponse(data: IdentifySuccessResponse): string {
-  const parts: string[] = [data.label || ''];
-
-  if ('korean' in data) {
-    parts.push(data.korean || '');
-  }
-  if ('kanji' in data) {
-    parts.push(data.kanji || '', data.hiragana || '');
-  }
-  if ('hanzi' in data) {
-    parts.push(data.hanzi || '');
-  }
-  if ('word' in data) {
-    parts.push(data.word || '');
-  }
-
-  return parts.join(' ');
-}
-
-/** Single-letter English words that are meaningful on their own. */
-const VALID_SINGLE_LETTERS = new Set(['a', 'i']);
-
-/**
- * Drops spurious single-character fragments from extracted English words while
- * keeping real one-letter words ("a", "i"). CJK words are left untouched since
- * a single character is a valid word there.
- */
-function filterMeaningfulWords(words: string[], language: TargetLanguage): string[] {
-  if (language !== 'english') return words;
-  return words.filter(
-    (w) => w.length > 1 || VALID_SINGLE_LETTERS.has(w.toLowerCase())
-  );
-}
-
-/**
- * Enriches a single scanned word into a SaveWordInput by asking /api/translate
- * for its reading, romanization and translation. On any failure it falls back
- * to a minimal record that keeps the word visible and pronounceable.
- */
-async function enrichWord(
-  word: string,
-  headers: Record<string, string>
-): Promise<SaveWordInput> {
-  const fallback: SaveWordInput = { label: word, korean: word };
-  try {
-    const response = await fetch('/api/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify({ text: word }),
-    });
-    if (!response.ok) return fallback;
-    const data: ChatSuccessResponse = await response.json();
-    return {
-      label: data.translation || word,
-      korean: data.korean || word,
-      reading: data.reading || undefined,
-      romanization: data.romanization || undefined,
-      english: data.english || undefined,
-    };
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * Builds a save input object from the identify response for legacy mode.
- */
-function buildSaveInputFromResponse(data: IdentifySuccessResponse): { label: string; korean?: string; reading?: string; romanization?: string; english?: string } {
-  if ('korean' in data) {
-    return {
-      label: data.label || data.korean || data.english || '',
-      korean: data.korean,
-      reading: data.reading,
-      romanization: data.romanization,
-      english: data.english,
-    };
-  }
-  if ('kanji' in data) {
-    return {
-      label: data.label || data.kanji || data.english || '',
-      english: data.english,
-    };
-  }
-  if ('hanzi' in data) {
-    return {
-      label: data.label || data.hanzi || data.english || '',
-      english: data.english,
-    };
-  }
-  // English response
-  if ('word' in data) {
-    return {
-      label: data.label || data.word || '',
-      english: data.word,
-    };
-  }
-  return { label: data.label || '' };
 }
 
