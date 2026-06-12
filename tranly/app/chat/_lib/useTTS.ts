@@ -16,7 +16,7 @@ export interface UseTTSReturn {
   error: string | null;
 }
 
-const DEFAULT_LANG: SpeechLang = 'ko-KR';
+const DEFAULT_LANG: SpeechLang = 'en-US';
 const ERROR_MESSAGE = 'ไม่สามารถเล่นเสียงได้';
 
 export function useTTS(

@@ -4,6 +4,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ActiveLanguageProvider } from '../_lib/ActiveLanguageContext';
 import { GemsProvider } from '../_lib/GemsContext';
+import { WordStatusProvider } from './WordStatusProvider';
+import { ToastProvider } from './Toast';
 import { supabase } from '../_lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
@@ -69,7 +71,15 @@ export default function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <GemsProvider>
-      <ActiveLanguageProvider>{children}</ActiveLanguageProvider>
+      <ActiveLanguageProvider>
+        <ToastProvider>
+          {session ? (
+            <WordStatusProvider>{children}</WordStatusProvider>
+          ) : (
+            children
+          )}
+        </ToastProvider>
+      </ActiveLanguageProvider>
     </GemsProvider>
   );
 }

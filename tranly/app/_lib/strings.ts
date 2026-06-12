@@ -17,7 +17,7 @@ export interface UIStrings {
     tabAI: string;
     tabLibrary: string;
     tabAIScan: string;
-    tabTopik: string;
+    tabExam: string;
     tabProfile: string;
     tabMore: string;
     loading: string;
@@ -82,6 +82,11 @@ export interface UIStrings {
     account: string;
     accountItem: string;
     accountDesc: string;
+    badgeMember: string;
+    badgeGuest: string;
+    billing: string;
+    usage: string;
+    voice: string;
     /** Edit-profile form. */
     changePhoto: string;
     displayNameLabel: string;
@@ -132,13 +137,29 @@ export interface UIStrings {
   chat: {
     navLockedHint: string;
   };
-  topik: {
+  drawer: {
+    newChat: string;
+    navChat: string;
+    navHome: string;
+    navWords: string;
+    recent: string;
+    untitledChat: string;
+    settingsAria: string;
+  };
+  exam: {
     title: string;
     selectType: string;
-    topik1Label: string;
-    topik1Desc: string;
-    topik2Label: string;
-    topik2Desc: string;
+    cefrTitle: string;
+    cefrDesc: string;
+    toeicTitle: string;
+    toeicDesc: string;
+    toeicEasy: string;
+    toeicMedium: string;
+    toeicHard: string;
+    reviewTitle: string;
+    reviewDesc: (n: number) => string;
+    reviewStart: string;
+    generating: string;
     reading: string;
     listening: string;
     questionOf: (n: number, total: number) => string;
@@ -146,26 +167,25 @@ export interface UIStrings {
     replayAudio: string;
     next: string;
     submit: string;
+    finish: string;
+    correct: string;
+    incorrect: string;
+    explainBtn: string;
+    explaining: string;
+    explainError: string;
     scoreTitle: string;
     scoreTotal: (correct: number, total: number) => string;
     readingScore: string;
     listeningScore: string;
-    correct: string;
-    incorrect: string;
     retry: string;
     changeType: string;
-    backToSelection: string;
-    startExam: string;
-    filterAll: string;
-    filterTopik1: string;
-    filterTopik2: string;
-    setName: (n: number) => string;
-    difficultyBeginner: string;
-    difficultyIntermediate: string;
-    difficultyAdvanced: string;
-    questionsCount: (count: number) => string;
-    examPageBack: string;
-    progress: (current: number, total: number) => string;
+    stagesTab: string;
+    toeicTab: string;
+    start: string;
+    stageLocked: string;
+    bestScore: (correct: number, total: number) => string;
+    backToPath: string;
+    levelHeading: (level: string) => string;
   };
   auth: {
     loginTitle: string;
@@ -208,7 +228,7 @@ const en: UIStrings = {
     tabAI: 'AI',
     tabLibrary: 'Library',
     tabAIScan: 'Evely',
-    tabTopik: 'TOPIK',
+    tabExam: 'Exam',
     tabProfile: 'Profile',
     tabMore: 'More',
     loading: 'Loading...',
@@ -272,6 +292,11 @@ const en: UIStrings = {
     account: 'Account',
     accountItem: 'Account & Profile',
     accountDesc: 'Manage your personal info',
+    badgeMember: 'Member',
+    badgeGuest: 'Guest',
+    billing: 'Billing',
+    usage: 'Usage',
+    voice: 'Voice',
     changePhoto: 'Change photo',
     displayNameLabel: 'Display name',
     handleLabel: 'Username',
@@ -325,13 +350,29 @@ const en: UIStrings = {
   chat: {
     navLockedHint: 'Finish or end this session first',
   },
-  topik: {
-    title: 'TOPIK Practice',
-    selectType: 'Select Exam Level',
-    topik1Label: 'TOPIK I (Beginner)',
-    topik1Desc: 'Levels 1-2',
-    topik2Label: 'TOPIK II (Intermediate-Advanced)',
-    topik2Desc: 'Levels 3-6',
+  drawer: {
+    newChat: 'New chat',
+    navChat: 'Chat',
+    navHome: 'Home',
+    navWords: 'Words',
+    recent: 'Recent',
+    untitledChat: 'General chat',
+    settingsAria: 'Settings',
+  },
+  exam: {
+    title: 'English Exam Practice',
+    selectType: 'Choose Exam Type & Level',
+    cefrTitle: 'CEFR',
+    cefrDesc: 'General English by level',
+    toeicTitle: 'TOEIC',
+    toeicDesc: 'Workplace & business English',
+    toeicEasy: 'Easy',
+    toeicMedium: 'Medium',
+    toeicHard: 'Hard',
+    reviewTitle: 'Review Mistakes',
+    reviewDesc: (n) => `${n} saved questions`,
+    reviewStart: 'Start Review',
+    generating: 'Generating your exam...',
     reading: 'Reading',
     listening: 'Listening',
     questionOf: (n: number, total: number) => `Question ${n}/${total}`,
@@ -339,26 +380,25 @@ const en: UIStrings = {
     replayAudio: 'Replay Audio',
     next: 'Next',
     submit: 'Submit',
+    finish: 'See Results',
+    correct: 'Correct',
+    incorrect: 'Incorrect',
+    explainBtn: 'Why? (AI explains)',
+    explaining: 'Generating explanation...',
+    explainError: 'Failed to load explanation',
     scoreTitle: 'Your Score',
     scoreTotal: (correct: number, total: number) => `${correct}/${total}`,
     readingScore: 'Reading Score',
     listeningScore: 'Listening Score',
-    correct: 'Correct',
-    incorrect: 'Incorrect',
     retry: 'Try Again',
     changeType: 'Change Level',
-    backToSelection: 'Back to Selection',
-    startExam: 'Start Exam',
-    filterAll: 'All',
-    filterTopik1: 'TOPIK I',
-    filterTopik2: 'TOPIK II',
-    setName: (n) => `Mock Exam ${n}`,
-    difficultyBeginner: 'Beginner',
-    difficultyIntermediate: 'Intermediate',
-    difficultyAdvanced: 'Advanced',
-    questionsCount: (n) => `${n} questions`,
-    examPageBack: 'Back',
-    progress: (current, total) => `${current}/${total}`,
+    stagesTab: 'Stages',
+    toeicTab: 'TOEIC',
+    start: 'START',
+    stageLocked: 'Complete the previous stage to unlock',
+    bestScore: (correct: number, total: number) => `Best ${correct}/${total}`,
+    backToPath: 'Back to Stages',
+    levelHeading: (level: string) => `Level ${level}`,
   },
   auth: {
     loginTitle: 'Welcome Back',
@@ -401,7 +441,7 @@ const th: UIStrings = {
     tabAI: 'AI',
     tabLibrary: 'คลังข้อมูล',
     tabAIScan: 'Evely',
-    tabTopik: 'TOPIK',
+    tabExam: 'ข้อสอบ',
     tabProfile: 'โปรไฟล์',
     tabMore: 'เพิ่มเติม',
     loading: 'กำลังโหลด...',
@@ -465,6 +505,11 @@ const th: UIStrings = {
     account: 'บัญชี',
     accountItem: 'บัญชีและโปรไฟล์',
     accountDesc: 'จัดการข้อมูลส่วนตัว',
+    badgeMember: 'สมาชิก',
+    badgeGuest: 'ผู้ใช้ทั่วไป',
+    billing: 'การเรียกเก็บเงิน',
+    usage: 'การใช้งาน',
+    voice: 'เสียง',
     changePhoto: 'เปลี่ยนรูปโปรไฟล์',
     displayNameLabel: 'ชื่อที่แสดง',
     handleLabel: 'ชื่อผู้ใช้',
@@ -517,13 +562,29 @@ const th: UIStrings = {
   chat: {
     navLockedHint: 'เรียนหรือสนทนาให้จบ หรือกดสิ้นสุดก่อน',
   },
-  topik: {
-    title: 'ฝึกทำข้อสอบ TOPIK',
-    selectType: 'เลือกระดับข้อสอบ',
-    topik1Label: 'TOPIK I (ระดับต้น)',
-    topik1Desc: 'ระดับ 1-2',
-    topik2Label: 'TOPIK II (ระดับกลาง-สูง)',
-    topik2Desc: 'ระดับ 3-6',
+  drawer: {
+    newChat: 'แชทใหม่',
+    navChat: 'แชทหลัก',
+    navHome: 'หน้าหลัก',
+    navWords: 'คลังคำศัพท์',
+    recent: 'ล่าสุด',
+    untitledChat: 'คุยทั่วไป',
+    settingsAria: 'ตั้งค่า',
+  },
+  exam: {
+    title: 'ฝึกทำข้อสอบภาษาอังกฤษ',
+    selectType: 'เลือกประเภทและระดับข้อสอบ',
+    cefrTitle: 'CEFR',
+    cefrDesc: 'ภาษาอังกฤษทั่วไปตามระดับ',
+    toeicTitle: 'TOEIC',
+    toeicDesc: 'ภาษาอังกฤษเพื่อการทำงาน',
+    toeicEasy: 'ง่าย',
+    toeicMedium: 'กลาง',
+    toeicHard: 'ยาก',
+    reviewTitle: 'ทบทวนข้อที่ผิด',
+    reviewDesc: (n) => `เก็บไว้ ${n} ข้อ`,
+    reviewStart: 'เริ่มทบทวน',
+    generating: 'กำลังสร้างข้อสอบ...',
     reading: 'การอ่าน',
     listening: 'การฟัง',
     questionOf: (n: number, total: number) => `ข้อ ${n}/${total}`,
@@ -531,26 +592,25 @@ const th: UIStrings = {
     replayAudio: 'เล่นเสียงอีกครั้ง',
     next: 'ข้อถัดไป',
     submit: 'ส่งคำตอบ',
+    finish: 'ดูผลคะแนน',
+    correct: 'ถูกต้อง!',
+    incorrect: 'ยังไม่ถูก',
+    explainBtn: 'ทำไม? (ให้ AI อธิบาย)',
+    explaining: 'กำลังสร้างคำอธิบาย...',
+    explainError: 'โหลดคำอธิบายไม่สำเร็จ',
     scoreTitle: 'ผลคะแนน',
     scoreTotal: (correct: number, total: number) => `${correct}/${total}`,
     readingScore: 'คะแนนอ่าน',
     listeningScore: 'คะแนนฟัง',
-    correct: 'ถูก',
-    incorrect: 'ผิด',
     retry: 'ทำใหม่',
     changeType: 'เปลี่ยนระดับ',
-    backToSelection: 'กลับไปเลือกระดับ',
-    startExam: 'เริ่มทำข้อสอบ',
-    filterAll: 'ทั้งหมด',
-    filterTopik1: 'TOPIK I',
-    filterTopik2: 'TOPIK II',
-    setName: (n) => `ข้อสอบจำลอง ${n}`,
-    difficultyBeginner: 'ระดับต้น',
-    difficultyIntermediate: 'ระดับกลาง',
-    difficultyAdvanced: 'ระดับสูง',
-    questionsCount: (n) => `${n} ข้อ`,
-    examPageBack: 'กลับ',
-    progress: (current, total) => `${current}/${total}`,
+    stagesTab: 'ด่าน',
+    toeicTab: 'TOEIC',
+    start: 'เริ่ม',
+    stageLocked: 'เล่นด่านก่อนหน้าให้จบเพื่อปลดล็อก',
+    bestScore: (correct: number, total: number) => `สูงสุด ${correct}/${total}`,
+    backToPath: 'กลับไปหน้าด่าน',
+    levelHeading: (level: string) => `ระดับ ${level}`,
   },
   auth: {
     loginTitle: 'ยินดีต้อนรับกลับมา',

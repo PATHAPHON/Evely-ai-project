@@ -1,5 +1,5 @@
-import { render, screen, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   ActiveLanguageProvider,
   useActiveLanguage,
@@ -34,15 +34,10 @@ vi.mock('@/app/_lib/supabaseClient', () => ({
 }));
 
 function TestConsumer() {
-  const { activeLanguage, setActiveLanguage, switchError, clearSwitchError } =
-    useActiveLanguage();
+  const { activeLanguage } = useActiveLanguage();
   return (
     <div>
       <span data-testid="language">{activeLanguage}</span>
-      <span data-testid="error">{switchError ?? ''}</span>
-      <button onClick={() => setActiveLanguage('japanese')}>Switch to Japanese</button>
-      <button onClick={() => setActiveLanguage('english')}>Switch to English</button>
-      <button onClick={clearSwitchError}>Clear Error</button>
     </div>
   );
 }
@@ -57,11 +52,7 @@ describe('ActiveLanguageContext', () => {
     mockLimit.mockResolvedValue({ error: null });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('defaults to korean when no value in localStorage', () => {
+  it('defaults to english when no value in localStorage', () => {
     render(
       <ActiveLanguageProvider>
         <TestConsumer />
@@ -70,37 +61,24 @@ describe('ActiveLanguageContext', () => {
     expect(screen.getByTestId('language').textContent).toBe(DEFAULT_LANGUAGE);
   });
 
-  it('reads persisted value from localStorage on mount', () => {
-    localStorage.setItem(STORAGE_KEY, 'japanese');
+  it('reads persisted value from localStorage on mount if valid', () => {
+    localStorage.setItem(STORAGE_KEY, 'english');
     render(
       <ActiveLanguageProvider>
         <TestConsumer />
       </ActiveLanguageProvider>
     );
-    expect(screen.getByTestId('language').textContent).toBe('japanese');
+    expect(screen.getByTestId('language').textContent).toBe('english');
   });
 
-  it('persists selection to localStorage when setActiveLanguage is called', () => {
-    render(
-      <ActiveLanguageProvider>
-        <TestConsumer />
-      </ActiveLanguageProvider>
-    );
-    act(() => {
-      screen.getByText('Switch to Japanese').click();
-    });
-    expect(screen.getByTestId('language').textContent).toBe('japanese');
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('japanese');
-  });
-
-  it('ignores invalid values in localStorage and defaults to korean', () => {
+  it('ignores invalid values in localStorage and defaults to english', () => {
     localStorage.setItem(STORAGE_KEY, 'invalid-language');
     render(
       <ActiveLanguageProvider>
         <TestConsumer />
       </ActiveLanguageProvider>
     );
-    expect(screen.getByTestId('language').textContent).toBe('korean');
+    expect(screen.getByTestId('language').textContent).toBe('english');
   });
 
   it('throws when useActiveLanguage is used outside provider', () => {
@@ -108,98 +86,5 @@ describe('ActiveLanguageContext', () => {
       'useActiveLanguage must be used within an ActiveLanguageProvider'
     );
   });
-
-  describe('error handling and rollback', () => {
-    it('reverts to previous language and shows error when database query fails', async () => {
-      mockLimit.mockResolvedValueOnce({ error: new Error('Database error') });
-
-      render(
-        <ActiveLanguageProvider>
-          <TestConsumer />
-        </ActiveLanguageProvider>
-      );
-
-      // Initial state is korean
-      expect(screen.getByTestId('language').textContent).toBe('korean');
-
-      act(() => {
-        screen.getByText('Switch to Japanese').click();
-      });
-
-      // Optimistically shows japanese
-      expect(screen.getByTestId('language').textContent).toBe('japanese');
-
-      // Wait for the async probe to fail and rollback
-      await waitFor(() => {
-        expect(screen.getByTestId('language').textContent).toBe('korean');
-      });
-
-      // Error message should be set
-      await waitFor(() => {
-        expect(screen.getByTestId('error').textContent).toContain(
-          'Language switch failed'
-        );
-      });
-
-      // localStorage should be reverted
-      expect(localStorage.getItem(STORAGE_KEY)).toBe('korean');
-    });
-
-    it('does not revert language when data load is slow (no timeout rollback)', async () => {
-      vi.useFakeTimers();
-
-      mockLimit.mockImplementationOnce(
-        () => new Promise((resolve) => setTimeout(() => resolve({ error: null }), 2000))
-      );
-
-      render(
-        <ActiveLanguageProvider>
-          <TestConsumer />
-        </ActiveLanguageProvider>
-      );
-
-      expect(screen.getByTestId('language').textContent).toBe('korean');
-
-      act(() => {
-        screen.getByText('Switch to Japanese').click();
-      });
-
-      // Optimistically shows japanese
-      expect(screen.getByTestId('language').textContent).toBe('japanese');
-
-      // Advance past a hypothetical timeout
-      await act(async () => {
-        vi.advanceTimersByTime(1010);
-      });
-
-      // Should still show japanese
-      expect(screen.getByTestId('language').textContent).toBe('japanese');
-      expect(screen.getByTestId('error').textContent).toBe('');
-      expect(localStorage.getItem(STORAGE_KEY)).toBe('japanese');
-    });
-
-    it('clearSwitchError clears the error message', async () => {
-      mockLimit.mockResolvedValueOnce({ error: new Error('fail') });
-
-      render(
-        <ActiveLanguageProvider>
-          <TestConsumer />
-        </ActiveLanguageProvider>
-      );
-
-      act(() => {
-        screen.getByText('Switch to Japanese').click();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('error').textContent).not.toBe('');
-      });
-
-      act(() => {
-        screen.getByText('Clear Error').click();
-      });
-
-      expect(screen.getByTestId('error').textContent).toBe('');
-    });
-  });
 });
+

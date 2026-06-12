@@ -21,14 +21,14 @@ export default function ThemeToggle() {
         type="button"
         onClick={toggleTheme}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        className="relative w-[72px] h-[38px] rounded-full border-3 border-border-color shadow-nb-sm transition-colors duration-200 cursor-pointer bg-[#F0F0F0] dark:bg-[#2d2d44]"
+        className="relative w-[60px] h-[30px] rounded-full border border-gray-200 dark:border-gray-800 transition-colors duration-200 cursor-pointer bg-[#F0F0F0] dark:bg-[#2d2d44]"
       >
         {/* Sliding knob */}
         <span
-          className={`absolute top-[3px] w-[28px] h-[28px] rounded-full border-3 border-border-color flex items-center justify-center transition-all duration-200 ${
+          className={`absolute top-[2px] w-[24px] h-[24px] rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
             isDark
-              ? 'left-[37px] bg-[#1a1a2e]'
-              : 'left-[3px] bg-[#FAAD14]'
+              ? 'left-[32px] bg-[#1a1a2e]'
+              : 'left-[2px] bg-[#FAAD14]'
           }`}
         >
           {isDark ? (

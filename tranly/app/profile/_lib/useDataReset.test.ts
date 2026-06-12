@@ -11,7 +11,7 @@ const mockRemove = vi.fn().mockResolvedValue({ error: null });
 
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
 
-const mockFrom = vi.fn((table: string) => {
+const mockFrom = vi.fn(() => {
   return {
     delete: mockDelete,
     update: mockUpdate,
@@ -19,7 +19,7 @@ const mockFrom = vi.fn((table: string) => {
   };
 });
 
-const mockStorageFrom = vi.fn((bucket: string) => {
+const mockStorageFrom = vi.fn(() => {
   return {
     list: mockList,
     remove: mockRemove,
@@ -31,9 +31,9 @@ vi.mock('@/app/_lib/supabaseClient', () => ({
     auth: {
       getUser: (...args: any[]) => mockGetUser(...args),
     },
-    from: (...args: any[]) => mockFrom(...args),
+    from: () => mockFrom(),
     storage: {
-      from: (...args: any[]) => mockStorageFrom(...args),
+      from: () => mockStorageFrom(),
     },
   },
 }));

@@ -16,6 +16,8 @@ export function useLanguagePreference() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'thai' || stored === 'english') {
       setLanguageState(stored);
+    } else {
+      setLanguageState('thai');
     }
 
     let active = true;

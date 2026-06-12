@@ -563,16 +563,6 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useWordStatusContext(): WordStatusContextValue {
-  const context = useContext(WordStatusContext);
-  if (!context) {
-    throw new Error(
-      'useWordStatusContext must be used within a WordStatusProvider'
-    );
-  }
-  return context;
-}
 
 export { WordStatusContext };

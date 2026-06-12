@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button, ConfigProvider, Card, Typography, Spin } from "antd";
 import { RocketOutlined, ThunderboltOutlined } from "@ant-design/icons";
-import useIllustrationTheme from "@/app/theme/illustrationTheme";
+import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
 import { useStrings } from "@/app/_lib/strings";
 import { supabase } from "@/app/_lib/supabaseClient";
 
@@ -20,7 +20,7 @@ export default function LandingPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          router.push("/home");
+          router.push("/chat");
         } else {
           router.push("/auth");
         }
@@ -69,7 +69,7 @@ export default function LandingPage() {
               icon={<RocketOutlined />} 
               size="large"
               block
-              onClick={() => router.push("/home")}
+              onClick={() => router.push("/chat")}
               className="mt-4"
             >
               {t.landing.openApp}

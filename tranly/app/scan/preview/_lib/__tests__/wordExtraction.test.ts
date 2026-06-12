@@ -5,7 +5,7 @@ import {
   buildSaveInputFromResponse,
   enrichWord,
 } from "../wordExtraction";
-import type { IdentifySuccessResponse } from "../../../flashcard/_lib/types";
+import type { IdentifySuccessResponse } from "../../../_lib/types";
 
 describe("extractAllTextFromResponse", () => {
   it("joins label and word when word is present", () => {
@@ -65,16 +65,16 @@ describe("enrichWord", () => {
       ok: true,
       json: async () => ({ translation: "แมว", korean: "cat", reading: "แค็ท", english: "cat" }),
     })) as unknown as typeof fetch);
-    expect(await enrichWord("cat", {})).toEqual({ label: "แมว", word: "cat", ipa: "แค็ท", english: "cat" });
+    expect(await enrichWord("cat", {})).toEqual({ label: "แมว", korean: "cat", reading: "แค็ท", english: "cat" });
   });
 
   it("falls back to minimal record on non-ok response", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch);
-    expect(await enrichWord("cat", {})).toEqual({ label: "cat", word: "cat" });
+    expect(await enrichWord("cat", {})).toEqual({ label: "cat", english: "cat" });
   });
 
   it("falls back when fetch throws", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network"); }) as unknown as typeof fetch);
-    expect(await enrichWord("cat", {})).toEqual({ label: "cat", word: "cat" });
+    expect(await enrichWord("cat", {})).toEqual({ label: "cat", english: "cat" });
   });
 });

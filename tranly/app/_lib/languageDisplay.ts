@@ -22,42 +22,6 @@ export interface LanguageDisplay {
 }
 
 export const LANGUAGE_DISPLAY: Record<TargetLanguage, LanguageDisplay> = {
-  korean: {
-    greeting: '안녕하세요',
-    nameTh: 'เกาหลี',
-    nameEn: 'Korean',
-    topicExampleTh: 'อาหารเกาหลี',
-    topicExampleEn: 'Korean food',
-    proficiency: {
-      beginner: 'TOPIK 1-2',
-      intermediate: 'TOPIK 3-4',
-      advanced: 'TOPIK 5-6',
-    },
-  },
-  japanese: {
-    greeting: 'こんにちは',
-    nameTh: 'ญี่ปุ่น',
-    nameEn: 'Japanese',
-    topicExampleTh: 'อาหารญี่ปุ่น',
-    topicExampleEn: 'Japanese food',
-    proficiency: {
-      beginner: 'JLPT N5-N4',
-      intermediate: 'JLPT N3-N2',
-      advanced: 'JLPT N1',
-    },
-  },
-  chinese: {
-    greeting: '你好',
-    nameTh: 'จีน',
-    nameEn: 'Chinese',
-    topicExampleTh: 'อาหารจีน',
-    topicExampleEn: 'Chinese food',
-    proficiency: {
-      beginner: 'HSK 1-2',
-      intermediate: 'HSK 3-4',
-      advanced: 'HSK 5-6',
-    },
-  },
   english: {
     greeting: 'Hello',
     nameTh: 'อังกฤษ',

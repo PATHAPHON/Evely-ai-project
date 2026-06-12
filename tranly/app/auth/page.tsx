@@ -3,19 +3,19 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ConfigProvider } from "antd";
-import useIllustrationTheme from "@/app/theme/illustrationTheme";
+import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
 import { supabase } from "@/app/_lib/supabaseClient";
 import { useStrings } from "@/app/_lib/strings";
 
 const fieldClass =
-  "w-full rounded-xl border-3 border-border-color bg-background px-3.5 py-3 text-[15px] text-text-primary outline-none transition-shadow focus:shadow-nb-sm dark:placeholder-white/40 placeholder-black/40";
+  "w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 px-3.5 py-3 text-[15px] text-text-primary outline-none transition-all focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-[#131314] focus:shadow-sm dark:placeholder-white/40 placeholder-black/40";
 const labelClass =
   "mb-2 block text-xs font-bold uppercase tracking-wide text-text-secondary";
 
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTarget = searchParams.get("redirect") || "/backoffice";
+  const redirectTarget = searchParams.get("redirect") || "/home";
   const t = useStrings();
   const configProps = useIllustrationTheme();
 
@@ -53,7 +53,7 @@ function AuthPageContent() {
     setSuccess(null);
 
     try {
-      const { data, error: loginErr } = await supabase.auth.signInWithPassword({
+      const { error: loginErr } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -62,8 +62,7 @@ function AuthPageContent() {
 
       setSuccess(t.auth.successLogin);
       setTimeout(() => {
-        const target = data.user?.email === 'admin@tranly.com' ? '/backoffice' : redirectTarget;
-        router.push(target);
+        router.push(redirectTarget);
       }, 1200);
     } catch (err: any) {
       console.error("Login error:", err);
@@ -115,8 +114,7 @@ function AuthPageContent() {
         } else {
           setSuccess(t.auth.successLogin);
           setTimeout(() => {
-            const target = updateData.user?.email === 'admin@tranly.com' ? '/backoffice' : redirectTarget;
-            router.push(target);
+            router.push(redirectTarget);
           }, 1200);
         }
       } else {
@@ -131,8 +129,7 @@ function AuthPageContent() {
         if (signUpData.session) {
           setSuccess(t.auth.successLogin);
           setTimeout(() => {
-            const target = signUpData.user?.email === 'admin@tranly.com' ? '/backoffice' : redirectTarget;
-            router.push(target);
+            router.push(redirectTarget);
           }, 1200);
         } else {
           setSuccess(t.auth.successRegister);
@@ -186,7 +183,7 @@ function AuthPageContent() {
     setError(null);
     setSuccess(null);
     try {
-      const { data, error: guestErr } = await supabase.auth.signInAnonymously();
+      const { error: guestErr } = await supabase.auth.signInAnonymously();
       if (guestErr) throw guestErr;
       
       setSuccess(t.auth.successGuest);
@@ -202,22 +199,22 @@ function AuthPageContent() {
 
   return (
     <ConfigProvider {...configProps}>
-      <div className="relative flex min-h-dvh w-full select-none flex-col justify-center dot-grid-bg px-4 py-8 text-foreground font-sans">
+      <div className="relative flex min-h-dvh w-full select-none flex-col justify-center bg-white dark:bg-[#131314] px-4 py-8 text-foreground font-sans">
         
         {/* Decorative elements conforming to reduced motion */}
-        <div className="absolute top-10 left-10 text-text-meta text-opacity-20 font-bold text-7xl select-none pointer-events-none hidden md:block">
+        <div className="absolute top-10 left-10 text-text-meta text-opacity-10 font-bold text-7xl select-none pointer-events-none hidden md:block">
           한
         </div>
-        <div className="absolute bottom-10 right-10 text-text-meta text-opacity-20 font-bold text-7xl select-none pointer-events-none hidden md:block">
+        <div className="absolute bottom-10 right-10 text-text-meta text-opacity-10 font-bold text-7xl select-none pointer-events-none hidden md:block">
           국
         </div>
 
-        <div className="mx-auto w-full max-w-[420px] flex flex-col gap-6">
+        <div className="mx-auto w-full max-w-[400px] flex flex-col gap-6">
           
           {/* Header */}
           <div className="text-center flex flex-col gap-2">
             <h1 
-              className="text-4xl font-black tracking-tight text-text-primary uppercase"
+              className="text-4xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 uppercase"
               style={{ fontFamily: "var(--font-outfit), sans-serif" }}
             >
               Tarnly
@@ -228,23 +225,23 @@ function AuthPageContent() {
           </div>
 
           {/* Form Card */}
-          <div className="rounded-2xl border-3 border-border-color bg-card-bg p-6 shadow-nb-md">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e1f20] p-6 shadow-md">
             
             {/* Guest notice */}
             {isGuest && mode === "register" && (
-              <div className="mb-5 p-3.5 border-3 border-border-color bg-accent-pink-bg text-text-primary rounded-xl text-xs font-bold leading-relaxed">
+              <div className="mb-5 p-3.5 border border-pink-100 dark:border-pink-900/30 bg-pink-50/50 dark:bg-pink-950/20 text-text-primary rounded-xl text-xs font-semibold leading-relaxed">
                 📢 {t.auth.anonymousAccountNotice}
               </div>
             )}
 
             {/* Error & Success States */}
             {error && (
-              <div className="mb-5 p-3.5 border-3 border-accent-red bg-accent-red/15 text-accent-red rounded-xl text-xs font-bold leading-relaxed">
+              <div className="mb-5 p-3.5 border border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-semibold leading-relaxed">
                 ⚠️ {error}
               </div>
             )}
             {success && (
-              <div className="mb-5 p-3.5 border-3 border-accent-green bg-accent-green/15 text-accent-green rounded-xl text-xs font-bold leading-relaxed">
+              <div className="mb-5 p-3.5 border border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-950/20 text-green-600 dark:text-green-400 rounded-xl text-xs font-semibold leading-relaxed">
                 🎉 {success}
               </div>
             )}
@@ -298,7 +295,7 @@ function AuthPageContent() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="mt-2 w-full rounded-xl border-3 border-border-color bg-accent-green py-3 text-sm font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none hover:bg-accent-green/90 transition-transform cursor-pointer uppercase select-none"
+                className="mt-2 w-full rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-bold text-white shadow-sm transition-all active:scale-98 cursor-pointer uppercase select-none"
               >
                 {isLoading ? t.common.loading : (mode === "login" ? t.auth.loginBtn : t.auth.registerBtn)}
               </button>
@@ -306,11 +303,11 @@ function AuthPageContent() {
 
             {/* Divider */}
             <div className="my-5 flex items-center gap-3">
-              <div className="h-[3px] flex-1 bg-border-color/10 dark:bg-border-color/20" />
+              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
               <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary select-none">
                 or
               </span>
-              <div className="h-[3px] flex-1 bg-border-color/10 dark:bg-border-color/20" />
+              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
             </div>
 
             {/* Google Button */}
@@ -318,7 +315,7 @@ function AuthPageContent() {
               type="button"
               disabled={isLoading}
               onClick={handleGoogleLogin}
-              className="flex items-center justify-center gap-3 w-full rounded-xl border-3 border-border-color bg-background py-3 text-sm font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none hover:bg-black/[0.03] dark:hover:bg-white/[0.04] cursor-pointer transition-transform select-none"
+              className="flex items-center justify-center gap-3 w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#1e1f20] py-3 text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all active:scale-98 select-none"
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -334,7 +331,7 @@ function AuthPageContent() {
               type="button"
               disabled={isLoading}
               onClick={handleGuestLogin}
-              className="mt-3 flex items-center justify-center gap-3 w-full rounded-xl border-3 border-border-color bg-accent-yellow py-3 text-sm font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none hover:bg-accent-yellow/90 cursor-pointer transition-transform select-none uppercase"
+              className="mt-3 flex items-center justify-center gap-3 w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#1e1f20] py-3 text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all active:scale-98 select-none uppercase"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <path d="M20 21a8 8 0 0 0-16 0" />
@@ -355,7 +352,7 @@ function AuthPageContent() {
                       setError(null);
                       setSuccess(null);
                     }}
-                    className="text-accent-blue font-extrabold cursor-pointer hover:underline"
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold cursor-pointer hover:underline"
                   >
                     {t.auth.switchToRegister}
                   </button>
@@ -370,7 +367,7 @@ function AuthPageContent() {
                       setError(null);
                       setSuccess(null);
                     }}
-                    className="text-accent-blue font-extrabold cursor-pointer hover:underline"
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold cursor-pointer hover:underline"
                   >
                     {t.auth.switchToLogin}
                   </button>
@@ -385,7 +382,7 @@ function AuthPageContent() {
             <button
               type="button"
               onClick={() => router.push(redirectTarget)}
-              className="flex items-center justify-center gap-2 rounded-xl border-3 border-border-color bg-card-bg py-2.5 text-xs font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none cursor-pointer uppercase transition-transform"
+              className="flex items-center justify-center gap-2 rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#1e1f20] py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-850 cursor-pointer uppercase transition-all active:scale-98"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="19" y1="12" x2="5" y2="12" />
@@ -404,7 +401,7 @@ function AuthPageContent() {
 export default function AuthPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-dvh w-full items-center justify-center dot-grid-bg">
+      <div className="flex h-dvh w-full items-center justify-center bg-white dark:bg-[#131314]">
         <div className="text-sm font-bold text-text-secondary">Loading...</div>
       </div>
     }>

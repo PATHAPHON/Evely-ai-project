@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 import { useConversationHistory } from './useConversationHistory';
 
+import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import type {
   ChatMessage,
   ChatMessagePayload,
@@ -27,6 +28,21 @@ export interface UseConversationSessionReturn {
   isEnded: boolean;
   startSession: (config: SessionConfig) => void;
   endSession: () => Promise<void>;
+  /** Append + persist a plain user message (used by slash skills like /exam). */
+  addUserMessage: (text: string) => Promise<void>;
+  /**
+   * Append + persist a plain assistant message with optional tappable
+   * quick-reply chips. Used by the exam advisor Q&A before generating a test.
+   */
+  addAssistantMessage: (text: string, suggestions?: string[]) => Promise<void>;
+  /** Append + persist an "exam-link" card pointing at a generated exam set. */
+  addExamLinkMessage: (params: {
+    examId: string;
+    topic: string;
+    count: number;
+  }) => Promise<void>;
+  /** Load an existing session's messages and resume sending into it. */
+  restoreSession: (sessionId: string, language: TargetLanguage) => Promise<void>;
 }
 
 export function useConversationSession(): UseConversationSessionReturn {
@@ -39,48 +55,62 @@ export function useConversationSession(): UseConversationSessionReturn {
   const [isEnded, setIsEnded] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
   const createdAtRef = useRef<string | null>(null);
+  // Lazy persistence: the conversations row is created on the first message,
+  // not on session start, so opening /chat never leaves empty sessions behind.
+  const sessionSavedRef = useRef(false);
+  const sessionConfigRef = useRef<SessionConfig | null>(null);
+  // Title persisted for this session (first user message) — reused by later
+  // upserts so they don't overwrite it with the generic config topic.
+  const savedTopicRef = useRef<string | null>(null);
 
-  const { saveSession, saveMessage } = useConversationHistory();
+  const { saveSession, saveMessage, loadSessionMessages } =
+    useConversationHistory();
 
-  const startSession = useCallback(
-    (config: SessionConfig) => {
-      const id = crypto.randomUUID();
-      const createdAt = new Date().toISOString();
-      sessionIdRef.current = id;
-      createdAtRef.current = createdAt;
-      setSessionConfig(config);
-      setMessages([]);
-      setError(null);
-      setIsEnded(false);
+  const startSession = useCallback((config: SessionConfig) => {
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    sessionIdRef.current = id;
+    createdAtRef.current = createdAt;
+    sessionSavedRef.current = false;
+    sessionConfigRef.current = config;
+    savedTopicRef.current = null;
+    setSessionConfig(config);
+    setMessages([]);
+    setError(null);
+    setIsEnded(false);
+  }, []);
 
-      const sessionRecord: ConversationSessionRecord = {
-        id,
-        topic: config.topic,
-        proficiencyLevel: config.proficiencyLevel,
-        wordContext: config.wordContext.map((w) => w.korean),
-        goal: config.goal,
-        createdAt,
-        endedAt: null,
-        completed: false,
-      };
+  // Create the conversations row if it doesn't exist yet (must run before the
+  // first saveMessage — conversation_messages.session_id references it).
+  // The first user message becomes the session title shown in the history list.
+  const ensureSessionSaved = useCallback(async (firstMessageText?: string): Promise<void> => {
+    if (sessionSavedRef.current) return;
+    const config = sessionConfigRef.current;
+    if (!sessionIdRef.current || !config || !createdAtRef.current) return;
 
-      saveSession(sessionRecord).catch((err) => {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'บันทึกเซสชันไม่สำเร็จ กรุณาลองอีกครั้ง';
-        setError(message);
-      });
-    },
-    [saveSession]
-  );
+    const title = firstMessageText?.trim().slice(0, 60) || config.topic;
+    savedTopicRef.current = title;
+    const sessionRecord: ConversationSessionRecord = {
+      id: sessionIdRef.current,
+      topic: title,
+      proficiencyLevel: config.proficiencyLevel,
+      wordContext: config.wordContext.map((w) => w.korean),
+      goal: config.goal,
+      createdAt: createdAtRef.current,
+      endedAt: null,
+      completed: false,
+    };
+
+    await saveSession(sessionRecord);
+    sessionSavedRef.current = true;
+  }, [saveSession]);
 
   // Persist the current session as completed (used when the AI ends the chat).
   const markCompleted = useCallback(async (): Promise<void> => {
     if (!sessionIdRef.current || !sessionConfig || !createdAtRef.current) return;
     const record: ConversationSessionRecord = {
       id: sessionIdRef.current,
-      topic: sessionConfig.topic,
+      topic: savedTopicRef.current ?? sessionConfig.topic,
       proficiencyLevel: sessionConfig.proficiencyLevel,
       wordContext: sessionConfig.wordContext.map((w) => w.korean),
       goal: sessionConfig.goal,
@@ -101,7 +131,7 @@ export function useConversationSession(): UseConversationSessionReturn {
       return recent.map(
         (msg): ChatMessagePayload => ({
           role: msg.role,
-          content: msg.role === 'user' ? msg.rawText : msg.korean,
+          content: msg.role === 'user' ? (msg.korean || msg.rawText) : msg.korean,
         })
       );
     },
@@ -187,20 +217,26 @@ export function useConversationSession(): UseConversationSessionReturn {
             typeof data.korean === 'string' &&
             data.korean.trim().length > 0
           ) {
+            const updatedUserMessage: ChatMessage = {
+              ...userMessage,
+              korean: data.korean,
+              reading: data.reading ?? '',
+              romanization: data.romanization ?? '',
+              translation: data.translation ?? '',
+              english: data.english ?? '',
+              grammarCorrect: data.grammarCorrect,
+              grammarNotes: data.grammarNotes,
+            };
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === userMessageId
-                  ? {
-                      ...msg,
-                      korean: data.korean,
-                      reading: data.reading ?? '',
-                      romanization: data.romanization ?? '',
-                      translation: data.translation ?? '',
-                      english: data.english ?? '',
-                    }
-                  : msg
+                msg.id === userMessageId ? updatedUserMessage : msg
               )
             );
+            if (sessionIdRef.current) {
+              saveMessage(sessionIdRef.current, updatedUserMessage).catch((err) => {
+                console.error('Failed to update persisted user message with translation:', err);
+              });
+            }
           }
         })
         .catch(() => {
@@ -209,6 +245,7 @@ export function useConversationSession(): UseConversationSessionReturn {
 
       // Persist user message
       try {
+        await ensureSessionSaved(text);
         await saveMessage(sessionIdRef.current, userMessage);
       } catch {
         // Continue even if persistence fails — data is in memory
@@ -282,7 +319,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         setIsLoading(false);
       }
     },
-    [sessionConfig, messages, saveMessage, callChatApi, markCompleted]
+    [sessionConfig, messages, saveMessage, callChatApi, markCompleted, ensureSessionSaved]
   );
 
   const retryLastMessage = useCallback(async (): Promise<void> => {
@@ -365,13 +402,139 @@ export function useConversationSession(): UseConversationSessionReturn {
     }
   }, [messages, saveMessage, callChatApi, markCompleted]);
 
+  // Append + persist a plain user message (the typed "/exam <topic>" command).
+  const addUserMessage = useCallback(
+    async (text: string): Promise<void> => {
+      if (!sessionIdRef.current) return;
+      const msg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        korean: '',
+        reading: '',
+        romanization: '',
+        translation: '',
+        english: '',
+        rawText: text,
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+      };
+      setMessages((prev) => [...prev, msg]);
+      try {
+        await ensureSessionSaved(text);
+        await saveMessage(sessionIdRef.current, msg);
+      } catch {
+        // keep in memory even if persistence fails
+      }
+    },
+    [saveMessage, ensureSessionSaved]
+  );
+
+  // Append + persist a plain assistant message (the exam advisor's Thai reply),
+  // with optional quick-reply chips the user can tap to answer.
+  const addAssistantMessage = useCallback(
+    async (text: string, suggestions: string[] = []): Promise<void> => {
+      if (!sessionIdRef.current) return;
+      const msg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        korean: text,
+        reading: '',
+        romanization: '',
+        translation: '',
+        english: '',
+        rawText: text,
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+        suggestions: suggestions.map((s) => ({ korean: s, translation: '' })),
+      };
+      setMessages((prev) => [...prev, msg]);
+      try {
+        await ensureSessionSaved();
+        await saveMessage(sessionIdRef.current, msg);
+      } catch {
+        // keep in memory even if persistence fails
+      }
+    },
+    [saveMessage, ensureSessionSaved]
+  );
+
+  // Append + persist the assistant "exam-link" card. Topic is stored in
+  // raw_text and the question count in english so it can be restored later.
+  const addExamLinkMessage = useCallback(
+    async (params: {
+      examId: string;
+      topic: string;
+      count: number;
+    }): Promise<void> => {
+      if (!sessionIdRef.current) return;
+      const card: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        type: 'exam-link',
+        examId: params.examId,
+        examTopic: params.topic,
+        examCount: params.count,
+        korean: '',
+        reading: '',
+        romanization: '',
+        translation: '',
+        english: String(params.count),
+        rawText: params.topic,
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+      };
+      setMessages((prev) => [...prev, card]);
+      try {
+        await ensureSessionSaved();
+        await saveMessage(sessionIdRef.current, card);
+      } catch {
+        // keep in memory even if persistence fails
+      }
+    },
+    [saveMessage, ensureSessionSaved]
+  );
+
+  // Resume an existing conversation: load its messages and point further
+  // sends at the same session id.
+  const restoreSession = useCallback(
+    async (sessionId: string, language: TargetLanguage): Promise<void> => {
+      setError(null);
+      sessionIdRef.current = sessionId;
+      createdAtRef.current = new Date().toISOString();
+      sessionSavedRef.current = true; // row already exists in DB
+      const config: SessionConfig = {
+        topic: 'พูดคุยทั่วไป',
+        goal: '',
+        proficiencyLevel: 'beginner',
+        wordContext: [],
+        language,
+      };
+      sessionConfigRef.current = config;
+      setSessionConfig(config);
+      setIsEnded(false);
+      try {
+        const msgs = await loadSessionMessages(sessionId);
+        setMessages(msgs);
+        // Keep the existing title (first user message) so later upserts
+        // (markCompleted/endSession) don't reset it to the generic topic.
+        const firstUser = msgs.find((m) => m.role === 'user');
+        savedTopicRef.current =
+          firstUser?.rawText?.trim().slice(0, 60) || null;
+      } catch {
+        setMessages([]);
+        savedTopicRef.current = null;
+      }
+    },
+    [loadSessionMessages]
+  );
+
   const endSession = useCallback(async (): Promise<void> => {
     if (!sessionIdRef.current || !sessionConfig || !createdAtRef.current) return;
 
     try {
       const sessionRecord: ConversationSessionRecord = {
         id: sessionIdRef.current,
-        topic: sessionConfig.topic,
+        topic: savedTopicRef.current ?? sessionConfig.topic,
         proficiencyLevel: sessionConfig.proficiencyLevel,
         wordContext: sessionConfig.wordContext.map((w) => w.korean),
         goal: sessionConfig.goal,
@@ -401,5 +564,9 @@ export function useConversationSession(): UseConversationSessionReturn {
     isEnded,
     startSession,
     endSession,
+    addUserMessage,
+    addAssistantMessage,
+    addExamLinkMessage,
+    restoreSession,
   };
 }

@@ -14,7 +14,9 @@ import {
   CloseCircleFilled,
   PlusOutlined,
   ThunderboltOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
+import { useScanAction } from '@/app/scan/_lib/useScanAction';
 import type { SavedWord } from '../_lib/types';
 import { validateMessage } from '../_lib/validateMessage';
 import {
@@ -85,6 +87,8 @@ export default function ChatInput({
   const [skill, setSkill] = useState<string | null>(null);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { hasGetUserMedia, fileInputRef, startScan, handleFileChange } =
+    useScanAction(isLoading || disabled);
 
   // When transcript changes from STT, insert it into the input field
   useEffect(() => {
@@ -270,8 +274,31 @@ export default function ChatInput({
                     <ThunderboltOutlined style={{ fontSize: 16 }} className="text-amber-500" />
                     <span>ทำข้อสอบด่วน</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlusMenuOpen(false);
+                      startScan();
+                    }}
+                    className="w-full flex items-center gap-2.5 text-left px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  >
+                    <ScanOutlined style={{ fontSize: 16 }} className="text-blue-600" />
+                    <span>สแกนคำ</span>
+                  </button>
                 </div>
               </>
+            )}
+            {/* Hidden file input for non-secure context scan fallback */}
+            {!hasGetUserMedia && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+                aria-hidden="true"
+              />
             )}
           </div>
         )}

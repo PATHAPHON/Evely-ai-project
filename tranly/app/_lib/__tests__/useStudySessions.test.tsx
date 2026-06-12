@@ -23,10 +23,8 @@ vi.mock('@/app/_lib/supabaseClient', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn((field1: string, val1: any) => {
-                // If it's eq('user_id', userId)
                 return {
                   eq: vi.fn((field2: string, val2: any) => {
-                    // If it's eq('language', activeLanguage)
                     return {
                       order: vi.fn(async (sortField: string, { ascending }: { ascending: boolean }) => {
                         let filtered = mockSessions.filter(
@@ -64,13 +62,6 @@ beforeEach(() => {
 
 function wrapper({ children }: { children: ReactNode }) {
   return <ActiveLanguageProvider>{children}</ActiveLanguageProvider>;
-}
-
-function createWrapper(language: string) {
-  return function Wrapper({ children }: { children: ReactNode }) {
-    localStorage.setItem(STORAGE_KEY, language);
-    return <ActiveLanguageProvider>{children}</ActiveLanguageProvider>;
-  };
 }
 
 async function seedSessions(sessions: StudySession[]) {
@@ -113,7 +104,7 @@ describe('useStudySessions', () => {
 
     expect(result.current.sessions).toHaveLength(1);
     const session = result.current.sessions![0];
-    expect(session.language).toBe('korean');
+    expect(session.language).toBe('english');
     expect(session.flashcardSetId).toBe('set-1');
     expect(session.cardsReviewed).toBe(5);
     expect(session.completedAt).toBeGreaterThan(0);
@@ -134,54 +125,25 @@ describe('useStudySessions', () => {
     expect(result.current.sessions).toEqual([]);
   });
 
-  it('filters sessions by active language', async () => {
-    await seedSessions([
-      {
-        id: 'session-kr-1',
-        language: 'korean',
-        flashcardSetId: 'set-kr',
-        completedAt: 1000,
-        cardsReviewed: 3,
-      },
-      {
-        id: 'session-jp-1',
-        language: 'japanese',
-        flashcardSetId: 'set-jp',
-        completedAt: 2000,
-        cardsReviewed: 5,
-      },
-    ]);
-
-    // Default language is korean
-    const { result } = renderHook(() => useStudySessions(), { wrapper });
-
-    await waitFor(() => {
-      expect(result.current.sessions).not.toBeNull();
-    });
-
-    expect(result.current.sessions).toHaveLength(1);
-    expect(result.current.sessions![0].language).toBe('korean');
-  });
-
   it('sorts sessions by completedAt descending (most recent first)', async () => {
     await seedSessions([
       {
         id: 'session-1',
-        language: 'korean',
+        language: 'english',
         flashcardSetId: 'set-1',
         completedAt: 1000,
         cardsReviewed: 2,
       },
       {
         id: 'session-2',
-        language: 'korean',
+        language: 'english',
         flashcardSetId: 'set-2',
         completedAt: 3000,
         cardsReviewed: 4,
       },
       {
         id: 'session-3',
-        language: 'korean',
+        language: 'english',
         flashcardSetId: 'set-1',
         completedAt: 2000,
         cardsReviewed: 1,
@@ -198,22 +160,5 @@ describe('useStudySessions', () => {
     expect(result.current.sessions![1].completedAt).toBe(2000);
     expect(result.current.sessions![2].completedAt).toBe(1000);
   });
-
-  it('associates recorded session with the active language', async () => {
-    const japaneseWrapper = createWrapper('japanese');
-    const { result } = renderHook(() => useStudySessions(), {
-      wrapper: japaneseWrapper,
-    });
-
-    await waitFor(() => {
-      expect(result.current.sessions).not.toBeNull();
-    });
-
-    await act(async () => {
-      await result.current.recordSession('set-jp', 3);
-    });
-
-    expect(result.current.sessions).toHaveLength(1);
-    expect(result.current.sessions![0].language).toBe('japanese');
-  });
 });
+

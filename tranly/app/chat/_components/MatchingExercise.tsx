@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import WordRenderer from '@/app/_components/WordRenderer';
 import type { LessonExercise } from '../_lib/lessonTypes';
 
 interface MatchingExerciseProps {
@@ -162,7 +163,7 @@ export default function MatchingExercise({
     <div className="flex flex-col gap-4">
       {exercise.prompt && (
         <p className="text-base font-bold text-text-primary">
-          {exercise.prompt}
+          <WordRenderer text={exercise.prompt} />
         </p>
       )}
       <div className="flex gap-3">

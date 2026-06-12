@@ -86,7 +86,8 @@ function buildSystemPrompt(
     `      "reading": "<${lang.readingDesc}, e.g. ${lang.readingExample}>",\n` +
     `      "romanization": "<${lang.romanizationDesc}>",\n` +
     `      "translation": "<Thai meaning of this sentence>",\n` +
-    `      "english": "<English meaning of this sentence>"\n` +
+    `      "english": "<English meaning of this sentence>",\n` +
+    `      "englishPhrases": ["<the same English meaning split into ordered, meaningful chunks>"]\n` +
     `    }\n` +
     `  ],\n` +
     `  "suggestions": [\n` +
@@ -101,6 +102,7 @@ function buildSystemPrompt(
     `- "ended" is a boolean: true ONLY when the conversation's goal has been achieved and you are closing the chat\n` +
     `- "suggestions" are replies for the USER to choose from (${lang.label} + Thai meaning), NOT your reply\n` +
     `- "reading" = ${lang.readingDesc}, NOT a translation\n` +
+    `- "englishPhrases" splits the "english" meaning into ordered chunks of 1-3 words each, grouping natural units together (collocations like "good day", phrasal verbs like "up to", "article + noun" like "a book", greetings like "Hey there"). Each chunk MUST keep any punctuation attached at its END (e.g. "Hey there!", "from you."). NEVER start a chunk with punctuation and NEVER make a chunk that is only punctuation. Joining the chunks with single spaces MUST reproduce "english" exactly. Example: english "Hey there! Good to hear from you." → englishPhrases ["Hey there!", "Good to", "hear from you."].\n` +
     `- Do NOT add any text before or after the JSON`
   );
 }
@@ -157,10 +159,10 @@ function validateInput(body: unknown): ChatRequest | null {
     }
   }
 
-  // language is optional; default to Korean for back-compat with older clients.
+  // language is optional; default to English.
   const language: TargetLanguage = isValidTargetLanguage(record.language)
     ? record.language
-    : 'korean';
+    : 'english';
 
   return {
     messages: record.messages as ChatRequest['messages'],
@@ -207,7 +209,7 @@ export async function POST(
     proficiencyLevel,
     wordContext ?? [],
     goal ?? '',
-    language ?? 'korean'
+    language ?? 'english'
   );
 
   // Build conversation context from messages (up to 20 most recent)

@@ -1,6 +1,6 @@
 'use client';
 
-import Mascot from '@/app/chat/_components/Mascot';
+import ElephantMascot from '@/app/chat/_components/ElephantMascot';
 
 export type ScanPhase = 'idle' | 'suck' | 'think' | 'reveal';
 
@@ -80,7 +80,7 @@ export default function ScanLoadingMascot({ phase, imageUrl }: ScanLoadingMascot
         )}
 
         <div className="relative">
-          <Mascot size={130} state={isReveal ? 'happy' : 'thinking'} />
+          <ElephantMascot size={130} state={isReveal ? 'happy' : 'thinking'} />
         </div>
       </div>
 

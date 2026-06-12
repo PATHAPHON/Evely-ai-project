@@ -21,6 +21,20 @@ function extractSuggestions(value: unknown): ReplySuggestion[] | undefined {
 }
 
 /**
+ * Extract a clean list of phrase chunks from a raw value. Returns undefined
+ * when absent or malformed so the field is simply omitted (consumers then fall
+ * back to word-by-word rendering).
+ */
+function extractPhrases(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const phrases = value
+    .filter((p): p is string => typeof p === 'string')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  return phrases.length > 0 ? phrases : undefined;
+}
+
+/**
  * Attempt to parse a string as JSON. Returns null on failure.
  */
 function tryParseJson(s: string): unknown {
@@ -61,7 +75,6 @@ function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
       typeof (s as Record<string, unknown>).reading === 'string' &&
       ((s as Record<string, unknown>).reading as string).trim().length > 0 &&
       typeof (s as Record<string, unknown>).romanization === 'string' &&
-      ((s as Record<string, unknown>).romanization as string).trim().length > 0 &&
       typeof (s as Record<string, unknown>).translation === 'string' &&
       ((s as Record<string, unknown>).translation as string).trim().length > 0
     );
@@ -73,7 +86,6 @@ function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
     typeof record.reading === 'string' &&
     record.reading.trim().length > 0 &&
     typeof record.romanization === 'string' &&
-    record.romanization.trim().length > 0 &&
     typeof record.translation === 'string' &&
     record.translation.trim().length > 0
   );
@@ -101,6 +113,7 @@ function extractChatResponse(
           translation:
             typeof rec.translation === 'string' ? rec.translation.trim() : '',
           english: typeof rec.english === 'string' ? rec.english.trim() : '',
+          englishPhrases: extractPhrases(rec.englishPhrases),
         });
       }
     }
@@ -135,6 +148,12 @@ function extractChatResponse(
   }
   if (typeof obj.ended === 'boolean') {
     response.ended = obj.ended;
+  }
+  if (typeof obj.grammarCorrect === 'boolean') {
+    response.grammarCorrect = obj.grammarCorrect;
+  }
+  if (typeof obj.grammarNotes === 'string') {
+    response.grammarNotes = obj.grammarNotes;
   }
 
   return isValidChatResponse(response) ? response : null;

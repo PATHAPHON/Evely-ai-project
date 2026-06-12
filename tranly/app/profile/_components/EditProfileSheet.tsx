@@ -16,7 +16,7 @@ interface EditProfileSheetProps {
 const BIO_MAX = 120;
 
 const fieldClass =
-  "w-full rounded-xl border-3 border-border-color bg-card-bg px-3.5 py-3 text-[15px] text-text-primary outline-none transition-shadow focus:shadow-nb-sm";
+  "w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 px-3.5 py-3 text-[15px] text-text-primary outline-none transition-all focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-[#131314] focus:shadow-sm";
 const labelClass =
   "mb-2 block text-xs font-bold uppercase tracking-wide text-text-secondary";
 
@@ -74,14 +74,14 @@ export default function EditProfileSheet({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border-3 border-border-color bg-card-bg py-2.5 text-sm font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none cursor-pointer"
+            className="flex-1 rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#1e1f20] py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm transition-all hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-98 cursor-pointer"
           >
             {t.profile.cancel}
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 rounded-xl border-3 border-border-color bg-accent-green py-2.5 text-sm font-extrabold text-text-primary shadow-nb-sm active:translate-y-[2px] active:shadow-none cursor-pointer"
+            className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 py-2.5 text-sm font-bold text-white shadow-sm transition-all active:scale-98 cursor-pointer"
           >
             {t.profile.save}
           </button>
@@ -91,7 +91,7 @@ export default function EditProfileSheet({
       <div className="flex flex-col gap-5 px-4 py-5">
         {/* Avatar preview */}
         <div className="flex flex-col items-center gap-2">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-3 border-border-color bg-accent-pink-bg shadow-nb-md">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-pink-100 dark:border-pink-900 bg-pink-50/50 dark:bg-pink-950/20 shadow-sm">
             <SlothMascot size={56} interactive />
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function EditProfileSheet({
 
         <div>
           <label className={labelClass} htmlFor="ef-handle">{t.profile.handleLabel}</label>
-          <div className="flex items-center rounded-xl border-3 border-border-color bg-card-bg focus-within:shadow-nb-sm">
+          <div className="flex items-center rounded-xl border border-gray-250 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 focus-within:border-blue-500 dark:focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-[#131314] transition-all">
             <span className="pl-3.5 font-mono text-[15px] text-text-secondary">@</span>
             <input
               id="ef-handle"

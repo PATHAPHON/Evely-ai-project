@@ -30,7 +30,7 @@ vi.mock('@/app/_lib/supabaseClient', () => ({
     auth: {
       getUser: (...args: any[]) => mockGetUser(...args),
     },
-    from: (...args: any[]) => mockFrom(...args),
+    from: (table: string) => mockFrom(table),
   },
 }));
 

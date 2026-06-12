@@ -1,4 +1,4 @@
-import type { FeedWord, KoreanFeedWord, JapaneseFeedWord, ChineseFeedWord, EnglishFeedWord } from '@/app/home/_lib/types';
+import type { FeedWord, EnglishFeedWord } from '@/app/home/_lib/types';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 /**
@@ -31,9 +31,6 @@ function extractStringField(src: string, key: string): string {
  * Required fields for each language's feed word.
  */
 const REQUIRED_FIELDS: Record<TargetLanguage, string[]> = {
-  korean: ['korean', 'reading', 'romanization', 'english', 'thai'],
-  japanese: ['kanji', 'hiragana', 'romaji', 'english', 'thai'],
-  chinese: ['hanzi', 'pinyin', 'english', 'thai'],
   english: ['word', 'ipa', 'thai'],
 };
 
@@ -70,9 +67,7 @@ function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage)
   }
 
   // Fallback if we don't have exactly 3 queries
-  const englishWord = typeof obj.english === 'string' 
-    ? obj.english.trim() 
-    : typeof obj.word === 'string' 
+  const englishWord = typeof obj.word === 'string' 
     ? obj.word.trim() 
     : typeof obj.thai === 'string' 
     ? obj.thai.trim() 
@@ -91,57 +86,15 @@ function extractFeedWord(obj: Record<string, unknown>, language: TargetLanguage)
     imageQueries = imageQueries.slice(0, 3);
   }
 
-  switch (language) {
-    case 'korean': {
-      const word: KoreanFeedWord = {
-        language: 'korean',
-        korean: typeof obj.korean === 'string' ? obj.korean.trim() : '',
-        reading: typeof obj.reading === 'string' ? obj.reading.trim() : '',
-        romanization: typeof obj.romanization === 'string' ? obj.romanization.trim() : '',
-        english: typeof obj.english === 'string' ? obj.english.trim() : '',
-        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
-        imageQueries,
-      };
-      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
-      return isValidFeedWordForLanguage(word, language) ? word : null;
-    }
-    case 'japanese': {
-      const word: JapaneseFeedWord = {
-        language: 'japanese',
-        kanji: typeof obj.kanji === 'string' ? obj.kanji.trim() : '',
-        hiragana: typeof obj.hiragana === 'string' ? obj.hiragana.trim() : '',
-        romaji: typeof obj.romaji === 'string' ? obj.romaji.trim() : '',
-        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
-        english: typeof obj.english === 'string' ? obj.english.trim() : '',
-        imageQueries,
-      };
-      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
-      return isValidFeedWordForLanguage(word, language) ? word : null;
-    }
-    case 'chinese': {
-      const word: ChineseFeedWord = {
-        language: 'chinese',
-        hanzi: typeof obj.hanzi === 'string' ? obj.hanzi.trim() : '',
-        pinyin: typeof obj.pinyin === 'string' ? obj.pinyin.trim() : '',
-        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
-        english: typeof obj.english === 'string' ? obj.english.trim() : '',
-        imageQueries,
-      };
-      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
-      return isValidFeedWordForLanguage(word, language) ? word : null;
-    }
-    case 'english': {
-      const word: EnglishFeedWord = {
-        language: 'english',
-        word: typeof obj.word === 'string' ? obj.word.trim() : '',
-        ipa: typeof obj.ipa === 'string' ? obj.ipa.trim() : '',
-        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
-        imageQueries,
-      };
-      if (partOfSpeech) word.partOfSpeech = partOfSpeech;
-      return isValidFeedWordForLanguage(word, language) ? word : null;
-    }
-  }
+  const word: EnglishFeedWord = {
+    language: 'english',
+    word: typeof obj.word === 'string' ? obj.word.trim() : '',
+    ipa: typeof obj.ipa === 'string' ? obj.ipa.trim() : '',
+    thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+    imageQueries,
+  };
+  if (partOfSpeech) word.partOfSpeech = partOfSpeech;
+  return isValidFeedWordForLanguage(word, language) ? word : null;
 }
 
 /**
@@ -169,7 +122,7 @@ function extractFeedWordFromString(src: string, language: TargetLanguage): FeedW
  * - Malformed JSON with partial field extraction via regex
  * - Both array format and individual objects
  */
-export function parseFeedResponse(content: string, language: TargetLanguage = 'korean'): FeedWord[] {
+export function parseFeedResponse(content: string, language: TargetLanguage = 'english'): FeedWord[] {
   if (!content || content.trim().length === 0) return [];
 
   let trimmed = content.trim();

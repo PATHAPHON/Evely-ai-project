@@ -30,6 +30,41 @@ describe('parseChatResponse', () => {
     expect(result).toEqual(expectedResponse);
   });
 
+  it('parses englishPhrases when the AI supplies them', () => {
+    const content = JSON.stringify({
+      sentences: [
+        {
+          korean: '좋은 하루',
+          reading: 'โชอึน ฮารู',
+          romanization: 'joeun haru',
+          translation: 'วันที่ดี',
+          english: 'good day',
+          englishPhrases: ['good day'],
+        },
+      ],
+    });
+    const result = parseChatResponse(content);
+    expect(result.sentences?.[0].englishPhrases).toEqual(['good day']);
+  });
+
+  it('omits englishPhrases when absent or malformed but keeps the sentence valid', () => {
+    const content = JSON.stringify({
+      sentences: [
+        {
+          korean: '안녕',
+          reading: 'อันนยอง',
+          romanization: 'annyeong',
+          translation: 'สวัสดี',
+          english: 'Hi',
+          englishPhrases: 'not-an-array',
+        },
+      ],
+    });
+    const result = parseChatResponse(content);
+    expect(result.sentences?.[0].english).toBe('Hi');
+    expect(result.sentences?.[0].englishPhrases).toBeUndefined();
+  });
+
   it('parses JSON wrapped in markdown code fences', () => {
     const content = '```json\n' + JSON.stringify(validResponse) + '\n```';
     const result = parseChatResponse(content);

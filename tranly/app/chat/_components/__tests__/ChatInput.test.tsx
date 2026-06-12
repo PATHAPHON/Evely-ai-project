@@ -29,10 +29,9 @@ describe('ChatInput', () => {
     expect(screen.getByLabelText('Chat message input')).toBeInTheDocument();
   });
 
-  it('renders send button disabled when input is empty', () => {
+  it('does not render send button when input is empty', () => {
     renderChatInput();
-    const sendBtn = screen.getByLabelText('Send message');
-    expect(sendBtn).toBeDisabled();
+    expect(screen.queryByLabelText('Send message')).not.toBeInTheDocument();
   });
 
   it('enables send button when input has non-whitespace text', () => {
@@ -42,11 +41,11 @@ describe('ChatInput', () => {
     expect(screen.getByLabelText('Send message')).not.toBeDisabled();
   });
 
-  it('keeps send button disabled when input is only whitespace', () => {
+  it('does not render send button when input is only whitespace', () => {
     renderChatInput();
     const input = screen.getByLabelText('Chat message input');
     fireEvent.change(input, { target: { value: '   ' } });
-    expect(screen.getByLabelText('Send message')).toBeDisabled();
+    expect(screen.queryByLabelText('Send message')).not.toBeInTheDocument();
   });
 
   it('calls onSend with trimmed text when send button is clicked', () => {
@@ -150,10 +149,13 @@ describe('ChatInput', () => {
     expect(onRemoveWord).toHaveBeenCalledWith('1');
   });
 
-  it('disables input and send button when isLoading is true', () => {
+  it('disables input when isLoading is true, and disables send button when input has text', () => {
     renderChatInput({ isLoading: true });
     const input = screen.getByLabelText('Chat message input') as HTMLInputElement;
     expect(input).toBeDisabled();
+
+    // Type some text to make the send button appear
+    fireEvent.change(input, { target: { value: 'hello' } });
     expect(screen.getByLabelText('Send message')).toBeDisabled();
   });
 });

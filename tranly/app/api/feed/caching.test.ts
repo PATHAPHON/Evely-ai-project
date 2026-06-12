@@ -1,24 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock supabaseServer BEFORE importing the routes
+// Mock supabaseServer BEFORE importing the routes.
+// A single chainable builder backs every query:
+// - `.single()` resolves via mockSingle (word-detail + feed cache lookups)
+// - awaiting the builder directly resolves via mockPoolQuery
 const mockSingle = vi.fn();
-const mockSelect = vi.fn().mockReturnValue({
-  eq: vi.fn().mockReturnValue({
-    gt: vi.fn().mockReturnValue({
-      single: mockSingle,
-    }),
-  }),
-});
+const mockPoolQuery = vi.fn().mockResolvedValue({ data: [], error: null });
 const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+
+const builder: Record<string, unknown> = {
+  select: vi.fn(() => builder),
+  eq: vi.fn(() => builder),
+  gt: vi.fn(() => builder),
+  single: mockSingle,
+  upsert: mockUpsert,
+  then: (onFulfilled: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) =>
+    Promise.resolve(mockPoolQuery()).then(onFulfilled, onRejected),
+};
 
 vi.mock('@/app/_lib/supabaseServer', () => {
   return {
     supabaseServer: {
-      from: vi.fn().mockImplementation(() => ({
-        select: mockSelect,
-        upsert: mockUpsert,
-      })),
+      from: vi.fn(() => builder),
     },
   };
 });
@@ -134,10 +138,19 @@ describe('Caching Integration Tests', () => {
 
   describe('api/feed caching handler', () => {
     const mockWordPool = [
-      { korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล' },
-      { korean: '바나นา', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย' },
-      { korean: '오렌지', reading: 'โอเรนจี', romanization: 'orenji', english: 'orange', thai: 'ส้ม' },
+      { language: 'english', word: 'apple', ipa: 'ˈæpəl', thai: 'แอปเปิ้ล' },
+      { language: 'english', word: 'banana', ipa: 'bəˈnɑːnə', thai: 'กล้วย' },
+      { language: 'english', word: 'orange', ipa: 'ˈɒrɪndʒ', thai: 'ส้ม' },
     ];
+
+    // Helper: build a KKU-shaped AI response whose content is a JSON array of words.
+    const aiResponse = (words: unknown[]) => ({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify(words) } }],
+        }),
+    });
 
     it('serves from cached pool and filters excludeWords', async () => {
       // 1. Mock Supabase to return cached word pool
@@ -148,11 +161,11 @@ describe('Caching Integration Tests', () => {
         error: null,
       });
 
-      // 2. Request 2 words excluding 'apple' / '사과'
+      // 2. Request 2 words excluding 'apple'
       const req = new NextRequest('http://localhost/api/feed', {
         method: 'POST',
         body: JSON.stringify({
-          language: 'korean',
+          language: 'english',
           count: 2,
           excludeWords: ['apple'],
         }),
@@ -164,16 +177,16 @@ describe('Caching Integration Tests', () => {
       const json = await res.json();
       expect(json.words.length).toBe(2);
 
-      // 'apple' ('사과') should be filtered out, leaving 'banana' and 'orange'
-      expect(json.words[0].korean).toBe('바나นา');
-      expect(json.words[1].korean).toBe('오렌지');
+      // 'apple' should be filtered out, leaving 'banana' and 'orange'
+      expect(json.words[0].word).toBe('banana');
+      expect(json.words[1].word).toBe('orange');
 
       // Verify AI API was NOT called
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('regenerates pool if cache is exhausted (remaining words < count)', async () => {
-      // 1. Mock Supabase to return cached pool (exhausted, only 3 words but 2 are excluded)
+    it('regenerates pool from AI if cache is exhausted (remaining words < count)', async () => {
+      // 1. Mock Supabase to return cached pool (exhausted: 3 words but 2 are excluded)
       mockSingle.mockResolvedValueOnce({
         data: {
           words: mockWordPool,
@@ -181,29 +194,19 @@ describe('Caching Integration Tests', () => {
         error: null,
       });
 
-      // 2. Mock external KKU AI API call (will return a new pool)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            choices: [
-              {
-                message: {
-                  content: JSON.stringify([
-                    { korean: '딸기', reading: 'ตัลกี', romanization: 'ttalgi', english: 'strawberry', thai: 'สตรอว์เบอร์รี' },
-                    { korean: '포도', reading: 'โพโด', romanization: 'podo', english: 'grape', thai: 'องุ่น' },
-                  ]),
-                },
-              },
-            ],
-          }),
-      });
+      // 2. Mock the KKU AI call (the new word source)
+      mockFetch.mockResolvedValueOnce(
+        aiResponse([
+          { word: 'strawberry', ipa: 'ˈstrɔːbəri', thai: 'สตรอว์เบอร์รี', part_of_speech: 'คำนาม', image_queries: ['strawberry', 'strawberry fruit', 'strawberry red'] },
+          { word: 'grape', ipa: 'ɡreɪp', thai: 'องุ่น', part_of_speech: 'คำนาม', image_queries: ['grape', 'grapes', 'grape fruit'] },
+        ])
+      );
 
       // 3. Invoke handler asking for 2 words, excluding 'apple' and 'banana'
       const req = new NextRequest('http://localhost/api/feed', {
         method: 'POST',
         body: JSON.stringify({
-          language: 'korean',
+          language: 'english',
           count: 2,
           excludeWords: ['apple', 'banana'],
         }),
@@ -214,11 +217,36 @@ describe('Caching Integration Tests', () => {
 
       const json = await res.json();
       expect(json.words.length).toBe(2);
-      expect(json.words[0].korean).toBe('딸기');
-      expect(json.words[1].korean).toBe('포도');
+      expect(json.words[0].word).toBe('strawberry');
+      expect(json.words[1].word).toBe('grape');
 
-      // Verify AI call was made to regenerate the pool
-      expect(mockFetch).toHaveBeenCalled();
+      // Verify the AI call was made (AI is the source now)
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns an empty array when the AI pool is fully excluded', async () => {
+      // Cache miss → fall through to AI generation
+      mockSingle.mockResolvedValueOnce({ data: null, error: { code: 'PGRST116' } });
+      mockFetch.mockResolvedValueOnce(
+        aiResponse([
+          { word: 'apple', ipa: 'ˈæpəl', thai: 'แอปเปิ้ล', part_of_speech: 'คำนาม', image_queries: ['apple', 'apple fruit', 'apple red'] },
+        ])
+      );
+
+      const req = new NextRequest('http://localhost/api/feed', {
+        method: 'POST',
+        body: JSON.stringify({
+          language: 'english',
+          count: 2,
+          excludeWords: ['apple'],
+        }),
+      });
+
+      const res = await feedPOST(req);
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.words).toEqual([]);
     });
   });
 });

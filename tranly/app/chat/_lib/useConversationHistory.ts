@@ -4,7 +4,6 @@ import { useCallback, useState } from 'react';
 import { supabase } from '@/app/_lib/supabaseClient';
 import type {
   ChatMessage,
-  ConversationMessageRecord,
   ConversationSessionRecord,
 } from './types';
 
@@ -83,19 +82,63 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         }
 
         const messages: ChatMessage[] = (data || []).map((r) => {
+          // exam-link cards: reconstruct the "go take the exam" card.
+          // topic is stored in raw_text, question count in english.
+          if (r.kind === 'exam-link') {
+            return {
+              id: r.id,
+              role: r.role as 'user' | 'assistant',
+              type: 'exam-link' as const,
+              examId: r.exam_id ?? undefined,
+              examTopic: r.raw_text || '',
+              examCount: Number(r.english) || 0,
+              korean: '',
+              reading: '',
+              romanization: '',
+              translation: '',
+              english: '',
+              rawText: r.raw_text || '',
+              timestamp: r.timestamp,
+              status: 'sent' as const,
+            };
+          }
+
           const splitKorean = (r.korean || '').split('|||');
           const splitReading = (r.reading || '').split('|||');
           const splitRomanization = (r.romanization || '').split('|||');
           const splitTranslation = (r.translation || '').split('|||');
           const splitEnglish = (r.english || '').split('|||');
 
-          const sentences = splitKorean.map((k: string, idx: number) => ({
-            korean: k,
-            reading: splitReading[idx] || '',
-            romanization: splitRomanization[idx] || '',
-            translation: splitTranslation[idx] || '',
-            english: splitEnglish[idx] || '',
-          }));
+          // Phrases are stored as JSON.
+          // For user messages, we store grammar correction data.
+          // For assistant messages, we store phrase arrays per sentence.
+          let phrasesPerSentence: string[][] = [];
+          let grammarData: { grammarCorrect?: boolean; grammarNotes?: string } | null = null;
+          if (r.english_phrases) {
+            try {
+              const parsed = JSON.parse(r.english_phrases);
+              if (r.role === 'user') {
+                grammarData = parsed;
+              } else if (Array.isArray(parsed)) {
+                phrasesPerSentence = parsed;
+              }
+            } catch {
+              // ignore malformed phrase data
+            }
+          }
+
+          const sentences = splitKorean.map((k: string, idx: number) => {
+            const phrases = phrasesPerSentence[idx];
+            return {
+              korean: k,
+              reading: splitReading[idx] || '',
+              romanization: splitRomanization[idx] || '',
+              translation: splitTranslation[idx] || '',
+              english: splitEnglish[idx] || '',
+              englishPhrases:
+                Array.isArray(phrases) && phrases.length > 0 ? phrases : undefined,
+            };
+          });
 
           return {
             id: r.id,
@@ -109,6 +152,8 @@ export function useConversationHistory(): UseConversationHistoryReturn {
             timestamp: r.timestamp,
             status: 'sent' as const,
             sentences: sentences.length > 0 ? sentences : undefined,
+            grammarCorrect: grammarData?.grammarCorrect,
+            grammarNotes: grammarData?.grammarNotes,
           };
         });
 
@@ -191,13 +236,23 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           english: isAssistant && message.sentences
             ? message.sentences.map((s) => s.english).join('|||')
             : message.english,
+          english_phrases:
+            isAssistant && message.sentences
+              ? JSON.stringify(message.sentences.map((s) => s.englishPhrases ?? []))
+              : !isAssistant && (message.grammarCorrect !== undefined || message.grammarNotes)
+                ? JSON.stringify({ grammarCorrect: message.grammarCorrect, grammarNotes: message.grammarNotes })
+                : null,
           raw_text: message.rawText,
           timestamp: message.timestamp,
+          // exam-link cards reference a generated exam_sets row so the
+          // "go take the exam" button survives reload / session restore.
+          kind: message.type === 'exam-link' ? 'exam-link' : null,
+          exam_id: message.examId ?? null,
         };
 
         const { error: dbError } = await supabase
           .from('conversation_messages')
-          .insert(record);
+          .upsert(record);
 
         if (dbError) {
           throw dbError;

@@ -6,13 +6,13 @@ import {
   getCapturedImage,
   clearCapturedImage,
 } from '../_lib/capturedImageStore';
-import { blobToBase64 } from '../flashcard/_lib/blobToBase64';
-import { ERROR_MESSAGES } from '../flashcard/_lib/constants';
+import { blobToBase64 } from '../_lib/blobToBase64';
+import { ERROR_MESSAGES } from '../_lib/constants';
 import type {
   IdentifyErrorResponse,
   IdentifySuccessResponse,
-} from '../flashcard/_lib/types';
-import { useWordStorage } from '@/app/learn/_lib/useWordStorage';
+} from '../_lib/types';
+import { useWordStorage } from '@/app/_lib/useWordStorage';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
 import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 import { trimTransparentPixels, resizeImage } from '@/app/_lib/imageUtils';

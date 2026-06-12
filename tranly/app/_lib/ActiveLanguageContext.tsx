@@ -23,13 +23,10 @@ export interface ActiveLanguageContextValue {
 
 export const STORAGE_KEY = 'tranly:active-language';
 export const LEGACY_STORAGE_KEY = 'tarnly:active-language';
-export const DEFAULT_LANGUAGE: TargetLanguage = 'korean';
+export const DEFAULT_LANGUAGE: TargetLanguage = 'english';
 
 const VALID_LANGUAGES: readonly TargetLanguage[] = [
   'english',
-  'japanese',
-  'korean',
-  'chinese',
 ];
 
 function isValidLanguage(value: unknown): value is TargetLanguage {
@@ -128,7 +125,7 @@ export function ActiveLanguageProvider({ children }: { children: ReactNode }) {
           .limit(1);
 
         if (probeError) throw probeError;
-      } catch (err) {
+      } catch {
         // Rollback on actual failure
         setActiveLanguageState(prev);
         setStoredLanguage(prev);

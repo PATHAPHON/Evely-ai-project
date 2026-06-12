@@ -10,7 +10,7 @@ export interface UseExclusionListReturn {
 
 function extractWords(rows: Record<string, string | null>[]): string[] {
   return rows
-    .flatMap((r) => [r.korean, r.kanji, r.hanzi, r.word, r.english])
+    .flatMap((r) => [r.word, r.english])
     .filter((v): v is string => !!v);
 }
 
@@ -21,7 +21,7 @@ export function useExclusionList(): UseExclusionListReturn {
       const userId = userRes.data.user?.id;
       if (!userId) return [];
 
-      const allFields = 'korean,kanji,hanzi,word,english';
+      const allFields = 'word,english';
 
       let feedQuery = supabase
         .from('feed_words')

@@ -9,7 +9,7 @@ import {
   UserBubble,
   GuideAnimations,
   ThinkingOverlay,
-} from "./guideChat";
+} from "./GuideChat";
 import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
 import { curateWords, filterWordsByManualQuery, type AIStrategy } from "../_lib/flashcardCuration";
 
@@ -422,21 +422,21 @@ export default function FlashcardSetupGuide({
                         {isThai ? "ไม่พบคำศัพท์ที่ตรงเงื่อนไขการค้นหา" : "No words matching search term"}
                       </p>
                     ) : (
-                      filteredManualWords.map((word) => {
-                        const imgUrl = word.imageBlob ? URL.createObjectURL(word.imageBlob) : "";
+                      filteredManualWords.map((word, index) => {
+                        const imgUrl = word.imageBlob ? URL.createObjectURL(word.imageBlob as Blob) : "";
                         const romanization = word.romanization || word.korean || word.label;
                         return (
                           <div
-                            key={word.id}
-                            onClick={() => handleToggleManualWord(word.id)}
+                            key={word.id || index}
+                            onClick={() => word.id && handleToggleManualWord(word.id)}
                             className={`flex items-center gap-3 p-2 rounded-xl border-2 border-border-color bg-[#FFF9F0] dark:bg-[#1a1a2e] cursor-pointer transition-all hover:bg-white dark:hover:bg-[#2d2d44] ${
-                              selectedWordIds.includes(word.id) ? "border-accent-green shadow-nb-sm" : "opacity-90"
+                              word.id && selectedWordIds.includes(word.id) ? "border-accent-green shadow-nb-sm" : "opacity-90"
                             }`}
                           >
                             <Checkbox
-                              checked={selectedWordIds.includes(word.id)}
+                              checked={!!(word.id && selectedWordIds.includes(word.id))}
                               onClick={(e) => e.stopPropagation()}
-                              onChange={() => handleToggleManualWord(word.id)}
+                              onChange={() => word.id && handleToggleManualWord(word.id)}
                             />
                             {imgUrl ? (
                               <img

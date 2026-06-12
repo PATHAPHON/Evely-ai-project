@@ -7,7 +7,7 @@ const validConfig: SessionConfig = {
   proficiencyLevel: 'beginner',
   wordContext: [],
   goal: '',
-  language: 'korean',
+  language: 'english',
 };
 
 describe('validateSessionConfig', () => {

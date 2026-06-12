@@ -1,11 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { SoundOutlined } from "@ant-design/icons";
 import type { FeedWordRecord } from "../_lib/types";
-import type { SpeechLang } from "@/app/chat/_lib/types";
-import { useLanguagePreference } from "@/app/_lib/useLanguagePreference";
-import { useTTS } from "@/app/chat/_lib/useTTS";
+import WordRenderer from "@/app/_components/WordRenderer";
 
 interface WordCardProps {
   word: FeedWordRecord;
@@ -15,39 +12,15 @@ interface WordCardProps {
 
 /** The native-script primary word for the record's language. */
 function getPrimaryWord(word: FeedWordRecord): string {
-  switch (word.language) {
-    case 'korean':
-      return word.korean ?? '';
-    case 'japanese':
-      return word.kanji ?? '';
-    case 'chinese':
-      return word.hanzi ?? '';
-    case 'english':
-      return word.word ?? '';
-  }
+  return word.word ?? '';
 }
 
 /** The pronunciation guide line for the record's language. */
 function getPronunciation(word: FeedWordRecord): string {
-  switch (word.language) {
-    case 'korean':
-      return word.reading || word.romanization || '';
-    case 'japanese':
-      return word.hiragana || word.romaji || '';
-    case 'chinese':
-      return word.pinyin ?? '';
-    case 'english':
-      return word.ipa ?? '';
-  }
+  return word.ipa ?? '';
 }
 
-/** The Web Speech locale used to pronounce the native word. */
-const SPEECH_LANG_BY_LANGUAGE: Record<FeedWordRecord['language'], SpeechLang> = {
-  korean: 'ko-KR',
-  japanese: 'ja-JP',
-  chinese: 'zh-CN',
-  english: 'en-US',
-};
+
 
 /**
  * Displays a single vocabulary word card for the active learning language with:
@@ -57,8 +30,7 @@ const SPEECH_LANG_BY_LANGUAGE: Record<FeedWordRecord['language'], SpeechLang> = 
  * Styled with Neobrutalist design system.
  */
 export default function WordCard({ word, activeImageIndex, setActiveImageIndex }: WordCardProps) {
-  const { language } = useLanguagePreference();
-  const { speak, isSupported } = useTTS(SPEECH_LANG_BY_LANGUAGE[word.language]);
+
 
   const primaryWord = getPrimaryWord(word);
   const pronunciation = getPronunciation(word);
@@ -137,7 +109,7 @@ export default function WordCard({ word, activeImageIndex, setActiveImageIndex }
 
         {/* Native-script word */}
         <h2 className="text-3xl font-black tracking-wide text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] m-0">
-          {primaryWord}
+          <WordRenderer text={primaryWord} textClassName="text-3xl font-black tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
         </h2>
 
         {/* Pronunciation guide */}
@@ -146,15 +118,9 @@ export default function WordCard({ word, activeImageIndex, setActiveImageIndex }
         </p>
 
         {/* Translation */}
-        {word.language === 'korean' && language !== 'thai' ? (
-          <p className="text-base text-white font-extrabold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] m-0">
-            {word.english}
-          </p>
-        ) : (
-          <p className="text-base text-white font-extrabold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] m-0">
-            {word.thai}
-          </p>
-        )}
+        <p className="text-base text-white font-extrabold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] m-0">
+          {word.thai}
+        </p>
       </div>
     </div>
   );

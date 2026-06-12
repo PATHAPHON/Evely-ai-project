@@ -42,7 +42,7 @@ const GemsContext = createContext<GemsContextType | undefined>(undefined);
 export function GemsProvider({ children }: { children: React.ReactNode }) {
   const [energy, setEnergyState] = useState<number>(DEFAULT_ENERGY);
   const [userId, setUserId] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+
 
   const energyRef = useRef<number>(DEFAULT_ENERGY);
 
@@ -93,7 +93,7 @@ export function GemsProvider({ children }: { children: React.ReactNode }) {
         setUserId(uid);
         await loadEnergyFromDB(uid);
       }
-      if (active) setIsLoaded(true);
+
     };
     init();
 
@@ -180,10 +180,3 @@ export function GemsProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useGems() {
-  const context = useContext(GemsContext);
-  if (!context) {
-    throw new Error('useGems must be used within a GemsProvider');
-  }
-  return context;
-}

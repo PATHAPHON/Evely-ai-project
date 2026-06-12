@@ -11,7 +11,7 @@ export interface UseFeedStorageReturn {
   updateImage: (wordId: string, imageBlob: Blob) => Promise<void>;
   toggleBookmark: (wordId: string) => Promise<void>;
   removeWord: (wordId: string) => Promise<void>;
-  getAllKoreanWords: () => Promise<string[]>;
+  getAllWords: () => Promise<string[]>;
   isLoading: boolean;
   error: string | null;
 }
@@ -72,19 +72,11 @@ export function useFeedStorage(): UseFeedStorageReturn {
           generatedDate: row.generated_date,
           thai: row.thai,
           bookmarked: row.bookmarked,
+          imageBlob: null,
           imageUrl: imageUrl,
           imageUrls: imageUrls,
           createdAt: new Date(row.created_at).getTime(),
           partOfSpeech: row.part_of_speech,
-          kanji: row.kanji,
-          hiragana: row.hiragana,
-          romaji: row.romaji,
-          korean: row.korean,
-          reading: row.reading,
-          romanization: row.romanization,
-          english: row.english,
-          hanzi: row.hanzi,
-          pinyin: row.pinyin,
           word: row.word,
           ipa: row.ipa,
         } as FeedWordRecord;
@@ -123,27 +115,8 @@ export function useFeedStorage(): UseFeedStorageReturn {
             part_of_speech: word.partOfSpeech,
             image_url: word.imageUrls ? JSON.stringify(word.imageUrls) : word.imageUrl,
             created_at: new Date().toISOString(),
-            ...(word.language === 'korean' && {
-              korean: word.korean,
-              reading: word.reading,
-              romanization: word.romanization,
-              english: word.english,
-            }),
-            ...(word.language === 'japanese' && {
-              kanji: word.kanji,
-              hiragana: word.hiragana,
-              romaji: word.romaji,
-              english: word.english,
-            }),
-            ...(word.language === 'chinese' && {
-              hanzi: word.hanzi,
-              pinyin: word.pinyin,
-              english: word.english,
-            }),
-            ...(word.language === 'english' && {
-              word: word.word,
-              ipa: word.ipa,
-            }),
+            word: word.word,
+            ipa: word.ipa,
           };
         });
 
@@ -231,7 +204,6 @@ export function useFeedStorage(): UseFeedStorageReturn {
           throw new Error('User not authenticated.');
         }
 
-        // Fetch current bookmarked value
         const { data, error: selectError } = await supabase
           .from('feed_words')
           .select('bookmarked')
@@ -294,7 +266,7 @@ export function useFeedStorage(): UseFeedStorageReturn {
     []
   );
 
-  const getAllKoreanWords = useCallback(async (): Promise<string[]> => {
+  const getAllWords = useCallback(async (): Promise<string[]> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -304,14 +276,14 @@ export function useFeedStorage(): UseFeedStorageReturn {
 
       const { data, error: dbError } = await supabase
         .from('feed_words')
-        .select('korean')
+        .select('word')
         .eq('user_id', userId);
 
       if (dbError) {
         throw dbError;
       }
 
-      return (data || []).map((row) => row.korean).filter((k): k is string => !!k);
+      return (data || []).map((row) => row.word).filter((k): k is string => !!k);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to load word.';
@@ -329,7 +301,7 @@ export function useFeedStorage(): UseFeedStorageReturn {
     updateImage,
     toggleBookmark,
     removeWord,
-    getAllKoreanWords,
+    getAllWords,
     isLoading,
     error,
   };

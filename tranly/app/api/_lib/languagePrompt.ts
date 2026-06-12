@@ -21,30 +21,6 @@ export interface LangPromptSpec {
 }
 
 export const LANG_PROMPT: Record<TargetLanguage, LangPromptSpec> = {
-  korean: {
-    label: 'Korean',
-    script: 'Hangul',
-    readingDesc:
-      'the Korean pronunciation written in Thai-script karaoke (NOT the Thai meaning)',
-    romanizationDesc: 'Revised Romanization',
-    readingExample: 'อันนยองฮาเซโย for 안녕하세요',
-  },
-  japanese: {
-    label: 'Japanese',
-    script: 'Japanese (kanji + kana)',
-    readingDesc:
-      'the Japanese pronunciation written in Thai-script karaoke (NOT the Thai meaning)',
-    romanizationDesc: 'Hepburn romaji',
-    readingExample: 'คนนิจิวะ for こんにちは',
-  },
-  chinese: {
-    label: 'Chinese',
-    script: 'Simplified Chinese (Hanzi)',
-    readingDesc:
-      'the Mandarin pronunciation written in Thai-script karaoke (NOT the Thai meaning)',
-    romanizationDesc: 'Hanyu Pinyin (with tone marks)',
-    readingExample: 'หนีห่าว for 你好',
-  },
   english: {
     label: 'English',
     script: 'English',
@@ -57,9 +33,6 @@ export const LANG_PROMPT: Record<TargetLanguage, LangPromptSpec> = {
 
 const VALID_LANGUAGES: readonly TargetLanguage[] = [
   'english',
-  'japanese',
-  'korean',
-  'chinese',
 ];
 
 export function isValidTargetLanguage(v: unknown): v is TargetLanguage {

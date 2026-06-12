@@ -5,18 +5,24 @@ const GOOGLE_TTS_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 const API_TIMEOUT_MS = 15_000;
 const MAX_TEXT_LENGTH = 500;
 const CACHE_MAX_ENTRIES = 500;
-const DEFAULT_VOICE = 'ko-KR-Standard-A';
+const DEFAULT_VOICE = 'en-US-Standard-A';
 
 const VOICE_WHITELIST: ReadonlySet<string> = new Set([
-  'ko-KR-Standard-A',
-  'ko-KR-Standard-B',
-  'ko-KR-Standard-C',
-  'ko-KR-Standard-D',
-  'ko-KR-Chirp3-HD-Achernar',
-  'ko-KR-Chirp3-HD-Charon',
-  'ko-KR-Chirp3-HD-Aoede',
-  'ko-KR-Chirp3-HD-Kore',
+  'en-US-Standard-A',
+  'en-US-Standard-B',
+  'en-US-Standard-C',
+  'en-US-Standard-D',
+  'en-US-Chirp3-HD-Achernar',
+  'en-US-Chirp3-HD-Charon',
+  'en-US-Chirp3-HD-Aoede',
+  'en-US-Chirp3-HD-Kore',
 ]);
+
+// Google voice names start with their BCP-47 language code, e.g. "en-US-Standard-A".
+function languageCodeFromVoice(voice: string): string {
+  const match = /^([a-z]{2}-[A-Z]{2})/.exec(voice);
+  return match ? match[1] : 'en-US';
+}
 
 // Module-scope FIFO cache shared across requests in the same Node instance.
 // Map preserves insertion order so we evict the oldest entry on overflow.
@@ -118,7 +124,7 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: { text },
-          voice: { languageCode: 'ko-KR', name: voice },
+          voice: { languageCode: languageCodeFromVoice(voice), name: voice },
           audioConfig: { audioEncoding: 'MP3', speakingRate: 0.95 },
         }),
         signal: controller.signal,

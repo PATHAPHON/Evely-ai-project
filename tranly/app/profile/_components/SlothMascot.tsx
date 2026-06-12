@@ -27,7 +27,7 @@ const NOSE = '#3a2616';
 /**
  * A pixel-art sloth mascot for the user's avatar, built from crisp-edged SVG
  * rects so it reads as blocky pixel art at any size — the same construction as
- * the chat elephant {@link "../../chat/_components/Mascot"}. It reuses the
+ * the chat elephant {@link "../../chat/_components/ElephantMascot"}. It reuses the
  * shared mascot animation classes from globals.css.
  *
  * Idle: gentle breathing + periodic slow blink (sloths are sleepy). `happy`

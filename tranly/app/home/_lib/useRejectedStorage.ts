@@ -11,13 +11,9 @@ export interface UseRejectedStorageReturn {
   removeRejected: (language: TargetLanguage, wordKey: string) => Promise<void>;
 }
 
-/** The native-script primary word used as the dedup key for the record's language. */
+/** The primary word used as the dedup key. */
 function getWordKey(word: FeedWordRecord): string {
-  if (word.korean) return word.korean;
-  if (word.kanji) return word.kanji;
-  if (word.hanzi) return word.hanzi;
-  if (word.word) return word.word;
-  return '';
+  return word.word || '';
 }
 
 /**
@@ -65,15 +61,6 @@ export function useRejectedStorage(): UseRejectedStorageReturn {
             thai: word.thai,
             part_of_speech: word.partOfSpeech,
             image_url: word.imageUrls ? JSON.stringify(word.imageUrls) : word.imageUrl,
-            kanji: word.kanji,
-            hiragana: word.hiragana,
-            romaji: word.romaji,
-            korean: word.korean,
-            reading: word.reading,
-            romanization: word.romanization,
-            english: word.english,
-            hanzi: word.hanzi,
-            pinyin: word.pinyin,
             word: word.word,
             ipa: word.ipa,
           },
@@ -131,15 +118,6 @@ export function useRejectedStorage(): UseRejectedStorageReturn {
             imageUrls,
             createdAt: new Date(row.created_at).getTime(),
             partOfSpeech: row.part_of_speech,
-            kanji: row.kanji,
-            hiragana: row.hiragana,
-            romaji: row.romaji,
-            korean: row.korean,
-            reading: row.reading,
-            romanization: row.romanization,
-            english: row.english,
-            hanzi: row.hanzi,
-            pinyin: row.pinyin,
             word: row.word,
             ipa: row.ipa,
           } as FeedWordRecord;

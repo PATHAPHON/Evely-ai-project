@@ -12,7 +12,7 @@ interface LanguageOption {
 }
 
 const LANGUAGE_OPTIONS: LanguageOption[] = [
-  { value: 'korean', label: 'Korean', icon: '🇰🇷', nativeName: '한국어' },
+  { value: 'english', label: 'English', icon: '🇺🇸', nativeName: 'English' },
 ];
 
 export default function GlobalLanguageSelector() {

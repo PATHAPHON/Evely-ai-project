@@ -4,11 +4,11 @@ import {
   MAX_IMAGE_SIZE_BYTES,
   ERROR_MESSAGES,
   type AIErrorType,
-} from '@/app/scan/flashcard/_lib/constants';
+} from '@/app/scan/_lib/constants';
 import type {
   IdentifySuccessResponse,
   IdentifyErrorResponse,
-} from '@/app/scan/flashcard/_lib/types';
+} from '@/app/scan/_lib/types';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
@@ -18,27 +18,6 @@ const MAX_LABEL_LENGTH = 100;
  * Language-specific prompt configurations for the AI model.
  */
 const LANGUAGE_PROMPTS: Record<TargetLanguage, { prompt: string; example: string; fields: string[] }> = {
-  korean: {
-    prompt:
-      'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
-      'Schema: {"korean":"<Korean word in Hangul>","reading":"<Korean pronunciation written in Thai script, e.g. ซากวา>","romanization":"<Korean pronunciation in Revised Romanization, e.g. sagwa>","english":"<English word>","thai":"<Thai word>"}. ',
-    example: 'Example for an apple: {"korean":"사과","reading":"ซากวา","romanization":"sagwa","english":"apple","thai":"แอปเปิ้ล"}. ',
-    fields: ['korean', 'reading', 'romanization', 'english', 'thai'],
-  },
-  japanese: {
-    prompt:
-      'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
-      'Schema: {"kanji":"<Japanese word in Kanji>","hiragana":"<Hiragana reading>","romaji":"<Romaji pronunciation>","english":"<English word>","thai":"<Thai word>"}. ',
-    example: 'Example for an apple: {"kanji":"林檎","hiragana":"りんご","romaji":"ringo","english":"apple","thai":"แอปเปิ้ล"}. ',
-    fields: ['kanji', 'hiragana', 'romaji', 'english', 'thai'],
-  },
-  chinese: {
-    prompt:
-      'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
-      'Schema: {"hanzi":"<Chinese word in Hanzi>","pinyin":"<Pinyin with tone marks or tone numbers>","english":"<English word>","thai":"<Thai word>"}. ',
-    example: 'Example for an apple: {"hanzi":"苹果","pinyin":"píngguǒ","english":"apple","thai":"แอปเปิ้ล"}. ',
-    fields: ['hanzi', 'pinyin', 'english', 'thai'],
-  },
   english: {
     prompt:
       'Identify the main object in the image. Reply with ONLY a raw JSON object (no markdown, no code fences, no prose, no leading/trailing text). ' +
@@ -146,7 +125,7 @@ function parseIdentifyContent(
   }
 
   // Determine label based on language
-  const label = computeLabel(result, language);
+  const label = computeLabel(result);
   if (!label) return null;
 
   return { label, ...result } as unknown as IdentifySuccessResponse;
@@ -155,17 +134,8 @@ function parseIdentifyContent(
 /**
  * Compute the label field based on language-specific priority.
  */
-function computeLabel(fields: Record<string, string>, language: TargetLanguage): string {
-  switch (language) {
-    case 'korean':
-      return (fields.thai || fields.korean || fields.english || '').slice(0, MAX_LABEL_LENGTH);
-    case 'japanese':
-      return (fields.thai || fields.kanji || fields.english || '').slice(0, MAX_LABEL_LENGTH);
-    case 'chinese':
-      return (fields.thai || fields.hanzi || fields.english || '').slice(0, MAX_LABEL_LENGTH);
-    case 'english':
-      return (fields.thai || fields.word || '').slice(0, MAX_LABEL_LENGTH);
-  }
+function computeLabel(fields: Record<string, string>): string {
+  return (fields.thai || fields.word || '').slice(0, MAX_LABEL_LENGTH);
 }
 
 function isValidBase64(str: string): boolean {
@@ -178,10 +148,6 @@ function isValidBase64(str: string): boolean {
   } catch {
     return false;
   }
-}
-
-function isValidLanguage(lang: unknown): lang is TargetLanguage {
-  return typeof lang === 'string' && ['english', 'japanese', 'korean', 'chinese'].includes(lang);
 }
 
 function errorResponse(
@@ -216,10 +182,10 @@ export async function POST(
   }
 
   const image = (body as Record<string, unknown>).image as string;
-  const languageParam = (body as Record<string, unknown>).language;
 
-  // Determine target language (default to 'korean' for backward compatibility)
-  const language: TargetLanguage = isValidLanguage(languageParam) ? languageParam : 'korean';
+
+  // Determine target language (English only)
+  const language: TargetLanguage = 'english';
 
   // Validate base64 format
   if (!isValidBase64(image)) {

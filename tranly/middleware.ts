@@ -46,12 +46,8 @@ export async function middleware(request: NextRequest) {
     '/home',
     '/words',
     '/scan',
-    '/learn',
     '/chat',
-    '/chat-lessons',
-    '/flashcard',
     '/profile',
-    '/library',
     '/tutor',
     '/topik',
     '/backoffice',
@@ -76,16 +72,16 @@ export async function middleware(request: NextRequest) {
 
   if (isRootRoute) {
     if (user) {
-      return NextResponse.redirect(new URL('/home', request.url));
+      return NextResponse.redirect(new URL('/chat', request.url));
     } else {
-      return NextResponse.redirect(new URL('/auth?redirect=/home', request.url));
+      return NextResponse.redirect(new URL('/auth?redirect=/chat', request.url));
     }
   }
 
   if (isAuthRoute) {
     if (user) {
-      // User is already logged in, redirect to home page or targeted redirect route
-      const redirectParam = request.nextUrl.searchParams.get('redirect') || '/home';
+      // User is already logged in, redirect to chat page or targeted redirect route
+      const redirectParam = request.nextUrl.searchParams.get('redirect') || '/chat';
       return NextResponse.redirect(new URL(redirectParam, request.url));
     }
   }

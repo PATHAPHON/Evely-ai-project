@@ -1,5 +1,5 @@
-import type { IdentifySuccessResponse } from '../../flashcard/_lib/types';
-import type { SaveWordInput } from '@/app/learn/_lib/useWordStorage';
+import type { IdentifySuccessResponse } from '../../_lib/types';
+import type { SaveWordInput } from '@/app/_lib/useWordStorage';
 import type { ChatSuccessResponse } from '@/app/chat/_lib/types';
 
 /**
@@ -42,7 +42,7 @@ export async function enrichWord(
   word: string,
   headers: Record<string, string>
 ): Promise<SaveWordInput> {
-  const fallback: SaveWordInput = { label: word, word: word };
+  const fallback: SaveWordInput = { label: word, english: word };
   try {
     const response = await fetch('/api/translate', {
       method: 'POST',
@@ -53,9 +53,9 @@ export async function enrichWord(
     const data: ChatSuccessResponse = await response.json();
     return {
       label: data.translation || word,
-      word: data.korean || word,
-      ipa: data.reading || undefined,
-      english: data.english || undefined,
+      korean: data.korean || undefined,
+      reading: data.reading || undefined,
+      english: data.english || word,
     };
   } catch {
     return fallback;

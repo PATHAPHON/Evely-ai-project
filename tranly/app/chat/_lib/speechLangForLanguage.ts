@@ -6,9 +6,6 @@ import type { SpeechLang } from './types';
  * the mapping in `app/home/_components/WordCard.tsx`.
  */
 const SPEECH_LANG_BY_LANGUAGE: Record<TargetLanguage, SpeechLang> = {
-  korean: 'ko-KR',
-  japanese: 'ja-JP',
-  chinese: 'zh-CN',
   english: 'en-US',
 };
 

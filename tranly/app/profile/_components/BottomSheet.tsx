@@ -83,7 +83,7 @@ export default function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`absolute inset-x-0 bottom-0 z-50 flex flex-col overflow-hidden rounded-t-2xl border-3 border-border-color bg-card-bg shadow-nb-lg ${heightClass}`}
+        className={`absolute inset-x-0 bottom-0 z-50 flex flex-col overflow-hidden rounded-t-3xl border-t border-gray-250 dark:border-gray-850 bg-white dark:bg-[#1e1f20] shadow-2xl ${heightClass}`}
         style={{
           transform: open ? `translateY(${dragY}px)` : "translateY(100%)",
           transition: dragY > 0 ? "none" : "transform 0.34s cubic-bezier(.32,.72,0,1)",
@@ -94,17 +94,17 @@ export default function BottomSheet({
           className="flex shrink-0 cursor-grab touch-none justify-center pt-3 pb-1"
           onPointerDown={(e) => startDrag(e.clientY)}
         >
-          <span className="h-1 w-10 rounded-full bg-border-color/40" />
+          <span className="h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-750" />
         </div>
 
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b-3 border-border-color px-4 pb-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 dark:border-gray-800/40 px-4 pb-3">
           <h2 className="text-lg font-extrabold text-text-primary">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label={closeAria}
-            className="flex h-8 w-8 items-center justify-center rounded-full border-3 border-border-color bg-card-bg text-text-secondary shadow-nb-sm active:translate-y-[2px] active:shadow-none cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e1f20] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-all hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 cursor-pointer"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -117,7 +117,7 @@ export default function BottomSheet({
 
         {/* Footer */}
         {footer && (
-          <div className="shrink-0 border-t-3 border-border-color bg-card-bg p-4">
+          <div className="shrink-0 border-t border-gray-100 dark:border-gray-800/40 bg-white dark:bg-[#1e1f20] p-4">
             {footer}
           </div>
         )}

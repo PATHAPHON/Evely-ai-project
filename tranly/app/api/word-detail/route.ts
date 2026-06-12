@@ -11,12 +11,16 @@ export interface WordDetailExample {
   sentence: string;
   translation: string;
   highlight?: string; // the target word as it appears in the sentence
+  tense?: string; // English only — tense of the example sentence
 }
 
 export interface WordDetailResponse {
   context: string;      // อธิบาย context ภาษาไทย
   examples: WordDetailExample[];
   grammar: string;      // grammar notes ภาษาไทย
+  thai?: string;        // คำแปลไทยสั้น ๆ (English only)
+  ipa?: string;         // IPA pronunciation (English only)
+  partOfSpeech?: string; // part of speech (English only)
 }
 
 export interface WordDetailErrorResponse {
@@ -43,19 +47,38 @@ function buildPrompt(
     .filter(Boolean)
     .join('\n');
 
+  const examplesSpec =
+    language === 'english'
+      ? `  "examples": [\n` +
+        `    { "sentence": "<ประโยคตัวอย่างใน English>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>", "tense": "<ชื่อ tense>" }\n` +
+        `    // exactly 12 items, one for each of the 12 English tenses in this order:\n` +
+        `    // Present Simple, Present Continuous, Present Perfect, Present Perfect Continuous,\n` +
+        `    // Past Simple, Past Continuous, Past Perfect, Past Perfect Continuous,\n` +
+        `    // Future Simple, Future Continuous, Future Perfect, Future Perfect Continuous\n` +
+        `  ],\n`
+      : `  "examples": [\n` +
+        `    { "sentence": "<ประโยคตัวอย่างที่ 1 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" },\n` +
+        `    { "sentence": "<ประโยคตัวอย่างที่ 2 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" },\n` +
+        `    { "sentence": "<ประโยคตัวอย่างที่ 3 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" }\n` +
+        `  ],\n`;
+
   return (
     `You are a language-learning assistant for Thai speakers learning ${lang.label}.\n` +
     `Given the following word information:\n${meta}\n\n` +
     `Reply with ONLY a raw JSON object (no markdown, no code fences, no prose). Schema:\n` +
     `{\n` +
     `  "context": "<อธิบายความหมาย บริบทการใช้คำ และ nuance สำคัญ เป็นภาษาไทย 2-4 ประโยค>",\n` +
-    `  "examples": [\n` +
-    `    { "sentence": "<ประโยคตัวอย่างที่ 1 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" },\n` +
-    `    { "sentence": "<ประโยคตัวอย่างที่ 2 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" },\n` +
-    `    { "sentence": "<ประโยคตัวอย่างที่ 3 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" }\n` +
-    `  ],\n` +
+    (language === 'english'
+      ? `  "thai": "<คำแปลไทยสั้น ๆ ของคำนี้ เช่น ถาม>",\n` +
+        `  "ipa": "<IPA pronunciation เช่น /ɑːsk/>",\n` +
+        `  "partOfSpeech": "<part of speech ภาษาอังกฤษตัวพิมพ์เล็ก เช่น verb, noun>",\n`
+      : '') +
+    examplesSpec +
     `  "grammar": "<อธิบาย part of speech, รูปแบบไวยากรณ์, conjugation หรือ usage pattern สำคัญ เป็นภาษาไทย 2-3 ประโยค>"\n` +
     `}\n` +
+    (language === 'english'
+      ? `The "examples" array MUST contain exactly 12 sentences using the word "${word}", one per English tense, in the order listed. Each "tense" value is the English tense name.\n`
+      : '') +
     `Return ONLY the JSON object and nothing else.`
   );
 }
@@ -95,6 +118,7 @@ function extractExamplesField(src: string): WordDetailExample[] {
       sentence: typeof e.sentence === 'string' ? e.sentence.trim() : '',
       translation: typeof e.translation === 'string' ? e.translation.trim() : '',
       highlight: typeof e.highlight === 'string' ? e.highlight.trim() : undefined,
+      tense: typeof e.tense === 'string' ? e.tense.trim() : undefined,
     }))
     .filter((e) => e.sentence.length > 0);
 }
@@ -126,11 +150,20 @@ function parseWordDetailContent(content: string): WordDetailResponse | null {
         sentence: typeof e.sentence === 'string' ? e.sentence.trim() : '',
         translation: typeof e.translation === 'string' ? e.translation.trim() : '',
         highlight: typeof e.highlight === 'string' ? e.highlight.trim() : undefined,
+        tense: typeof e.tense === 'string' ? e.tense.trim() : undefined,
       }))
       .filter((e) => e.sentence.length > 0);
 
     if (context || examples.length > 0 || grammar) {
-      return { context, examples, grammar };
+      return {
+        context,
+        examples,
+        grammar,
+        thai: typeof obj.thai === 'string' ? obj.thai.trim() : undefined,
+        ipa: typeof obj.ipa === 'string' ? obj.ipa.trim() : undefined,
+        partOfSpeech:
+          typeof obj.partOfSpeech === 'string' ? obj.partOfSpeech.trim() : undefined,
+      };
     }
   }
 
@@ -144,6 +177,9 @@ function parseWordDetailContent(content: string): WordDetailResponse | null {
       context: context || '',
       examples,
       grammar: grammar || '',
+      thai: extractStringField(trimmed, 'thai') || undefined,
+      ipa: extractStringField(trimmed, 'ipa') || undefined,
+      partOfSpeech: extractStringField(trimmed, 'partOfSpeech') || undefined,
     };
   }
 
@@ -176,7 +212,7 @@ export async function POST(
 
   const language: TargetLanguage = isValidTargetLanguage(languageParam)
     ? languageParam
-    : 'korean';
+    : 'english';
 
   const reading = typeof b.reading === 'string' ? b.reading : undefined;
   const romanization = typeof b.romanization === 'string' ? b.romanization : undefined;
@@ -196,7 +232,8 @@ export async function POST(
     romanization || '',
     english || '',
     partOfSpeech || '',
-    modelName
+    modelName,
+    'v3' // prompt version — bump to invalidate cached responses
   ].join(':');
 
   const cacheKey = crypto.createHash('sha256').update(cacheRawString).digest('hex');
@@ -287,8 +324,6 @@ export async function POST(
             cache_key: cacheKey,
             word,
             language,
-            reading: reading || null,
-            romanization: romanization || null,
             english: english || null,
             part_of_speech: partOfSpeech || null,
             model: modelName,

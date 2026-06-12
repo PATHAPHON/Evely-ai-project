@@ -10,7 +10,7 @@ const NOW = new Date(2026, 5, 3, 12, 0, 0).getTime();
 function session(daysAgo: number, cards = 5): StudySession {
   return {
     id: `s-${daysAgo}-${Math.random()}`,
-    language: "korean",
+    language: "english",
     flashcardSetId: "set-1",
     completedAt: NOW - daysAgo * DAY,
     cardsReviewed: cards,

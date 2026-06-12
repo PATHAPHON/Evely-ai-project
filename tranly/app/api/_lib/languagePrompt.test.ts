@@ -4,9 +4,6 @@ import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 describe('LANG_PROMPT', () => {
   const cases: [TargetLanguage, string][] = [
-    ['korean', 'Korean'],
-    ['japanese', 'Japanese'],
-    ['chinese', 'Chinese'],
     ['english', 'English'],
   ];
 
@@ -21,15 +18,17 @@ describe('LANG_PROMPT', () => {
 });
 
 describe('isValidTargetLanguage', () => {
-  it('accepts the four supported languages', () => {
-    for (const lang of ['english', 'japanese', 'korean', 'chinese']) {
-      expect(isValidTargetLanguage(lang)).toBe(true);
-    }
+  it('accepts the supported language', () => {
+    expect(isValidTargetLanguage('english')).toBe(true);
   });
 
-  it('rejects anything else', () => {
+  it('rejects other languages', () => {
+    expect(isValidTargetLanguage('korean')).toBe(false);
+    expect(isValidTargetLanguage('japanese')).toBe(false);
+    expect(isValidTargetLanguage('chinese')).toBe(false);
     expect(isValidTargetLanguage('thai')).toBe(false);
     expect(isValidTargetLanguage(undefined)).toBe(false);
     expect(isValidTargetLanguage(42)).toBe(false);
   });
 });
+

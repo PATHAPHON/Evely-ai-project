@@ -56,13 +56,23 @@ export async function POST(
           {
             type: 'text' as const,
             text:
-              `Translate the following text into Korean. The text may be in Thai, English, or Korean.\n` +
-              `Text: "${text}"\n` +
-              `Reply with ONLY a raw JSON object (no markdown, no code fences, no prose). ` +
-              `Schema: {"korean":"<Korean in Hangul>","reading":"<how the Korean SOUNDS written in Thai script as karaoke — NOT the Thai meaning>","romanization":"<Revised Romanization>","translation":"<Thai meaning>","english":"<English meaning>"}. ` +
-              `Example: {"korean":"배고파요","reading":"แพ โก พา โย","romanization":"baegopayo","translation":"หิวข้าว","english":"I am hungry"}. ` +
-              `Example: {"korean":"안녕하세요","reading":"อัน เนียง ฮา เซ โย","romanization":"annyeonghaseyo","translation":"สวัสดี","english":"Hello"}. ` +
-              `The reading field must be the phonetic sound of the Korean word written in Thai characters, like karaoke subtitles.`,
+              `Analyze the following text for translation or English grammar correction. The text may be in Thai, English, or Korean.\n` +
+              `Text: "${text}"\n\n` +
+              `Instructions:\n` +
+              `1. If the text is in Thai or Korean, translate it into correct, natural English.\n` +
+              `2. If the text is in English, check it for grammatical, punctuation, and spelling errors. Correct them to make it correct and natural English.\n` +
+              `3. Fill out the JSON response schema below.\n\n` +
+              `JSON Schema:\n` +
+              `{\n` +
+              `  "korean": "<The corrected/translated English text>",\n` +
+              `  "reading": "<Phonetic sound of the English text written in Thai script karaoke, e.g. 'เฮลโล' for hello, 'แฟร์ อินัฟ' for fair enough>",\n` +
+              `  "romanization": "",\n` +
+              `  "translation": "<Thai meaning of the English text>",\n` +
+              `  "english": "<The corrected/translated English text>",\n` +
+              `  "grammarCorrect": <true if the input text was in English and had no errors, or if the input text was in Thai/Korean; false if the input text was in English and had grammatical/spelling errors>,\n` +
+              `  "grammarNotes": "<Brief, helpful explanation in Thai of any spelling/grammar corrections made. Explain what was wrong and how it was fixed, e.g. 'ควรใช้ I am hungry แทน I hungry เพราะขาด verb to be'. If correct or if translated from Thai, leave this empty.>" \n` +
+              `}\n\n` +
+              `Reply with ONLY a raw JSON object (no markdown, no code blocks/fences, no extra text).`,
           },
         ],
       },

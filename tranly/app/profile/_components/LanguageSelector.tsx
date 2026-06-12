@@ -25,14 +25,14 @@ export default function LanguageSelector() {
               key={option.value}
               type="button"
               onClick={() => setLanguage(option.value)}
-              className={`w-full rounded-xl border-3 border-border-color px-4 py-3 text-left transition-all cursor-pointer ${
+              className={`w-full rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-accent-green text-white shadow-nb-sm translate-x-[2px] translate-y-[2px]'
-                  : 'bg-card-bg text-text-primary shadow-nb-md active:translate-x-[2px] active:translate-y-[2px] active:shadow-nb-sm'
+                  ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold shadow-sm'
+                  : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e1f20] text-gray-700 dark:text-gray-250 hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-99'
               }`}
             >
               <span className="font-bold">{option.label}</span>
-              <span className={`ml-2 text-sm ${isActive ? 'text-white/80' : 'text-text-secondary'}`}>
+              <span className={`ml-2 text-xs ${isActive ? 'text-blue-500/80 dark:text-blue-400/80 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                 — {option.description}
               </span>
             </button>

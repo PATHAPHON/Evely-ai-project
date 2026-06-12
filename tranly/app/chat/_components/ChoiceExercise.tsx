@@ -2,6 +2,7 @@
 
 import { useCallback, useState, type ReactNode } from 'react';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import WordRenderer from '@/app/_components/WordRenderer';
 import type { LessonExercise } from '../_lib/lessonTypes';
 
 interface ChoiceExerciseProps {
@@ -40,7 +41,7 @@ export default function ChoiceExercise({
     <div className="flex flex-col gap-4">
       {exercise.prompt && (
         <p className="text-base font-bold text-text-primary">
-          {exercise.prompt}
+          <WordRenderer text={exercise.prompt} />
         </p>
       )}
 
