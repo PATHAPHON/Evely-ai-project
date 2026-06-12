@@ -20,6 +20,7 @@ import { useRejectedStorage } from "../_lib/useRejectedStorage";
 import { useExclusionList } from "../_lib/useExclusionList";
 import { useWordStorage } from "@/app/learn/_lib/useWordStorage";
 import WordCard from "./WordCard";
+import LoadingDots from "./LoadingDots";
 import { useRouter } from "next/navigation";
 import { DETAIL_WORD_STORAGE_KEY } from "../_lib/types";
 import Mascot from "@/app/chat/_components/Mascot";
@@ -582,11 +583,7 @@ export default function WordFeed() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4">
         <Mascot state="thinking" size={64} />
-        <div className="flex items-center gap-1.5">
-          <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "0ms" }} />
-          <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "200ms" }} />
-          <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "400ms" }} />
-        </div>
+        <LoadingDots />
       </div>
     );
   }
@@ -785,11 +782,7 @@ export default function WordFeed() {
       {advancing && wordsQueue.length <= 1 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none bg-background/80 backdrop-blur-sm z-50">
           <Mascot state="thinking" size={64} />
-          <div className="flex items-center gap-1.5">
-            <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "0ms" }} />
-            <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "200ms" }} />
-            <span className="loading-dot h-2 w-2 rounded-full bg-accent-blue" style={{ animationDelay: "400ms" }} />
-          </div>
+          <LoadingDots />
           <p className="text-sm text-gray-600 dark:text-white/60 font-medium">กำลังโหลดคำถัดไป...</p>
         </div>
       )}
