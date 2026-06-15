@@ -1,7 +1,5 @@
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
-export type ProficiencyLevel = 'beginner' | 'intermediate' | 'advanced';
-
 export type SpeechLang = 'en-US' 
 
 export type ChatErrorType = 
@@ -14,7 +12,6 @@ export type ChatErrorType =
 export interface ConversationSessionRecord {
   id: string;
   topic: string;
-  proficiencyLevel: ProficiencyLevel;
   wordContext: string[];
   /** Optional goal/objective the conversation works toward (empty = open-ended). */
   goal: string;
@@ -65,7 +62,6 @@ export interface ChatMessage {
 
 export interface SessionConfig {
   topic: string;
-  proficiencyLevel: ProficiencyLevel;
   wordContext: SavedWord[];
   /** Optional goal/objective; when set, the AI ends the chat once it's reached. */
   goal: string;
@@ -87,7 +83,6 @@ export interface SavedWord {
 
 export interface ChatRequest {
   messages: ChatMessagePayload[];
-  proficiencyLevel: ProficiencyLevel;
   topic: string;
   wordContext?: string[];
   goal?: string;
