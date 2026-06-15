@@ -4,20 +4,19 @@ import { useRef, useState } from 'react';
 import { BulbOutlined, EditOutlined, EnterOutlined } from '@ant-design/icons';
 import WordRenderer from '@/app/_components/WordRenderer';
 
-export interface AdvisorOption {
+export interface SuggestionOption {
   /** The answer text sent when this option is picked. */
   text: string;
   /** Optional second line (e.g. the Thai translation of a reply). */
   subtext?: string;
 }
 
-interface ExamAdvisorOptionsProps {
+interface SuggestionOptionsProps {
   /** Quick-reply options the user can tap to answer. */
-  options: AdvisorOption[];
+  options: SuggestionOption[];
   /** Send an answer — either a tapped choice or the user's typed text. */
   onSelect: (text: string) => void;
-  /** Skip the question and let the advisor proceed. */
-  /** Skip the question and let the advisor proceed. */
+  /** Skip the suggestions and show the plain input again. */
   onSkip: () => void;
   /** Optional callback to collapse/hide the options panel. */
   onCollapse?: () => void;
@@ -25,17 +24,17 @@ interface ExamAdvisorOptionsProps {
 }
 
 /**
- * Self-contained exam-advisor answer panel: three tappable choice rows, a
+ * Self-contained reply-suggestion panel: three tappable choice rows, a
  * fourth row that turns into an inline text field for a custom answer, and a
  * Skip / Submit footer. Long Thai options wrap instead of being truncated.
  */
-export default function ExamAdvisorOptions({
+export default function SuggestionOptions({
   options,
   onSelect,
   onSkip,
   onCollapse,
   disabled = false,
-}: ExamAdvisorOptionsProps) {
+}: SuggestionOptionsProps) {
   const choices = options.slice(0, 3);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [typing, setTyping] = useState(false);
@@ -68,8 +67,7 @@ export default function ExamAdvisorOptions({
     setText('');
   };
 
-  // Same row look as the exam choice buttons (ChatExamCard) so answer
-  // selection feels identical across every page.
+  // Tappable answer rows with a clean Gemini look.
   const rowBase =
     'flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left text-base font-medium transition-all';
   const badgeBase =

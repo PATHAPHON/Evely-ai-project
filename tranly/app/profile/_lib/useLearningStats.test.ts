@@ -5,7 +5,6 @@ import { useLanguageLearningStats } from './useLearningStats';
 const WORDS_STORE = 'words';
 const CONVERSATIONS_STORE = 'conversations';
 const CAPTURES_STORE = 'captures';
-const FLASHCARD_SETS_STORE = 'flashcard-sets';
 const STUDY_SESSIONS_STORE = 'study-sessions';
 import { ActiveLanguageProvider } from '@/app/_lib/ActiveLanguageContext';
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
@@ -13,7 +12,6 @@ import type { TargetLanguage } from '@/app/_lib/wordTypes';
 let mockWords: any[] = [];
 let mockConversations: any[] = [];
 let mockCaptures: any[] = [];
-let mockFlashcardSets: any[] = [];
 let mockStudySessions: any[] = [];
 
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
@@ -25,7 +23,6 @@ const mockFrom = vi.fn((table: string) => {
   if (table === 'words') data = mockWords;
   else if (table === 'conversations') data = mockConversations;
   else if (table === 'captures') data = mockCaptures;
-  else if (table === 'flashcard_sets') data = mockFlashcardSets;
   else if (table === 'study_sessions') data = mockStudySessions;
 
   let filtered = [...data];
@@ -62,7 +59,6 @@ beforeEach(() => {
   mockWords = [];
   mockConversations = [];
   mockCaptures = [];
-  mockFlashcardSets = [];
   mockStudySessions = [];
   localStorage.clear();
   vi.clearAllMocks();
@@ -82,8 +78,6 @@ function seedStore(
     mockConversations = seeded;
   } else if (storeName === 'captures' || storeName === CAPTURES_STORE) {
     mockCaptures = seeded;
-  } else if (storeName === 'flashcard_sets' || storeName === 'flashcard-sets' || storeName === FLASHCARD_SETS_STORE) {
-    mockFlashcardSets = seeded;
   } else if (storeName === 'study_sessions' || storeName === 'study-sessions' || storeName === STUDY_SESSIONS_STORE) {
     mockStudySessions = seeded;
   }
@@ -111,7 +105,6 @@ describe('useLanguageLearningStats', () => {
     });
 
     expect(result.current.wordCount).toBe(0);
-    expect(result.current.flashcardSetCount).toBe(0);
     expect(result.current.studySessionCount).toBe(0);
   });
 
@@ -129,22 +122,6 @@ describe('useLanguageLearningStats', () => {
     });
 
     expect(result.current.wordCount).toBe(2);
-  });
-
-  it('counts flashcard sets for the active language', async () => {
-    seedStore(FLASHCARD_SETS_STORE, [
-      { id: 'fs1', language: 'english', name: 'Set 1', wordIds: ['w1'], createdAt: 1 },
-      { id: 'fs3', language: 'english', name: 'Set 3', wordIds: ['w3'], createdAt: 3 },
-    ]);
-
-    const wrapper = createWrapper('english');
-    const { result } = renderHook(() => useLanguageLearningStats(), { wrapper });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.flashcardSetCount).toBe(2);
   });
 
   it('counts study sessions for the active language', async () => {

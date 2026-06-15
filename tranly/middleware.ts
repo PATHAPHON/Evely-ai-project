@@ -43,9 +43,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   const PROTECTED_PREFIXES = [
-    '/home',
     '/words',
-    '/scan',
     '/chat',
     '/profile',
     '/tutor',

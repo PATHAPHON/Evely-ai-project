@@ -47,9 +47,7 @@ export interface UseUserProfileReturn extends ProfileFields {
   setDisplayName: (name: string) => void;
   updateProfile: (partial: Partial<ProfileFields>) => void;
   claimedChests: number[];
-  completedExams: string[];
   claimChest: (unitId: number) => Promise<void>;
-  completeExam: (examId: string) => Promise<void>;
 }
 
 export function useUserProfile(): UseUserProfileReturn {
@@ -60,20 +58,14 @@ export function useUserProfile(): UseUserProfileReturn {
   const [location, setLocation] = useState("");
   
   const [claimedChests, setClaimedChests] = useState<number[]>([]);
-  const [completedExams, setCompletedExams] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
 
   const claimedChestsRef = useRef<number[]>([]);
-  const completedExamsRef = useRef<string[]>([]);
 
   // Sync refs with state
   useEffect(() => {
     claimedChestsRef.current = claimedChests;
   }, [claimedChests]);
-
-  useEffect(() => {
-    completedExamsRef.current = completedExams;
-  }, [completedExams]);
 
   const loadProfileFromDB = useCallback(async (uid: string) => {
     try {
@@ -96,7 +88,6 @@ export function useUserProfile(): UseUserProfileReturn {
             target_language: "korean",
             ui_language: "th",
             claimed_chests: [],
-            completed_exams: [],
           };
           await supabase.from("profiles").insert(defaultProfile);
           return;
@@ -112,11 +103,8 @@ export function useUserProfile(): UseUserProfileReturn {
         setLocation(data.location || "");
 
         const dbChests = data.claimed_chests || [];
-        const dbExams = data.completed_exams || [];
         setClaimedChests(dbChests);
-        setCompletedExams(dbExams);
         claimedChestsRef.current = dbChests;
-        completedExamsRef.current = dbExams;
 
         // Sync back to local storage
         setStoredItem('display-name', data.display_name || DEFAULT_NAME);
@@ -129,11 +117,6 @@ export function useUserProfile(): UseUserProfileReturn {
         dbChests.forEach((unitId: number) => {
           setStoredItem(`chest-claimed:unit-${unitId}`, "true");
         });
-
-        // Sync completed exams to local storage
-        if (dbExams.length > 0) {
-          setStoredItem('completed-exams', JSON.stringify(dbExams));
-        }
       }
     } catch (err) {
       console.error("Failed to load profile from database:", err);
@@ -158,13 +141,6 @@ export function useUserProfile(): UseUserProfileReturn {
     }
     setClaimedChests(localChests);
     claimedChestsRef.current = localChests;
-
-    // Load local completed exams
-    try {
-      const localExams = JSON.parse(getStoredItem('completed-exams') || "[]");
-      setCompletedExams(localExams);
-      completedExamsRef.current = localExams;
-    } catch {}
 
     // 2. Fetch and sync from Supabase profiles table
     let active = true;
@@ -192,9 +168,7 @@ export function useUserProfile(): UseUserProfileReturn {
         setBio("");
         setLocation("");
         setClaimedChests([]);
-        setCompletedExams([]);
         claimedChestsRef.current = [];
-        completedExamsRef.current = [];
       }
     });
 
@@ -296,37 +270,6 @@ export function useUserProfile(): UseUserProfileReturn {
     }
   }, [userId]);
 
-  const completeExam = useCallback(async (examId: string) => {
-    if (completedExamsRef.current.includes(examId)) return;
-    const next = [...completedExamsRef.current, examId];
-    completedExamsRef.current = next;
-    setCompletedExams(next);
-
-    try {
-      const completedStr = getStoredItem('completed-exams') || "[]";
-      const completed = JSON.parse(completedStr);
-      if (!completed.includes(examId)) {
-        completed.push(examId);
-        setStoredItem('completed-exams', JSON.stringify(completed));
-      }
-    } catch {}
-
-    if (userId) {
-      supabase
-        .from("profiles")
-        .update({ completed_exams: next })
-        .eq("id", userId)
-        .then(
-          ({ error }) => {
-            if (error) console.error("Failed to sync completed exam to database:", error);
-          },
-          (err) => {
-            console.error("Failed to sync completed exam to database:", err);
-          }
-        );
-    }
-  }, [userId]);
-
   const avatarInitial = displayName.length > 0 ? displayName[0] : "L";
 
   return {
@@ -339,8 +282,6 @@ export function useUserProfile(): UseUserProfileReturn {
     setDisplayName,
     updateProfile,
     claimedChests,
-    completedExams,
     claimChest,
-    completeExam,
   };
 }

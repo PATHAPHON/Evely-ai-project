@@ -15,7 +15,7 @@ const labelClass =
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTarget = searchParams.get("redirect") || "/home";
+  const redirectTarget = searchParams.get("redirect") || "/chat";
   const t = useStrings();
   const configProps = useIllustrationTheme();
 
@@ -188,7 +188,7 @@ function AuthPageContent() {
       
       setSuccess(t.auth.successGuest);
       setTimeout(() => {
-        router.push("/home");
+        router.push("/chat");
       }, 1200);
     } catch (err: any) {
       console.error("Guest login error:", err);

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ConfigProvider } from "antd";
 import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
 import WordDetailView from "./WordDetailView";
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/home/_lib/types";
+import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/_lib/wordTypes";
 
 function readDetailWord(): FeedWordRecord | null {
   try {
@@ -21,9 +21,9 @@ export default function WordDetailClient() {
   const configProps = useIllustrationTheme();
   const [word] = useState<FeedWordRecord | null>(readDetailWord);
 
-  // No word handed off (direct visit / refresh after storage cleared) → go home
+  // No word handed off (direct visit / refresh after storage cleared) → go to chat
   useEffect(() => {
-    if (!word) router.replace("/home");
+    if (!word) router.replace("/chat");
   }, [word, router]);
 
   if (!word) return null;

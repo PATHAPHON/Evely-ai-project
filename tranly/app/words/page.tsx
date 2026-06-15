@@ -7,7 +7,7 @@ import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
 import { useStrings } from "@/app/_lib/strings";
 import { useWordStorage, type WordRecord } from "@/app/_lib/useWordStorage";
 import { useTTS } from "@/app/chat/_lib/useTTS";
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/home/_lib/types";
+import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/_lib/wordTypes";
 import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
 import GeminiLayout from "@/app/_components/GeminiLayout";
 
@@ -215,13 +215,6 @@ export default function WordsPage() {
                 <p className="text-sm font-semibold text-gray-500">
                   {t.learn.noWords}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => router.push("/chat")}
-                  className="rounded-full bg-blue-600 hover:bg-blue-700 px-6 py-3 font-bold text-white shadow-sm transition-all cursor-pointer active:scale-95"
-                >
-                  {t.learn.scanNow}
-                </button>
               </div>
             ) : (
               <div className="flex flex-col gap-6">

@@ -5,7 +5,6 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   MenuOutlined,
   DeleteOutlined,
-  HomeOutlined,
   BookOutlined,
   SettingOutlined,
   EditOutlined,
@@ -39,7 +38,6 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
 
   const navLinks = [
     { label: t.drawer.navChat, path: '/chat', icon: <MessageOutlined style={{ fontSize: 18 }} /> },
-    { label: t.drawer.navHome, path: '/home', icon: <HomeOutlined style={{ fontSize: 18 }} /> },
     { label: t.drawer.navWords, path: '/words', icon: <BookOutlined style={{ fontSize: 18 }} /> },
   ];
 
@@ -204,7 +202,6 @@ export default function GeminiLayout({
   const getPageTitle = () => {
     if (title) return title;
     if (pathname === '/chat') return '';
-    if (pathname === '/home') return 'หน้าหลัก';
     if (pathname === '/words') return 'คำศัพท์สะสม';
     if (pathname === '/profile') return 'โปรไฟล์ของคุณ';
     return 'Tarnly';

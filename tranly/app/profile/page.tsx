@@ -79,7 +79,6 @@ function ProfilePageContent() {
 
   const viewerStats = [
     { n: stats.wordCount, label: t.profile.statWords },
-    { n: stats.flashcardSetCount, label: t.profile.statFlashcards },
   ];
 
   const infoButton = (

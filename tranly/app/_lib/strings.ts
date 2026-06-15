@@ -16,8 +16,6 @@ export interface UIStrings {
     tabWord: string;
     tabAI: string;
     tabLibrary: string;
-    tabAIScan: string;
-    tabExam: string;
     tabProfile: string;
     tabMore: string;
     loading: string;
@@ -36,7 +34,6 @@ export interface UIStrings {
     allWords: string;
     flashcard: string;
     noWords: string;
-    scanNow: string;
     listenAria: string;
     deleteAria: string;
     /** Toast shown after deleting a word (before the undo window expires). */
@@ -103,7 +100,6 @@ export interface UIStrings {
     noBio: string;
     /** Stat strip. */
     statWords: string;
-    statFlashcards: string;
     statSessions: string;
     statStreak: string;
     /** Learning heatmap. */
@@ -124,68 +120,16 @@ export interface UIStrings {
     streakNew: (days: number) => string;
     weekdays: string[];
   };
-  scan: {
-    closeAria: string;
-    captureAria: string;
-    errPermissionDenied: string;
-    errNotFound: string;
-    errStreamInterrupted: string;
-    errCaptureFailed: string;
-    btnTryAgain: string;
-    btnDismiss: string;
-  };
   chat: {
     navLockedHint: string;
   };
   drawer: {
     newChat: string;
     navChat: string;
-    navHome: string;
     navWords: string;
     recent: string;
     untitledChat: string;
     settingsAria: string;
-  };
-  exam: {
-    title: string;
-    selectType: string;
-    cefrTitle: string;
-    cefrDesc: string;
-    toeicTitle: string;
-    toeicDesc: string;
-    toeicEasy: string;
-    toeicMedium: string;
-    toeicHard: string;
-    reviewTitle: string;
-    reviewDesc: (n: number) => string;
-    reviewStart: string;
-    generating: string;
-    reading: string;
-    listening: string;
-    questionOf: (n: number, total: number) => string;
-    playAudio: string;
-    replayAudio: string;
-    next: string;
-    submit: string;
-    finish: string;
-    correct: string;
-    incorrect: string;
-    explainBtn: string;
-    explaining: string;
-    explainError: string;
-    scoreTitle: string;
-    scoreTotal: (correct: number, total: number) => string;
-    readingScore: string;
-    listeningScore: string;
-    retry: string;
-    changeType: string;
-    stagesTab: string;
-    toeicTab: string;
-    start: string;
-    stageLocked: string;
-    bestScore: (correct: number, total: number) => string;
-    backToPath: string;
-    levelHeading: (level: string) => string;
   };
   auth: {
     loginTitle: string;
@@ -227,8 +171,6 @@ const en: UIStrings = {
     tabWord: 'Words',
     tabAI: 'AI',
     tabLibrary: 'Library',
-    tabAIScan: 'Evely',
-    tabExam: 'Exam',
     tabProfile: 'Profile',
     tabMore: 'More',
     loading: 'Loading...',
@@ -247,7 +189,6 @@ const en: UIStrings = {
     allWords: 'All Words',
     flashcard: 'Flashcard',
     noWords: 'No saved words yet',
-    scanNow: 'Scan Now',
     listenAria: 'Play pronunciation',
     deleteAria: 'Delete word',
     deleted: (word: string) => (word ? `Deleted “${word}”` : 'Word deleted'),
@@ -311,7 +252,6 @@ const en: UIStrings = {
     saved: 'Profile saved',
     noBio: 'No bio yet — tap Edit Profile to add one.',
     statWords: 'Words',
-    statFlashcards: 'Flashcards',
     statSessions: 'Sessions',
     statStreak: 'Day streak',
     heatTitle: (days) => `${days} days studied`,
@@ -337,68 +277,16 @@ const en: UIStrings = {
     streakNew: (days) => `${days} days in a row — keep it up!`,
     weekdays: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
   },
-  scan: {
-    closeAria: 'Close camera',
-    captureAria: 'Take photo',
-    errPermissionDenied: 'Please allow camera access in your device settings.',
-    errNotFound: 'No camera found on this device.',
-    errStreamInterrupted: 'Camera connection lost.',
-    errCaptureFailed: 'Capture failed. Please try again.',
-    btnTryAgain: 'Try again',
-    btnDismiss: 'Dismiss',
-  },
   chat: {
     navLockedHint: 'Finish or end this session first',
   },
   drawer: {
     newChat: 'New chat',
     navChat: 'Chat',
-    navHome: 'Home',
     navWords: 'Words',
     recent: 'Recent',
     untitledChat: 'General chat',
     settingsAria: 'Settings',
-  },
-  exam: {
-    title: 'English Exam Practice',
-    selectType: 'Choose Exam Type & Level',
-    cefrTitle: 'CEFR',
-    cefrDesc: 'General English by level',
-    toeicTitle: 'TOEIC',
-    toeicDesc: 'Workplace & business English',
-    toeicEasy: 'Easy',
-    toeicMedium: 'Medium',
-    toeicHard: 'Hard',
-    reviewTitle: 'Review Mistakes',
-    reviewDesc: (n) => `${n} saved questions`,
-    reviewStart: 'Start Review',
-    generating: 'Generating your exam...',
-    reading: 'Reading',
-    listening: 'Listening',
-    questionOf: (n: number, total: number) => `Question ${n}/${total}`,
-    playAudio: 'Play Audio',
-    replayAudio: 'Replay Audio',
-    next: 'Next',
-    submit: 'Submit',
-    finish: 'See Results',
-    correct: 'Correct',
-    incorrect: 'Incorrect',
-    explainBtn: 'Why? (AI explains)',
-    explaining: 'Generating explanation...',
-    explainError: 'Failed to load explanation',
-    scoreTitle: 'Your Score',
-    scoreTotal: (correct: number, total: number) => `${correct}/${total}`,
-    readingScore: 'Reading Score',
-    listeningScore: 'Listening Score',
-    retry: 'Try Again',
-    changeType: 'Change Level',
-    stagesTab: 'Stages',
-    toeicTab: 'TOEIC',
-    start: 'START',
-    stageLocked: 'Complete the previous stage to unlock',
-    bestScore: (correct: number, total: number) => `Best ${correct}/${total}`,
-    backToPath: 'Back to Stages',
-    levelHeading: (level: string) => `Level ${level}`,
   },
   auth: {
     loginTitle: 'Welcome Back',
@@ -440,8 +328,6 @@ const th: UIStrings = {
     tabWord: 'คำศัพท์',
     tabAI: 'AI',
     tabLibrary: 'คลังข้อมูล',
-    tabAIScan: 'Evely',
-    tabExam: 'ข้อสอบ',
     tabProfile: 'โปรไฟล์',
     tabMore: 'เพิ่มเติม',
     loading: 'กำลังโหลด...',
@@ -460,7 +346,6 @@ const th: UIStrings = {
     allWords: 'คำทั้งหมด',
     flashcard: 'แฟลชการ์ด',
     noWords: 'ยังไม่มีคำที่บันทึกไว้',
-    scanNow: 'สแกนเลย',
     listenAria: 'ฟังเสียง',
     deleteAria: 'ลบคำ',
     deleted: (word: string) => (word ? `ลบคำว่า “${word}” แล้ว` : 'ลบคำแล้ว'),
@@ -524,7 +409,6 @@ const th: UIStrings = {
     saved: 'บันทึกโปรไฟล์แล้ว',
     noBio: 'ยังไม่มีคำแนะนำตัว — แตะแก้ไขโปรไฟล์เพื่อเพิ่ม',
     statWords: 'คำศัพท์',
-    statFlashcards: 'แฟลชการ์ด',
     statSessions: 'รอบเรียน',
     statStreak: 'วันต่อเนื่อง',
     heatTitle: (days) => `${days} วันที่เรียน`,
@@ -549,68 +433,16 @@ const th: UIStrings = {
     streakNew: (days) => `ต่อเนื่อง ${days} วันแล้ว — สู้ต่อไป!`,
     weekdays: ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'],
   },
-  scan: {
-    closeAria: 'ปิดกล้อง',
-    captureAria: 'ถ่ายภาพ',
-    errPermissionDenied: 'กรุณาอนุญาตการเข้าถึงกล้องในการตั้งค่าอุปกรณ์',
-    errNotFound: 'ไม่พบกล้องบนอุปกรณ์นี้',
-    errStreamInterrupted: 'การเชื่อมต่อกล้องขาดหาย',
-    errCaptureFailed: 'ถ่ายภาพไม่สำเร็จ กรุณาลองอีกครั้ง',
-    btnTryAgain: 'ลองอีกครั้ง',
-    btnDismiss: 'ปิด',
-  },
   chat: {
     navLockedHint: 'เรียนหรือสนทนาให้จบ หรือกดสิ้นสุดก่อน',
   },
   drawer: {
     newChat: 'แชทใหม่',
     navChat: 'แชทหลัก',
-    navHome: 'หน้าหลัก',
     navWords: 'คลังคำศัพท์',
     recent: 'ล่าสุด',
     untitledChat: 'คุยทั่วไป',
     settingsAria: 'ตั้งค่า',
-  },
-  exam: {
-    title: 'ฝึกทำข้อสอบภาษาอังกฤษ',
-    selectType: 'เลือกประเภทและระดับข้อสอบ',
-    cefrTitle: 'CEFR',
-    cefrDesc: 'ภาษาอังกฤษทั่วไปตามระดับ',
-    toeicTitle: 'TOEIC',
-    toeicDesc: 'ภาษาอังกฤษเพื่อการทำงาน',
-    toeicEasy: 'ง่าย',
-    toeicMedium: 'กลาง',
-    toeicHard: 'ยาก',
-    reviewTitle: 'ทบทวนข้อที่ผิด',
-    reviewDesc: (n) => `เก็บไว้ ${n} ข้อ`,
-    reviewStart: 'เริ่มทบทวน',
-    generating: 'กำลังสร้างข้อสอบ...',
-    reading: 'การอ่าน',
-    listening: 'การฟัง',
-    questionOf: (n: number, total: number) => `ข้อ ${n}/${total}`,
-    playAudio: 'เล่นเสียง',
-    replayAudio: 'เล่นเสียงอีกครั้ง',
-    next: 'ข้อถัดไป',
-    submit: 'ส่งคำตอบ',
-    finish: 'ดูผลคะแนน',
-    correct: 'ถูกต้อง!',
-    incorrect: 'ยังไม่ถูก',
-    explainBtn: 'ทำไม? (ให้ AI อธิบาย)',
-    explaining: 'กำลังสร้างคำอธิบาย...',
-    explainError: 'โหลดคำอธิบายไม่สำเร็จ',
-    scoreTitle: 'ผลคะแนน',
-    scoreTotal: (correct: number, total: number) => `${correct}/${total}`,
-    readingScore: 'คะแนนอ่าน',
-    listeningScore: 'คะแนนฟัง',
-    retry: 'ทำใหม่',
-    changeType: 'เปลี่ยนระดับ',
-    stagesTab: 'ด่าน',
-    toeicTab: 'TOEIC',
-    start: 'เริ่ม',
-    stageLocked: 'เล่นด่านก่อนหน้าให้จบเพื่อปลดล็อก',
-    bestScore: (correct: number, total: number) => `สูงสุด ${correct}/${total}`,
-    backToPath: 'กลับไปหน้าด่าน',
-    levelHeading: (level: string) => `ระดับ ${level}`,
   },
   auth: {
     loginTitle: 'ยินดีต้อนรับกลับมา',

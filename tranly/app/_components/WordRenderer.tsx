@@ -7,7 +7,7 @@ import { STATUS_COLORS, type WordStatus } from '@/app/_lib/wordStatusDerivation'
 import { WordStatusContext } from '@/app/_components/WordStatusProvider';
 import type { WordStatusContextValue } from '@/app/_components/WordStatusProvider';
 import { useRouter } from 'next/navigation';
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from '@/app/home/_lib/types';
+import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from '@/app/_lib/wordTypes';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -239,7 +239,7 @@ export default function WordRenderer({ text, className, textClassName, phrases }
     setOverlay(null);
   }, []);
 
-  // Open the full word-detail page (same handoff as /home and /words)
+  // Open the full word-detail page (same handoff as /words)
   const handleShowDetail = useCallback(
     (word: string) => {
       const entry = getEntry(word);

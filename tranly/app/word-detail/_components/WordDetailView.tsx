@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CloseOutlined } from "@ant-design/icons";
 import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
-import type { FeedWordRecord } from "@/app/home/_lib/types";
+import type { FeedWordRecord } from "@/app/_lib/wordTypes";
 import type { WordDetailResponse } from "@/app/api/word-detail/route";
 
 interface WordDetailViewProps {

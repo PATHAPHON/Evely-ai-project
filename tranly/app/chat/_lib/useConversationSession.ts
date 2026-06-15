@@ -28,21 +28,17 @@ export interface UseConversationSessionReturn {
   isEnded: boolean;
   startSession: (config: SessionConfig) => void;
   endSession: () => Promise<void>;
-  /** Append + persist a plain user message (used by slash skills like /exam). */
+  /** Append + persist a plain user message. */
   addUserMessage: (text: string) => Promise<void>;
   /**
    * Append + persist a plain assistant message with optional tappable
-   * quick-reply chips. Used by the exam advisor Q&A before generating a test.
+   * quick-reply chips.
    */
   addAssistantMessage: (text: string, suggestions?: string[]) => Promise<void>;
-  /** Append + persist an "exam-link" card pointing at a generated exam set. */
-  addExamLinkMessage: (params: {
-    examId: string;
-    topic: string;
-    count: number;
-  }) => Promise<void>;
   /** Load an existing session's messages and resume sending into it. */
   restoreSession: (sessionId: string, language: TargetLanguage) => Promise<void>;
+  sessionId: string | null;
+  sessionSaved: boolean;
 }
 
 export function useConversationSession(): UseConversationSessionReturn {
@@ -53,6 +49,8 @@ export function useConversationSession(): UseConversationSessionReturn {
     null
   );
   const [isEnded, setIsEnded] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionSaved, setSessionSaved] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
   const createdAtRef = useRef<string | null>(null);
   // Lazy persistence: the conversations row is created on the first message,
@@ -70,8 +68,10 @@ export function useConversationSession(): UseConversationSessionReturn {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     sessionIdRef.current = id;
+    setSessionId(id);
     createdAtRef.current = createdAt;
     sessionSavedRef.current = false;
+    setSessionSaved(false);
     sessionConfigRef.current = config;
     savedTopicRef.current = null;
     setSessionConfig(config);
@@ -103,6 +103,7 @@ export function useConversationSession(): UseConversationSessionReturn {
 
     await saveSession(sessionRecord);
     sessionSavedRef.current = true;
+    setSessionSaved(true);
   }, [saveSession]);
 
   // Persist the current session as completed (used when the AI ends the chat).
@@ -402,7 +403,7 @@ export function useConversationSession(): UseConversationSessionReturn {
     }
   }, [messages, saveMessage, callChatApi, markCompleted]);
 
-  // Append + persist a plain user message (the typed "/exam <topic>" command).
+  // Append + persist a plain user message.
   const addUserMessage = useCallback(
     async (text: string): Promise<void> => {
       if (!sessionIdRef.current) return;
@@ -429,8 +430,8 @@ export function useConversationSession(): UseConversationSessionReturn {
     [saveMessage, ensureSessionSaved]
   );
 
-  // Append + persist a plain assistant message (the exam advisor's Thai reply),
-  // with optional quick-reply chips the user can tap to answer.
+  // Append + persist a plain assistant message, with optional quick-reply
+  // chips the user can tap to answer.
   const addAssistantMessage = useCallback(
     async (text: string, suggestions: string[] = []): Promise<void> => {
       if (!sessionIdRef.current) return;
@@ -458,50 +459,16 @@ export function useConversationSession(): UseConversationSessionReturn {
     [saveMessage, ensureSessionSaved]
   );
 
-  // Append + persist the assistant "exam-link" card. Topic is stored in
-  // raw_text and the question count in english so it can be restored later.
-  const addExamLinkMessage = useCallback(
-    async (params: {
-      examId: string;
-      topic: string;
-      count: number;
-    }): Promise<void> => {
-      if (!sessionIdRef.current) return;
-      const card: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        type: 'exam-link',
-        examId: params.examId,
-        examTopic: params.topic,
-        examCount: params.count,
-        korean: '',
-        reading: '',
-        romanization: '',
-        translation: '',
-        english: String(params.count),
-        rawText: params.topic,
-        timestamp: new Date().toISOString(),
-        status: 'sent',
-      };
-      setMessages((prev) => [...prev, card]);
-      try {
-        await ensureSessionSaved();
-        await saveMessage(sessionIdRef.current, card);
-      } catch {
-        // keep in memory even if persistence fails
-      }
-    },
-    [saveMessage, ensureSessionSaved]
-  );
-
   // Resume an existing conversation: load its messages and point further
   // sends at the same session id.
   const restoreSession = useCallback(
     async (sessionId: string, language: TargetLanguage): Promise<void> => {
       setError(null);
       sessionIdRef.current = sessionId;
+      setSessionId(sessionId);
       createdAtRef.current = new Date().toISOString();
       sessionSavedRef.current = true; // row already exists in DB
+      setSessionSaved(true);
       const config: SessionConfig = {
         topic: 'พูดคุยทั่วไป',
         goal: '',
@@ -566,7 +533,8 @@ export function useConversationSession(): UseConversationSessionReturn {
     endSession,
     addUserMessage,
     addAssistantMessage,
-    addExamLinkMessage,
     restoreSession,
+    sessionId,
+    sessionSaved,
   };
 }

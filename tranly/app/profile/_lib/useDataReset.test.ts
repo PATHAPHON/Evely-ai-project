@@ -69,7 +69,6 @@ describe('useDataReset', () => {
       streak: 0,
       max_streak: 0,
       claimed_chests: [],
-      completed_exams: [],
     });
     expect(mockList).toHaveBeenCalled();
     expect(mockRemove).toHaveBeenCalled();

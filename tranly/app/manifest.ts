@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Tarnly',
     short_name: 'Tarnly',
     description: 'Learn Korean in Neobrutalist illustration style',
-    start_url: '/home',
+    start_url: '/chat',
     display: 'standalone',
     background_color: '#FFF9F0',
     theme_color: '#2C2C2C',

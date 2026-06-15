@@ -32,12 +32,9 @@ export function useDataReset(): UseDataResetReturn {
         // 1. Delete all user records from Supabase tables
         await Promise.all([
           supabase.from("words").delete().eq("user_id", userId),
-          supabase.from("feed_words").delete().eq("user_id", userId),
           supabase.from("conversations").delete().eq("user_id", userId),
-          supabase.from("lessons").delete().eq("user_id", userId),
           supabase.from("captures").delete().eq("user_id", userId),
           supabase.from("study_sessions").delete().eq("user_id", userId),
-          supabase.from("flashcard_sets").delete().eq("user_id", userId),
         ]);
 
         // 2. Reset profile settings, gems, and energy
@@ -49,12 +46,11 @@ export function useDataReset(): UseDataResetReturn {
             streak: 0,
             max_streak: 0,
             claimed_chests: [],
-            completed_exams: [],
           })
           .eq("id", userId);
 
         // 3. Clear Supabase Storage files
-        const folders = ["words", "feed", "captures"];
+        const folders = ["words", "captures"];
         for (const folder of folders) {
           const pathPrefix = `authenticated/${userId}/${folder}`;
           const { data: files } = await supabase.storage

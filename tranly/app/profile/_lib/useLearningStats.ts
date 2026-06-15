@@ -6,7 +6,6 @@ import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
 
 export interface LanguageLearningStats {
   wordCount: number;
-  flashcardSetCount: number;
   studySessionCount: number;
   isLoading: boolean;
 }
@@ -14,7 +13,6 @@ export interface LanguageLearningStats {
 export function useLanguageLearningStats(): LanguageLearningStats {
   const { activeLanguage } = useActiveLanguage();
   const [wordCount, setWordCount] = useState(0);
-  const [flashcardSetCount, setFlashcardSetCount] = useState(0);
   const [studySessionCount, setStudySessionCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -29,21 +27,15 @@ export function useLanguageLearningStats(): LanguageLearningStats {
         if (!userId) {
           if (!cancelled) {
             setWordCount(0);
-            setFlashcardSetCount(0);
             setStudySessionCount(0);
             setIsLoading(false);
           }
           return;
         }
 
-        const [wordsRes, setsRes, sessionsRes] = await Promise.all([
+        const [wordsRes, sessionsRes] = await Promise.all([
           supabase
             .from('words')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('language', activeLanguage),
-          supabase
-            .from('flashcard_sets')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', userId)
             .eq('language', activeLanguage),
@@ -56,14 +48,12 @@ export function useLanguageLearningStats(): LanguageLearningStats {
 
         if (!cancelled) {
           setWordCount(wordsRes.count || 0);
-          setFlashcardSetCount(setsRes.count || 0);
           setStudySessionCount(sessionsRes.count || 0);
         }
       } catch (err) {
         console.error('Failed to load language learning stats:', err);
         if (!cancelled) {
           setWordCount(0);
-          setFlashcardSetCount(0);
           setStudySessionCount(0);
         }
       } finally {
@@ -80,5 +70,5 @@ export function useLanguageLearningStats(): LanguageLearningStats {
     };
   }, [activeLanguage]);
 
-  return { wordCount, flashcardSetCount, studySessionCount, isLoading };
+  return { wordCount, studySessionCount, isLoading };
 }

@@ -1,5 +1,4 @@
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
-import type { ExamQuestion } from '@/app/exam/_lib/types';
 
 export type ProficiencyLevel = 'beginner' | 'intermediate' | 'advanced';
 
@@ -56,17 +55,7 @@ export interface ChatMessage {
     /** English meaning split into clickable phrase chunks (joined = english). */
     englishPhrases?: string[];
   }>;
-  type?: 'text' | 'exam' | 'exam-link';
-  examQuestions?: ExamQuestion[];
-  examCategory?: 'cefr' | 'toeic';
-  examLevel?: string;
-  examResult?: { score: number; total: number };
-  /** For `exam-link` cards: the saved exam_sets row to play at /exam?examId=... */
-  examId?: string;
-  /** For `exam-link` cards: the topic the user requested (display only). */
-  examTopic?: string;
-  /** For `exam-link` cards: number of questions in the set (display only). */
-  examCount?: number;
+  type?: 'text';
   /** Grammar correctness and correction explanation */
   grammarCorrect?: boolean;
   grammarNotes?: string;

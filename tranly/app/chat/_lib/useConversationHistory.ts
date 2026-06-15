@@ -82,27 +82,6 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         }
 
         const messages: ChatMessage[] = (data || []).map((r) => {
-          // exam-link cards: reconstruct the "go take the exam" card.
-          // topic is stored in raw_text, question count in english.
-          if (r.kind === 'exam-link') {
-            return {
-              id: r.id,
-              role: r.role as 'user' | 'assistant',
-              type: 'exam-link' as const,
-              examId: r.exam_id ?? undefined,
-              examTopic: r.raw_text || '',
-              examCount: Number(r.english) || 0,
-              korean: '',
-              reading: '',
-              romanization: '',
-              translation: '',
-              english: '',
-              rawText: r.raw_text || '',
-              timestamp: r.timestamp,
-              status: 'sent' as const,
-            };
-          }
-
           const splitKorean = (r.korean || '').split('|||');
           const splitReading = (r.reading || '').split('|||');
           const splitRomanization = (r.romanization || '').split('|||');
@@ -244,10 +223,6 @@ export function useConversationHistory(): UseConversationHistoryReturn {
                 : null,
           raw_text: message.rawText,
           timestamp: message.timestamp,
-          // exam-link cards reference a generated exam_sets row so the
-          // "go take the exam" button survives reload / session restore.
-          kind: message.type === 'exam-link' ? 'exam-link' : null,
-          exam_id: message.examId ?? null,
         };
 
         const { error: dbError } = await supabase
