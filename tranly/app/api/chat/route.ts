@@ -8,18 +8,11 @@ import type {
   ChatSuccessResponse,
   ChatErrorResponse,
   ChatErrorType,
-  ProficiencyLevel,
   ChatMessage,
 } from '@/app/chat/_lib/types';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
-
-const VALID_PROFICIENCY_LEVELS: ProficiencyLevel[] = [
-  'beginner',
-  'intermediate',
-  'advanced',
-];
 
 const ERROR_MESSAGES: Record<ChatErrorType, string> = {
   invalid_input: 'Invalid input.',
@@ -40,25 +33,15 @@ function errorResponse(
 }
 
 /**
- * Build the system prompt based on topic, proficiency level, and word context.
+ * Build the system prompt based on topic, word context, goal, and language.
  */
 function buildSystemPrompt(
   topic: string,
-  level: ProficiencyLevel,
   wordContext: string[],
   goal: string,
   language: TargetLanguage
 ): string {
   const lang = LANG_PROMPT[language];
-
-  const levelInstructions: Record<ProficiencyLevel, string> = {
-    beginner:
-      'Speak like a friendly person texting — very short (1–2 sentences max), simple words, basic grammar, present tense. No long explanations.',
-    intermediate:
-      'Speak naturally like a real conversation — 1–3 short sentences, casual or polite tone, normal everyday expressions. No lengthy responses.',
-    advanced:
-      'Speak like a native in casual chat — concise, natural, may use slang, contractions, or informal speech. Keep it punchy and real.',
-  };
 
   const wordInstruction =
     wordContext.length > 0
@@ -74,7 +57,7 @@ function buildSystemPrompt(
     `You are a ${lang.label} friend having an ongoing, casual text chat with the user. The conversation topic is "${topic}".\n\n` +
     `CONTEXT IS CRITICAL: The messages above are the real conversation so far. Read ALL of them and reply DIRECTLY to the user's most recent message. Acknowledge what they just said, answer their questions, and keep the dialogue flowing on this topic. Never ignore their message, never change the subject randomly, and never repeat one of your earlier replies.\n\n` +
     `The user may write in ${lang.label}, Thai, or English — understand their meaning either way, but ALWAYS reply in ${lang.label}.\n\n` +
-    `${levelInstructions[level]} ${wordInstruction} Keep each reply SHORT — 1-2 sentences, like real texting.\n\n` +
+    `Speak naturally like in a real conversation — medium length (3–5 sentences), using a casual or polite tone and normal everyday expressions. Share more details and elaborate on topics. ${wordInstruction}\n\n` +
     `OPEN-ENDED QUESTION RULE: Unless the conversation has ended (i.e. "ended" is true), the last sentence of your reply (the last item in your "sentences" array) MUST always be a friendly, natural, open-ended question in ${lang.label} related to the conversation flow and topic to keep the conversation active (e.g. asking how they feel, what they think, what they did next, etc.).\n\n` +
     `${goalInstruction}\n\n` +
     `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction). When "ended" is true you may use an empty suggestions array.\n\n` +
@@ -82,7 +65,7 @@ function buildSystemPrompt(
     `{\n` +
     `  "sentences": [\n` +
     `    {\n` +
-    `      "korean": "<sentence in ${lang.script}>",\n` +
+    `      "englishText": "<sentence in ${lang.script}>",\n` +
     `      "reading": "<${lang.readingDesc}, e.g. ${lang.readingExample}>",\n` +
     `      "romanization": "<${lang.romanizationDesc}>",\n` +
     `      "translation": "<Thai meaning of this sentence>",\n` +
@@ -91,14 +74,14 @@ function buildSystemPrompt(
     `    }\n` +
     `  ],\n` +
     `  "suggestions": [\n` +
-    `    { "korean": "<a reply the user could send, in ${lang.script}>", "translation": "<its Thai meaning>" }\n` +
+    `    { "englishText": "<a reply the user could send, in ${lang.script}>", "translation": "<its Thai meaning>" }\n` +
     `  ],\n` +
     `  "ended": false\n` +
     `}\n\n` +
     `RULES:\n` +
     `- "sentences" is an array of sentence objects, splitting your reply into natural, shorter sentences.\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
-    `- The "korean" field in each sentence always holds the ${lang.label} text, regardless of its key name\n` +
+    `- The "englishText" field in each sentence always holds the ${lang.label} text\n` +
     `- "ended" is a boolean: true ONLY when the conversation's goal has been achieved and you are closing the chat\n` +
     `- "suggestions" are replies for the USER to choose from (${lang.label} + Thai meaning), NOT your reply\n` +
     `- "reading" = ${lang.readingDesc}, NOT a translation\n` +
@@ -126,15 +109,6 @@ function validateInput(body: unknown): ChatRequest | null {
     if (m.role !== 'user' && m.role !== 'assistant') return null;
     if (typeof m.content !== 'string') return null;
   }
-
-  // proficiencyLevel must be valid
-  if (
-    typeof record.proficiencyLevel !== 'string' ||
-    !VALID_PROFICIENCY_LEVELS.includes(
-      record.proficiencyLevel as ProficiencyLevel
-    )
-  )
-    return null;
 
   // topic must be 2-100 chars after trimming
   if (typeof record.topic !== 'string') return null;
@@ -166,7 +140,6 @@ function validateInput(body: unknown): ChatRequest | null {
 
   return {
     messages: record.messages as ChatRequest['messages'],
-    proficiencyLevel: record.proficiencyLevel as ProficiencyLevel,
     topic: trimmedTopic,
     wordContext,
     goal,
@@ -176,7 +149,7 @@ function validateInput(body: unknown): ChatRequest | null {
 
 export async function POST(
   request: NextRequest
-): Promise<NextResponse<ChatSuccessResponse | ChatErrorResponse>> {
+): Promise<NextResponse<ChatSuccessResponse | ChatErrorResponse> | Response> {
   // Parse request body
   let body: unknown;
   try {
@@ -191,8 +164,7 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { messages, proficiencyLevel, topic, wordContext, goal, language } =
-    input;
+  const { messages, topic, wordContext, goal, language } = input;
 
   // Read custom API key and model from request headers (user-provided config).
   const customApiKey = request.headers.get('x-custom-api-key');
@@ -206,7 +178,6 @@ export async function POST(
   // Build system prompt
   const systemPrompt = buildSystemPrompt(
     topic,
-    proficiencyLevel,
     wordContext ?? [],
     goal ?? '',
     language ?? 'english'
@@ -217,7 +188,7 @@ export async function POST(
   const chatMessages: ChatMessage[] = messages.map((msg, index) => ({
     id: String(index),
     role: msg.role,
-    korean: msg.role === 'assistant' ? msg.content : '',
+    englishText: msg.role === 'assistant' ? msg.content : '',
     reading: '',
     romanization: '',
     translation: '',
@@ -264,14 +235,16 @@ export async function POST(
     model: customModel || 'deepseek-v4-flash',
     messages: apiMessages,
     max_tokens: 2048,
+    stream: true,
   };
 
   // Set up timeout with AbortController
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
+  let upstreamResponse: Response;
   try {
-    const response = await fetch(KKU_API_URL, {
+    upstreamResponse = await fetch(KKU_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -280,59 +253,93 @@ export async function POST(
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
-
-    clearTimeout(timeoutId);
-
-    // Map error responses
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`KKU API error [${response.status}]:`, errorBody);
-
-      if (response.status === 429) {
-        return errorResponse('rate_limit', 429);
-      }
-      return errorResponse('api_error', 502);
-    }
-
-    // Parse successful response
-    const responseText = await response.text();
-
-    let content: string | undefined;
-    try {
-      const data = JSON.parse(responseText);
-      content = data?.choices?.[0]?.message?.content;
-
-      if (!content && data?.content) {
-        content = data.content;
-      }
-    } catch {
-      // Fall through — treat raw text as content
-      content = responseText;
-    }
-
-    if (!content || content.trim().length === 0) {
-      console.error('Could not extract content from KKU response');
-      return errorResponse('api_error', 502);
-    }
-
-    console.log('KKU raw content:', JSON.stringify(content));
-
-    // Parse the chat response content into ChatSuccessResponse
-    const parsed = parseChatResponse(content);
-
-    return NextResponse.json(parsed, { status: 200 });
   } catch (error: unknown) {
     clearTimeout(timeoutId);
-
     if (error instanceof Error && error.name === 'AbortError') {
       return errorResponse('timeout', 504);
     }
-
     if (error instanceof TypeError) {
       return errorResponse('network_error', 502);
     }
-
     console.error('Chat API unexpected error:', error);
     return errorResponse('api_error', 502);
   }
+
+  // Map upstream error responses (before streaming starts)
+  if (!upstreamResponse.ok) {
+    clearTimeout(timeoutId);
+    const errorBody = await upstreamResponse.text();
+    console.error(`KKU API error [${upstreamResponse.status}]:`, errorBody);
+    if (upstreamResponse.status === 429) {
+      return errorResponse('rate_limit', 429);
+    }
+    return errorResponse('api_error', 502);
+  }
+
+  // Stream SSE delta chunks to the client as plain text.
+  // Each chunk is the raw `delta.content` string from the upstream SSE.
+  // The client accumulates the buffer and runs parseChatResponse on completion.
+  const upstreamBody = upstreamResponse.body;
+  if (!upstreamBody) {
+    clearTimeout(timeoutId);
+    return errorResponse('api_error', 502);
+  }
+
+  const stream = new ReadableStream({
+    async start(streamController) {
+      const reader = upstreamBody.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          sseBuffer += decoder.decode(value, { stream: true });
+
+          // Process complete SSE lines
+          const lines = sseBuffer.split('\n');
+          // Keep last (possibly incomplete) line in buffer
+          sseBuffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+            const data = trimmed.slice(5).trim();
+            if (data === '[DONE]') {
+              streamController.close();
+              return;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed?.choices?.[0]?.delta?.content;
+              if (typeof delta === 'string' && delta.length > 0) {
+                streamController.enqueue(new TextEncoder().encode(delta));
+              }
+            } catch {
+              // skip malformed SSE data lines
+            }
+          }
+        }
+        streamController.close();
+      } catch {
+        streamController.close();
+      } finally {
+        clearTimeout(timeoutId);
+        reader.releaseLock();
+      }
+    },
+    cancel() {
+      clearTimeout(timeoutId);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-cache',
+    },
+  });
 }

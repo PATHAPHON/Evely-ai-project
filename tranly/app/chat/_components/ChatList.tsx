@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import {
   LoadingOutlined,
   SoundOutlined,
@@ -37,12 +37,33 @@ export default function ChatList({
   onSpeak,
 }: ChatListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastUserMsgRef = useRef<HTMLDivElement>(null);
+  const prevUserCountRef = useRef(0);
+  const [spacerHeight, setSpacerHeight] = useState(0);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const userCount = messages.filter((m) => m.role === 'user').length;
+    const delta = userCount - prevUserCountRef.current;
+    prevUserCountRef.current = userCount;
+
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages, isLoading]);
+
+    if (delta > 1) {
+      // bulk load (restore session) → jump to bottom
+      setSpacerHeight(0);
+      el.scrollTo({ top: el.scrollHeight });
+      return;
+    }
+
+    if (delta === 1 && lastUserMsgRef.current) {
+      const anchor = lastUserMsgRef.current;
+      setSpacerHeight(Math.max(0, el.clientHeight - anchor.offsetHeight));
+      requestAnimationFrame(() => {
+        anchor.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+    }
+  }, [messages]);
 
   return (
     <div
@@ -53,18 +74,38 @@ export default function ChatList({
       aria-label="Conversation messages"
     >
       <div className="max-w-2xl mx-auto w-full space-y-5 pb-[380px]">
-        {messages.map((message) => {
-          if (message.status === 'pending') return null;
-          return message.role === 'assistant' ? (
-            <AIMessage key={message.id} message={message} onSpeak={onSpeak} />
-          ) : (
-            <UserMessage key={message.id} message={message} onSpeak={onSpeak} />
+        {(() => {
+          const lastUserIndex = messages.reduce(
+            (acc, m, i) => (m.role === 'user' ? i : acc),
+            -1
           );
-        })}
+          return messages.map((message, index) => {
+            if (message.status === 'pending') {
+              // Show partial streaming content if available, otherwise hide
+              const hasPartial =
+                (message.sentences && message.sentences.length > 0) ||
+                message.englishText.length > 0;
+              if (!hasPartial) return null;
+              return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
+            }
+            if (message.role === 'assistant') {
+              return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
+            }
+            return (
+              <div key={message.id} ref={index === lastUserIndex ? lastUserMsgRef : undefined}>
+                <UserMessage message={message} onSpeak={onSpeak} />
+              </div>
+            );
+          });
+        })()}
 
-        {isLoading && <LoadingBubble />}
+        {isLoading && !messages.some(
+          (m) => m.status === 'pending' && ((m.sentences && m.sentences.length > 0) || m.englishText.length > 0)
+        ) && <LoadingBubble />}
 
         {error && <ErrorBanner error={error} onRetry={onRetry} />}
+
+        <div aria-hidden style={{ height: spacerHeight }} />
       </div>
     </div>
   );
@@ -92,7 +133,7 @@ function AIMessage({
                     <div className="border-t border-gray-200/50 dark:border-gray-800/40 my-3 w-full" />
                   )}
                   <p className="text-base font-medium leading-relaxed">
-                    <WordRenderer text={s.english || s.korean || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
+                    <WordRenderer text={s.english || s.englishText || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
                   </p>
                   {s.reading && (
                     <p className="text-[15px] text-gray-600 dark:text-gray-300 font-medium leading-relaxed mt-1">
@@ -110,7 +151,7 @@ function AIMessage({
           ) : (
             <div>
               <p className="text-base font-medium leading-relaxed">
-                <WordRenderer text={message.english || message.korean || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
+                <WordRenderer text={message.english || message.englishText || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
               </p>
               {message.reading && (
                 <p className="text-[15px] text-gray-600 dark:text-gray-300 font-medium leading-relaxed mt-1">
@@ -148,7 +189,7 @@ function AIMessage({
               onClick={() => {
                 const textToCopy = hasSentences 
                   ? sentences.map(s => s.translation || s.reading).join('\n') 
-                  : message.translation || message.korean;
+                  : message.translation || message.englishText;
                 navigator.clipboard.writeText(textToCopy);
               }}
               aria-label="Copy text"
@@ -199,10 +240,21 @@ function UserMessage({
           <div className="text-base text-gray-900 dark:text-gray-100">
             {message.rawText}
           </div>
-        ) : message.korean ? (
+        ) : message.isTranslating && !message.englishText ? (
+          <div className="flex flex-col gap-2 animate-pulse" aria-hidden="true">
+            <div className="flex gap-1.5 flex-wrap">
+              <div className="h-6 w-14 rounded-lg bg-gray-200 dark:bg-[#3d3d5c]" />
+              <div className="h-6 w-10 rounded-lg bg-gray-200 dark:bg-[#3d3d5c]" />
+              <div className="h-6 w-16 rounded-lg bg-gray-200 dark:bg-[#3d3d5c]" />
+              <div className="h-6 w-12 rounded-lg bg-gray-200 dark:bg-[#3d3d5c]" />
+            </div>
+            <div className="h-4 w-3/4 rounded-lg bg-gray-200 dark:bg-[#3d3d5c]" />
+            <div className="h-3.5 w-2/3 rounded-lg bg-gray-200 dark:bg-[#3d3d5c]" />
+          </div>
+        ) : message.englishText ? (
           <div className="flex flex-col gap-1">
             <div className="text-xl font-bold text-gray-950 dark:text-white flex items-center gap-2 flex-wrap">
-              <WordRenderer text={message.korean} textClassName="text-xl font-bold text-gray-950 dark:text-white" />
+              <WordRenderer text={message.englishText} textClassName="text-xl font-bold text-gray-950 dark:text-white" />
               {message.grammarCorrect === true && (
                 <span className="inline-flex items-center" title="ไวยากรณ์ถูกต้อง">
                   <CheckCircleFilled className="text-emerald-500 dark:text-emerald-400 text-lg" />
@@ -272,7 +324,7 @@ function UserMessage({
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">ประโยคของคุณ</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white leading-relaxed">{message.korean}</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white leading-relaxed">{message.englishText}</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/30 text-sm text-red-700 dark:text-red-300 leading-relaxed">

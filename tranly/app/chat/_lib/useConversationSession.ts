@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
+import { parseChatResponse } from '@/app/api/chat/parseChatResponse';
+import { parsePartialChat } from '@/app/api/chat/parsePartialChat';
 import { useConversationHistory } from './useConversationHistory';
 
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
@@ -93,8 +95,7 @@ export function useConversationSession(): UseConversationSessionReturn {
     const sessionRecord: ConversationSessionRecord = {
       id: sessionIdRef.current,
       topic: title,
-      proficiencyLevel: config.proficiencyLevel,
-      wordContext: config.wordContext.map((w) => w.korean),
+      wordContext: config.wordContext.map((w) => w.englishText),
       goal: config.goal,
       createdAt: createdAtRef.current,
       endedAt: null,
@@ -112,8 +113,7 @@ export function useConversationSession(): UseConversationSessionReturn {
     const record: ConversationSessionRecord = {
       id: sessionIdRef.current,
       topic: savedTopicRef.current ?? sessionConfig.topic,
-      proficiencyLevel: sessionConfig.proficiencyLevel,
-      wordContext: sessionConfig.wordContext.map((w) => w.korean),
+      wordContext: sessionConfig.wordContext.map((w) => w.englishText),
       goal: sessionConfig.goal,
       createdAt: createdAtRef.current,
       endedAt: new Date().toISOString(),
@@ -132,7 +132,7 @@ export function useConversationSession(): UseConversationSessionReturn {
       return recent.map(
         (msg): ChatMessagePayload => ({
           role: msg.role,
-          content: msg.role === 'user' ? (msg.korean || msg.rawText) : msg.korean,
+          content: msg.role === 'user' ? (msg.englishText || msg.rawText) : msg.englishText,
         })
       );
     },
@@ -140,16 +140,18 @@ export function useConversationSession(): UseConversationSessionReturn {
   );
 
   const callChatApi = useCallback(
-    async (contextMessages: ChatMessage[]): Promise<ChatSuccessResponse> => {
+    async (
+      contextMessages: ChatMessage[],
+      onPartial?: (partial: { sentences: { englishText: string; english?: string; translation?: string }[] }) => void,
+    ): Promise<ChatSuccessResponse> => {
       if (!sessionConfig) {
         throw new Error('ไม่มีเซสชันที่ใช้งานอยู่');
       }
 
       const payload: ChatRequest = {
         messages: buildContextPayload(contextMessages),
-        proficiencyLevel: sessionConfig.proficiencyLevel,
         topic: sessionConfig.topic,
-        wordContext: sessionConfig.wordContext.map((w) => w.korean),
+        wordContext: sessionConfig.wordContext.map((w) => w.englishText),
         goal: sessionConfig.goal,
         language: sessionConfig.language,
       };
@@ -170,7 +172,30 @@ export function useConversationSession(): UseConversationSessionReturn {
         );
       }
 
-      return (await response.json()) as ChatSuccessResponse;
+      // Stream response body, calling onPartial with each accumulated chunk
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            if (onPartial) {
+              const partial = parsePartialChat(buffer);
+              if (partial.sentences.length > 0) {
+                onPartial(partial);
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
+
+      return parseChatResponse(buffer);
     },
     [sessionConfig, buildContextPayload]
   );
@@ -183,11 +208,11 @@ export function useConversationSession(): UseConversationSessionReturn {
 
       setIsLoading(true);
 
-      // Create user message
+      // Create user message (isTranslating=true triggers skeleton in UI; never persisted)
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'user',
-        korean: '',
+        englishText: '',
         reading: '',
         romanization: '',
         translation: '',
@@ -195,6 +220,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         rawText: text,
         timestamp: new Date().toISOString(),
         status: 'sent',
+        isTranslating: true,
       };
 
       // Add user message to state immediately
@@ -215,18 +241,19 @@ export function useConversationSession(): UseConversationSessionReturn {
         .then((data) => {
           if (
             data &&
-            typeof data.korean === 'string' &&
-            data.korean.trim().length > 0
+            typeof data.englishText === 'string' &&
+            data.englishText.trim().length > 0
           ) {
             const updatedUserMessage: ChatMessage = {
               ...userMessage,
-              korean: data.korean,
+              englishText: data.englishText,
               reading: data.reading ?? '',
               romanization: data.romanization ?? '',
               translation: data.translation ?? '',
               english: data.english ?? '',
               grammarCorrect: data.grammarCorrect,
               grammarNotes: data.grammarNotes,
+              isTranslating: false,
             };
             setMessages((prev) =>
               prev.map((msg) =>
@@ -238,10 +265,22 @@ export function useConversationSession(): UseConversationSessionReturn {
                 console.error('Failed to update persisted user message with translation:', err);
               });
             }
+          } else {
+            // Translation returned no usable data — clear skeleton, fall back to rawText
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === userMessageId ? { ...msg, isTranslating: false } : msg
+              )
+            );
           }
         })
         .catch(() => {
-          // Translation failure is silent — raw text remains visible
+          // Translation failure — clear skeleton, fall back to rawText
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === userMessageId ? { ...msg, isTranslating: false } : msg
+            )
+          );
         });
 
       // Persist user message
@@ -256,7 +295,7 @@ export function useConversationSession(): UseConversationSessionReturn {
       const pendingMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        korean: '',
+        englishText: '',
         reading: '',
         romanization: '',
         translation: '',
@@ -271,17 +310,36 @@ export function useConversationSession(): UseConversationSessionReturn {
       try {
         // Build context including the new user message
         const contextMessages = [...messages, userMessage];
-        const aiResponse = await callChatApi(contextMessages);
+        const aiResponse = await callChatApi(contextMessages, (partial) => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === pendingMessage.id
+                ? {
+                    ...msg,
+                    sentences: partial.sentences.map((s) => ({
+                      englishText: s.englishText,
+                      reading: '',
+                      romanization: '',
+                      translation: s.translation ?? '',
+                      english: s.english ?? '',
+                    })),
+                    englishText: partial.sentences[0]?.englishText ?? '',
+                    english: partial.sentences[0]?.english ?? '',
+                  }
+                : msg
+            )
+          );
+        });
 
         // Update pending message with AI response
         const aiMessage: ChatMessage = {
           ...pendingMessage,
-          korean: aiResponse.korean,
+          englishText: aiResponse.englishText,
           reading: aiResponse.reading,
           romanization: aiResponse.romanization,
           translation: aiResponse.translation,
           english: aiResponse.english,
-          rawText: aiResponse.korean,
+          rawText: aiResponse.englishText,
           timestamp: new Date().toISOString(),
           status: 'sent',
           suggestions: aiResponse.suggestions ?? [],
@@ -339,7 +397,7 @@ export function useConversationSession(): UseConversationSessionReturn {
     const pendingMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'assistant',
-      korean: '',
+      englishText: '',
       reading: '',
       romanization: '',
       translation: '',
@@ -353,17 +411,36 @@ export function useConversationSession(): UseConversationSessionReturn {
 
     try {
       // Use current messages (which include the last user message) as context
-      const aiResponse = await callChatApi(messages);
+      const aiResponse = await callChatApi(messages, (partial) => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === pendingMessage.id
+              ? {
+                  ...msg,
+                  sentences: partial.sentences.map((s) => ({
+                    englishText: s.englishText,
+                    reading: '',
+                    romanization: '',
+                    translation: s.translation ?? '',
+                    english: s.english ?? '',
+                  })),
+                  englishText: partial.sentences[0]?.englishText ?? '',
+                  english: partial.sentences[0]?.english ?? '',
+                }
+              : msg
+          )
+        );
+      });
 
       // Update pending message with AI response
       const aiMessage: ChatMessage = {
         ...pendingMessage,
-        korean: aiResponse.korean,
+        englishText: aiResponse.englishText,
         reading: aiResponse.reading,
         romanization: aiResponse.romanization,
         translation: aiResponse.translation,
         english: aiResponse.english,
-        rawText: aiResponse.korean,
+        rawText: aiResponse.englishText,
         timestamp: new Date().toISOString(),
         status: 'sent',
         suggestions: aiResponse.suggestions ?? [],
@@ -410,7 +487,7 @@ export function useConversationSession(): UseConversationSessionReturn {
       const msg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'user',
-        korean: '',
+        englishText: '',
         reading: '',
         romanization: '',
         translation: '',
@@ -438,7 +515,7 @@ export function useConversationSession(): UseConversationSessionReturn {
       const msg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        korean: text,
+        englishText: text,
         reading: '',
         romanization: '',
         translation: '',
@@ -446,7 +523,7 @@ export function useConversationSession(): UseConversationSessionReturn {
         rawText: text,
         timestamp: new Date().toISOString(),
         status: 'sent',
-        suggestions: suggestions.map((s) => ({ korean: s, translation: '' })),
+        suggestions: suggestions.map((s) => ({ englishText: s, translation: '' })),
       };
       setMessages((prev) => [...prev, msg]);
       try {
@@ -472,8 +549,7 @@ export function useConversationSession(): UseConversationSessionReturn {
       const config: SessionConfig = {
         topic: 'พูดคุยทั่วไป',
         goal: '',
-        proficiencyLevel: 'beginner',
-        wordContext: [],
+          wordContext: [],
         language,
       };
       sessionConfigRef.current = config;
@@ -502,8 +578,7 @@ export function useConversationSession(): UseConversationSessionReturn {
       const sessionRecord: ConversationSessionRecord = {
         id: sessionIdRef.current,
         topic: savedTopicRef.current ?? sessionConfig.topic,
-        proficiencyLevel: sessionConfig.proficiencyLevel,
-        wordContext: sessionConfig.wordContext.map((w) => w.korean),
+          wordContext: sessionConfig.wordContext.map((w) => w.englishText),
         goal: sessionConfig.goal,
         createdAt: createdAtRef.current,
         endedAt: new Date().toISOString(),
