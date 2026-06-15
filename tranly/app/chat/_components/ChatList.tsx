@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LoadingOutlined,
   SoundOutlined,
   ExclamationCircleOutlined,
-  ThunderboltOutlined,
-  RightOutlined,
   LikeOutlined,
   DislikeOutlined,
   CopyOutlined,
@@ -16,7 +14,6 @@ import {
   CloseOutlined,
 } from '@ant-design/icons';
 import type { ChatMessage } from '../_lib/types';
-import { findLastAssistantId } from '../_lib/chatListHelpers';
 import WordRenderer from '@/app/_components/WordRenderer';
 
 interface ChatListProps {
@@ -25,8 +22,6 @@ interface ChatListProps {
   error: string | null;
   onRetry: () => void;
   onSpeak: (messageId: string, text?: string) => void;
-  /** Navigate to the dedicated /exam play page for the given exam set. */
-  onStartExam?: (examId: string) => void;
 }
 
 /**
@@ -40,63 +35,37 @@ export default function ChatList({
   error,
   onRetry,
   onSpeak,
-  onStartExam,
 }: ChatListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom on new message or loading state change
-  const scrollToBottom = useCallback(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, []);
-
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading, error, scrollToBottom]);
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [messages, isLoading]);
 
   return (
     <div
       ref={scrollRef}
-      className="flex-1 overflow-y-auto p-4 space-y-5"
+      className="flex-1 overflow-y-auto p-4"
       role="log"
       aria-live="polite"
       aria-label="Conversation messages"
     >
-      {(() => {
-        // The freshest AI reply gets the happy hop; older ones idle.
-        const lastAssistantId = findLastAssistantId(messages);
-        return messages.map((message) => {
+      <div className="max-w-2xl mx-auto w-full space-y-5 pb-[380px]">
+        {messages.map((message) => {
           if (message.status === 'pending') return null;
-
-          // Exam-link card: a generated exam to play on the /exam page.
-          if (message.type === 'exam-link') {
-            return (
-              <ExamLinkCard
-                key={message.id}
-                message={message}
-                onStartExam={onStartExam}
-              />
-            );
-          }
-
           return message.role === 'assistant' ? (
-            <AIMessage
-              key={message.id}
-              message={message}
-              onSpeak={onSpeak}
-              isLatest={message.id === lastAssistantId}
-              onType={scrollToBottom}
-            />
+            <AIMessage key={message.id} message={message} onSpeak={onSpeak} />
           ) : (
             <UserMessage key={message.id} message={message} onSpeak={onSpeak} />
           );
-        });
-      })()}
+        })}
 
-      {isLoading && <LoadingBubble />}
+        {isLoading && <LoadingBubble />}
 
-      {error && <ErrorBanner error={error} onRetry={onRetry} />}
+        {error && <ErrorBanner error={error} onRetry={onRetry} />}
+      </div>
     </div>
   );
 }
@@ -104,41 +73,12 @@ export default function ChatList({
 function AIMessage({
   message,
   onSpeak,
-  isLatest = false,
-  onType,
 }: {
   message: ChatMessage;
   onSpeak: (messageId: string, text?: string) => void;
-  isLatest?: boolean;
-  onType?: () => void;
 }) {
-  // Determine if this is a brand new message requiring typewriter animation
-  const isRecent = new Date().getTime() - new Date(message.timestamp).getTime() < 10000;
-  const shouldAnimate = isLatest && isRecent;
-
   const sentences = message.sentences || [];
   const hasSentences = sentences.length > 0;
-
-  const totalLength = hasSentences
-    ? sentences.reduce((sum, s) => sum + s.korean.length, 0)
-    : Array.from(message.korean).length;
-
-  const [shown, setShown] = useState(shouldAnimate ? 0 : totalLength);
-
-  useEffect(() => {
-    if (!shouldAnimate) return;
-    if (shown >= totalLength) return;
-    const t = setTimeout(() => {
-      setShown((n) => n + 1);
-      onType?.();
-    }, 25); // 25ms per character reveal
-    return () => clearTimeout(t);
-  }, [shown, totalLength, shouldAnimate, onType]);
-
-  const isDone = !shouldAnimate || shown >= totalLength;
-  const chars = Array.from(message.korean);
-
-  let charOffset = 0;
 
   return (
     <div className="flex justify-start items-start w-full">
@@ -146,56 +86,29 @@ function AIMessage({
         <div className="text-gray-900 dark:text-gray-100">
           {hasSentences ? (
             <div className="flex flex-col gap-4">
-              {sentences.map((s, idx) => {
-                const startOffset = charOffset;
-                const endOffset = charOffset + s.korean.length;
-                charOffset = endOffset;
-
-                let sentenceShown = s.korean.length;
-                if (shouldAnimate) {
-                  if (shown < startOffset) sentenceShown = 0;
-                  else if (shown < endOffset) sentenceShown = shown - startOffset;
-                }
-
-                if (sentenceShown === 0) return null;
-
-                const isSentenceDone = !shouldAnimate || shown >= endOffset;
-
-                return (
-                  <div key={idx} className="flex flex-col">
-                    {idx > 0 && (
-                      <div className="border-t border-gray-200/50 dark:border-gray-800/40 my-3 w-full" />
-                    )}
-                    <div
-                      className={`transition-opacity duration-300 ease-out ${
-                        isSentenceDone ? 'opacity-100' : 'opacity-0'
-                      }`}
-                    >
-                      <p className="text-base font-medium leading-relaxed">
-                        <WordRenderer text={s.english || s.korean || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
-                      </p>
-                      {s.reading && (
-                        <p className="text-[15px] text-gray-600 dark:text-gray-300 font-medium leading-relaxed mt-1">
-                          {s.reading}
-                        </p>
-                      )}
-                      {s.translation && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                          {s.translation}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {sentences.map((s, idx) => (
+                <div key={idx} className="flex flex-col">
+                  {idx > 0 && (
+                    <div className="border-t border-gray-200/50 dark:border-gray-800/40 my-3 w-full" />
+                  )}
+                  <p className="text-base font-medium leading-relaxed">
+                    <WordRenderer text={s.english || s.korean || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
+                  </p>
+                  {s.reading && (
+                    <p className="text-[15px] text-gray-600 dark:text-gray-300 font-medium leading-relaxed mt-1">
+                      {s.reading}
+                    </p>
+                  )}
+                  {s.translation && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                      {s.translation}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
-            // Fallback legacy layout using the same structure
-            <div
-              className={`transition-opacity duration-300 ease-out ${
-                isDone ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
+            <div>
               <p className="text-base font-medium leading-relaxed">
                 <WordRenderer text={message.english || message.korean || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
               </p>
@@ -255,49 +168,12 @@ function AIMessage({
           <button
             type="button"
             onClick={() => onSpeak(message.id)}
-            disabled={!isDone}
             aria-label="Play pronunciation"
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40"
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <SoundOutlined style={{ fontSize: 18 }} />
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ExamLinkCard({
-  message,
-  onStartExam,
-}: {
-  message: ChatMessage;
-  onStartExam?: (examId: string) => void;
-}) {
-  const topic = message.examTopic?.trim();
-  const count = message.examCount ?? 0;
-  return (
-    <div className="flex justify-start items-start w-full">
-      <div className="animate-bubble-pop-in max-w-[85%] w-full rounded-3xl bg-amber-50/60 dark:bg-amber-950/20 p-4 px-6 shadow-sm flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <ThunderboltOutlined style={{ fontSize: 18 }} className="text-amber-500" />
-          <p className="text-base font-bold text-gray-900 dark:text-gray-100">
-            ข้อสอบพร้อมแล้ว!
-          </p>
-        </div>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          {topic ? <>หัวข้อ: <strong>{topic}</strong> · </> : null}
-          {count} ข้อ
-        </p>
-        <button
-          type="button"
-          disabled={!message.examId}
-          onClick={() => message.examId && onStartExam?.(message.examId)}
-          className="self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-gray-900 hover:bg-amber-300 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          ไปทำข้อสอบ
-          <RightOutlined style={{ fontSize: 13 }} />
-        </button>
       </div>
     </div>
   );
@@ -312,8 +188,8 @@ function UserMessage({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Slash commands ("/exam ...") are instructions, not language content —
-  // render them plain instead of chipping every English word as vocab.
+  // Slash commands are instructions, not language content — render them plain
+  // instead of chipping every English word as vocab.
   const isCommand = message.rawText.trimStart().startsWith('/');
 
   return (

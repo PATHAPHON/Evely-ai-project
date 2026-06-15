@@ -1,7 +1,7 @@
 // Minimal Service Worker for PWA installation and caching capabilities
 const CACHE_NAME = 'tarnly-korean-v1';
 const ASSETS = [
-  '/home',
+  '/chat',
   '/icon-192.png',
   '/icon-512.png',
   '/icon.png',
@@ -52,7 +52,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       }).catch(() => {
         // Fallback for offline mode if failed
-        return caches.match('/home');
+        return caches.match('/chat');
       });
     })
   );
