@@ -2,9 +2,9 @@ import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 export type ProficiencyLevel = 'beginner' | 'intermediate' | 'advanced';
 
-export type SpeechLang = 'ko-KR' | 'th-TH' | 'en-US' | 'ja-JP' | 'zh-CN';
+export type SpeechLang = 'en-US' 
 
-export type ChatErrorType =
+export type ChatErrorType = 
   | 'invalid_input'
   | 'api_error'
   | 'rate_limit'
@@ -25,8 +25,8 @@ export interface ConversationSessionRecord {
 
 
 export interface ReplySuggestion {
-  /** A reply the user could send next, in Korean (Hangul). */
-  korean: string;
+  /** A reply the user could send next, in the target language. */
+  englishText: string;
   /** Thai meaning of the suggested reply, so the learner understands it. */
   translation: string;
 }
@@ -34,7 +34,7 @@ export interface ReplySuggestion {
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
-  korean: string;
+  englishText: string;
   reading: string;
   romanization: string;
   translation: string;
@@ -47,7 +47,7 @@ export interface ChatMessage {
   /** True when this assistant message concludes the conversation (goal reached). */
   ended?: boolean;
   sentences?: Array<{
-    korean: string;
+    englishText: string;
     reading: string;
     romanization: string;
     translation: string;
@@ -59,6 +59,8 @@ export interface ChatMessage {
   /** Grammar correctness and correction explanation */
   grammarCorrect?: boolean;
   grammarNotes?: string;
+  /** Transient: true while waiting for /api/translate response; never persisted. */
+  isTranslating?: boolean;
 }
 
 export interface SessionConfig {
@@ -75,7 +77,7 @@ export interface SessionConfig {
 
 export interface SavedWord {
   id: string;
-  korean: string;
+  englishText: string;
   reading: string;
   romanization: string;
   english: string;
@@ -99,7 +101,7 @@ export interface ChatMessagePayload {
 }
 
 export interface ChatSuccessResponse {
-  korean: string;
+  englishText: string;
   reading: string;
   romanization: string;
   translation: string;
@@ -109,7 +111,7 @@ export interface ChatSuccessResponse {
   /** True when the AI has concluded the conversation (goal reached). */
   ended?: boolean;
   sentences?: Array<{
-    korean: string;
+    englishText: string;
     reading: string;
     romanization: string;
     translation: string;

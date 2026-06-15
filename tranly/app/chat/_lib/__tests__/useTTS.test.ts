@@ -103,7 +103,7 @@ describe('useTTS', () => {
       const fetchMock = mockFetchOk();
       vi.stubGlobal('fetch', fetchMock);
 
-      const { result } = renderHook(() => useTTS('ko-KR'));
+      const { result } = renderHook(() => useTTS('en-US'));
 
       act(() => {
         result.current.speak('안녕하세요');
@@ -127,7 +127,7 @@ describe('useTTS', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       const { result } = renderHook(() =>
-        useTTS('ko-KR', 'ko-KR-Chirp3-HD-Charon'),
+        useTTS('en-US', 'ko-KR-Chirp3-HD-Charon'),
       );
 
       act(() => {
@@ -171,7 +171,7 @@ describe('useTTS', () => {
       const synth = installSpeechSynthesis();
       vi.stubGlobal('fetch', mockFetchStatus(503));
 
-      const { result } = renderHook(() => useTTS('ko-KR'));
+      const { result } = renderHook(() => useTTS('en-US'));
 
       act(() => {
         result.current.speak('안녕하세요');
@@ -181,7 +181,7 @@ describe('useTTS', () => {
 
       const utterance = synth.speak.mock.calls[0]![0] as MockUtterance;
       expect(utterance.text).toBe('안녕하세요');
-      expect(utterance.lang).toBe('ko-KR');
+      expect(utterance.lang).toBe('en-US');
       expect(MockAudio.lastInstance).toBeNull();
     });
 
@@ -189,14 +189,14 @@ describe('useTTS', () => {
       const synth = installSpeechSynthesis();
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
 
-      const { result } = renderHook(() => useTTS('ko-KR'));
+      const { result } = renderHook(() => useTTS('en-US'));
 
       act(() => {
         result.current.speak('안녕');
       });
 
       await waitFor(() => expect(synth.speak).toHaveBeenCalled());
-      expect((synth.speak.mock.calls[0]![0] as MockUtterance).lang).toBe('ko-KR');
+      expect((synth.speak.mock.calls[0]![0] as MockUtterance).lang).toBe('en-US');
     });
 
     it('falls back when audio playback errors out', async () => {

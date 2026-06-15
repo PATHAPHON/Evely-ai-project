@@ -1,5 +1,5 @@
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
-import type { ChatErrorType, ProficiencyLevel, SavedWord } from './types';
+import type { ChatErrorType, SavedWord } from './types';
 
 export type ExerciseType =
   | 'multiple_choice'
@@ -8,9 +8,9 @@ export type ExerciseType =
   | 'listening';
 
 export interface MatchingPair {
-  korean: string;
+  englishText: string;
   thai: string;
-  /** Pronunciation/romanization shown above the Korean word. */
+  /** Pronunciation shown above the target-language word. */
   reading?: string;
 }
 
@@ -19,8 +19,8 @@ export interface LessonExercise {
   type: ExerciseType;
   /** Instruction or question shown to the learner (Thai or English). */
   prompt: string;
-  /** Target Korean — listening TTS source, fill-blank sentence, or display word. */
-  korean?: string;
+  /** Target English text — listening TTS source, fill-blank sentence, or display word. */
+  englishText?: string;
   /** Korean pronunciation in Thai-script karaoke (same convention as chat). */
   reading?: string;
   romanization?: string;
@@ -36,7 +36,6 @@ export interface LessonExercise {
 
 export interface LessonConfig {
   topic: string;
-  proficiencyLevel: ProficiencyLevel;
   wordContext: SavedWord[];
   /** Learning language the lesson should be generated in. */
   language: TargetLanguage;
@@ -44,7 +43,6 @@ export interface LessonConfig {
 
 export interface LessonRequest {
   topic: string;
-  proficiencyLevel: ProficiencyLevel;
   wordContext?: string[];
   /** Learning language the lesson should be generated in (defaults to Korean). */
   language?: TargetLanguage;
@@ -61,7 +59,6 @@ export interface LessonSuccessResponse {
 export interface LessonRecord {
   id: string;
   topic: string;
-  proficiencyLevel: ProficiencyLevel;
   wordContext: string[];
   exercises: LessonExercise[];
   createdAt: string;

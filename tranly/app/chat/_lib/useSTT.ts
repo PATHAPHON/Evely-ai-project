@@ -60,7 +60,7 @@ export function useSTT(): UseSTTReturn {
 
   const isSupported = typeof window !== 'undefined' && getSpeechRecognitionConstructor() !== null;
 
-  const startListening = useCallback((lang: SpeechLang = 'ko-KR') => {
+  const startListening = useCallback((lang: SpeechLang = 'en-US') => {
     const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
     if (!SpeechRecognitionCtor) {
       setError('Speech recognition is not supported in this browser');

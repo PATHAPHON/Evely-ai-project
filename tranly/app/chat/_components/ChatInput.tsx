@@ -107,11 +107,11 @@ export default function ChatInput({
               key={word.id}
               className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/30 px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300"
             >
-              {word.korean}
+              {word.englishText}
               <button
                 type="button"
                 onClick={() => onRemoveWord(word.id)}
-                aria-label={`Remove ${word.korean}`}
+                aria-label={`Remove ${word.englishText}`}
                 className="text-blue-400 hover:text-blue-600 dark:text-blue-500 dark:hover:text-blue-300 cursor-pointer"
               >
                 <CloseCircleFilled style={{ fontSize: 13 }} />

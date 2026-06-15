@@ -26,16 +26,15 @@ export function useSuggestionPanel({
   // panel stays hidden for that turn but returns on the next AI reply.
   const [dismissedSuggestId, setDismissedSuggestId] = useState<string | null>(null);
 
-  // Track collapsed state for option suggestions
-  const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(false);
+  // Track collapsed state for option suggestions (default to true so they do not pop up automatically)
+  const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [inputResetKey, setInputResetKey] = useState(0);
 
-  // Collapse options at the start of each new AI turn so the user sees them
-  // expanded fresh when the next suggestions arrive.
+  // Collapse (hide) options at the start of each new AI turn
   const lastSuggestionsKey = lastMessage ? lastMessage.id : '';
   useEffect(() => {
-    setIsOptionsCollapsed(false);
+    setIsOptionsCollapsed(true);
   }, [lastSuggestionsKey]);
 
   const toggleOptions = useCallback((collapse: boolean) => {

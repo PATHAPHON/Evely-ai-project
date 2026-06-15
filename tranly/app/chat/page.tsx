@@ -58,7 +58,6 @@ function ChatPageInner() {
     const config: SessionConfig = {
       topic: 'พูดคุยทั่วไป',
       goal: '',
-      proficiencyLevel: 'beginner',
       wordContext: [],
       language: activeLanguage,
     };
@@ -114,8 +113,8 @@ function ChatPageInner() {
         return;
       }
       const message = sessionMessages.find((m) => m.id === messageId);
-      if (message && message.korean) {
-        speak(message.korean);
+      if (message && message.englishText) {
+        speak(message.englishText);
       }
     },
     [sessionMessages, speak]
@@ -209,7 +208,7 @@ function ChatPageInner() {
                 <div className="rounded-[28px] bg-white dark:bg-[#1e1f20] p-2 shadow-[0_2px_16px_rgba(0,0,0,0.10)] dark:shadow-[0_2px_16px_rgba(0,0,0,0.45)]">
                   <SuggestionOptions
                     options={currentSuggestions.map((s) => ({
-                      text: s.korean,
+                      text: s.englishText,
                       subtext: s.translation,
                     }))}
                     onSelect={handleSendMessage}

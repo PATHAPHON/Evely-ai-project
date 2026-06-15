@@ -9,7 +9,7 @@ function makeChatMessage(
   return {
     id: `msg-${index}`,
     role: overrides.role,
-    korean: overrides.korean ?? `한국어 ${index}`,
+    englishText: overrides.englishText ?? `english text ${index}`,
     reading: overrides.reading ?? `reading ${index}`,
     romanization: overrides.romanization ?? `romanization ${index}`,
     translation: overrides.translation ?? `translation ${index}`,
@@ -27,22 +27,22 @@ describe('buildContext', () => {
 
   it('maps user messages using rawText as content', () => {
     const messages: ChatMessage[] = [
-      makeChatMessage({ role: 'user', rawText: 'Hello in Korean' }, 0),
+      makeChatMessage({ role: 'user', rawText: 'Hello in English' }, 0),
     ];
 
     const result = buildContext(messages);
 
-    expect(result).toEqual([{ role: 'user', content: 'Hello in Korean' }]);
+    expect(result).toEqual([{ role: 'user', content: 'Hello in English' }]);
   });
 
-  it('maps assistant messages using korean as content', () => {
+  it('maps assistant messages using englishText as content', () => {
     const messages: ChatMessage[] = [
-      makeChatMessage({ role: 'assistant', korean: '안녕하세요' }, 0),
+      makeChatMessage({ role: 'assistant', englishText: 'Good morning!' }, 0),
     ];
 
     const result = buildContext(messages);
 
-    expect(result).toEqual([{ role: 'assistant', content: '안녕하세요' }]);
+    expect(result).toEqual([{ role: 'assistant', content: 'Good morning!' }]);
   });
 
   it('returns all messages when history has 20 or fewer messages', () => {
@@ -64,8 +64,8 @@ describe('buildContext', () => {
 
     expect(result).toHaveLength(20);
     // Should be messages 5-24 (the last 20)
-    // Index 5 is odd → assistant, so content is korean
-    expect(result[0]).toEqual({ role: 'assistant', content: '한국어 5' });
+    // Index 5 is odd → assistant, so content is englishText
+    expect(result[0]).toEqual({ role: 'assistant', content: 'english text 5' });
     // Index 24 is even → user, so content is rawText
     expect(result[19]).toEqual({ role: 'user', content: 'raw text 24' });
   });
@@ -73,7 +73,7 @@ describe('buildContext', () => {
   it('preserves chronological order', () => {
     const messages: ChatMessage[] = [
       makeChatMessage({ role: 'user', rawText: 'first' }, 0),
-      makeChatMessage({ role: 'assistant', korean: '두번째' }, 1),
+      makeChatMessage({ role: 'assistant', englishText: 'second response' }, 1),
       makeChatMessage({ role: 'user', rawText: 'third' }, 2),
     ];
 
@@ -81,7 +81,7 @@ describe('buildContext', () => {
 
     expect(result).toEqual([
       { role: 'user', content: 'first' },
-      { role: 'assistant', content: '두번째' },
+      { role: 'assistant', content: 'second response' },
       { role: 'user', content: 'third' },
     ]);
   });

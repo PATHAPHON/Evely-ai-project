@@ -12,6 +12,6 @@ export function buildContext(messages: ChatMessage[]): ChatMessagePayload[] {
 
   return recent.map((msg): ChatMessagePayload => ({
     role: msg.role,
-    content: msg.role === 'user' ? msg.rawText : msg.korean,
+    content: msg.role === 'user' ? msg.rawText : msg.englishText,
   }));
 }

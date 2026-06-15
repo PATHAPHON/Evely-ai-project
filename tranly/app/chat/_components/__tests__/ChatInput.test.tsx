@@ -131,21 +131,21 @@ describe('ChatInput', () => {
 
   it('displays selected words as removable tags', () => {
     const words: SavedWord[] = [
-      { id: '1', korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', source: 'word-store' },
-      { id: '2', korean: '바나나', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย', source: 'feed-words' },
+      { id: '1', englishText: 'apple', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', source: 'word-store' },
+      { id: '2', englishText: 'banana', reading: 'บานานา', romanization: 'banana', english: 'banana', thai: 'กล้วย', source: 'feed-words' },
     ];
     renderChatInput({ selectedWords: words });
-    expect(screen.getByText('사과')).toBeInTheDocument();
-    expect(screen.getByText('바나나')).toBeInTheDocument();
+    expect(screen.getByText('apple')).toBeInTheDocument();
+    expect(screen.getByText('banana')).toBeInTheDocument();
   });
 
   it('calls onRemoveWord when remove button on tag is clicked', () => {
     const onRemoveWord = vi.fn();
     const words: SavedWord[] = [
-      { id: '1', korean: '사과', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', source: 'word-store' },
+      { id: '1', englishText: 'apple', reading: 'ซากวา', romanization: 'sagwa', english: 'apple', thai: 'แอปเปิ้ล', source: 'word-store' },
     ];
     renderChatInput({ selectedWords: words, onRemoveWord });
-    fireEvent.click(screen.getByLabelText('Remove 사과'));
+    fireEvent.click(screen.getByLabelText('Remove apple'));
     expect(onRemoveWord).toHaveBeenCalledWith('1');
   });
 

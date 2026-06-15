@@ -10,11 +10,13 @@ function extractSuggestions(value: unknown): ReplySuggestion[] | undefined {
   for (const raw of value) {
     if (typeof raw !== 'object' || raw === null) continue;
     const rec = raw as Record<string, unknown>;
-    const korean = typeof rec.korean === 'string' ? rec.korean.trim() : '';
+    // Accept both new key (englishText) and legacy key (korean) for backward-compat
+    const rawText = rec.englishText ?? rec.korean;
+    const englishText = typeof rawText === 'string' ? rawText.trim() : '';
     const translation =
       typeof rec.translation === 'string' ? rec.translation.trim() : '';
-    if (korean.length > 0) {
-      suggestions.push({ korean, translation });
+    if (englishText.length > 0) {
+      suggestions.push({ englishText, translation });
     }
   }
   return suggestions.length > 0 ? suggestions.slice(0, 4) : undefined;
@@ -68,21 +70,23 @@ function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
   const record = obj as Record<string, unknown>;
 
   if (Array.isArray(record.sentences) && record.sentences.length > 0) {
-    return record.sentences.every((s) =>
-      typeof s === 'object' && s !== null &&
-      typeof (s as Record<string, unknown>).korean === 'string' &&
-      ((s as Record<string, unknown>).korean as string).trim().length > 0 &&
-      typeof (s as Record<string, unknown>).reading === 'string' &&
-      ((s as Record<string, unknown>).reading as string).trim().length > 0 &&
-      typeof (s as Record<string, unknown>).romanization === 'string' &&
-      typeof (s as Record<string, unknown>).translation === 'string' &&
-      ((s as Record<string, unknown>).translation as string).trim().length > 0
-    );
+    return record.sentences.every((s) => {
+      if (typeof s !== 'object' || s === null) return false;
+      const sr = s as Record<string, unknown>;
+      const text = sr.englishText ?? sr.korean;
+      return (
+        typeof text === 'string' && (text as string).trim().length > 0 &&
+        typeof sr.reading === 'string' && (sr.reading as string).trim().length > 0 &&
+        typeof sr.romanization === 'string' &&
+        typeof sr.translation === 'string' && (sr.translation as string).trim().length > 0
+      );
+    });
   }
 
+  const text = record.englishText ?? record.korean;
   return (
-    typeof record.korean === 'string' &&
-    record.korean.trim().length > 0 &&
+    typeof text === 'string' &&
+    (text as string).trim().length > 0 &&
     typeof record.reading === 'string' &&
     record.reading.trim().length > 0 &&
     typeof record.romanization === 'string' &&
@@ -105,8 +109,10 @@ function extractChatResponse(
     for (const s of rawSentences) {
       if (typeof s === 'object' && s !== null) {
         const rec = s as Record<string, unknown>;
+        // Accept both new key (englishText) and legacy key (korean) for backward-compat
+        const rawEt = rec.englishText ?? rec.korean;
         sentences.push({
-          korean: typeof rec.korean === 'string' ? rec.korean.trim() : '',
+          englishText: typeof rawEt === 'string' ? rawEt.trim() : '',
           reading: typeof rec.reading === 'string' ? rec.reading.trim() : '',
           romanization:
             typeof rec.romanization === 'string' ? rec.romanization.trim() : '',
@@ -119,7 +125,9 @@ function extractChatResponse(
     }
   }
 
-  const korean = typeof obj.korean === 'string' ? obj.korean.trim() : '';
+  // Accept both new key (englishText) and legacy key (korean) for backward-compat
+  const rawEt = obj.englishText ?? obj.korean;
+  const englishText = typeof rawEt === 'string' ? rawEt.trim() : '';
   const reading = typeof obj.reading === 'string' ? obj.reading.trim() : '';
   const romanization =
     typeof obj.romanization === 'string' ? obj.romanization.trim() : '';
@@ -127,13 +135,13 @@ function extractChatResponse(
     typeof obj.translation === 'string' ? obj.translation.trim() : '';
   const english = typeof obj.english === 'string' ? obj.english.trim() : '';
 
-  if (!sentences && korean.length > 0) {
-    sentences = [{ korean, reading, romanization, translation, english }];
+  if (!sentences && englishText.length > 0) {
+    sentences = [{ englishText, reading, romanization, translation, english }];
   }
 
   const response: ChatSuccessResponse = {
     sentences,
-    korean: korean || (sentences ? sentences.map((s) => s.korean).join(' ') : ''),
+    englishText: englishText || (sentences ? sentences.map((s) => s.englishText).join(' ') : ''),
     reading: reading || (sentences ? sentences.map((s) => s.reading).join(' ') : ''),
     romanization:
       romanization || (sentences ? sentences.map((s) => s.romanization).join(' ') : ''),
@@ -164,15 +172,16 @@ function extractChatResponse(
  * Used as a fallback when JSON parsing fails.
  */
 function extractChatResponseFromString(src: string): ChatSuccessResponse | null {
-  const korean = extractStringField(src, 'korean');
+  // Try new key first, fall back to legacy key
+  const englishText = extractStringField(src, 'englishText') || extractStringField(src, 'korean');
   const reading = extractStringField(src, 'reading');
   const romanization = extractStringField(src, 'romanization');
   const translation = extractStringField(src, 'translation');
   const english = extractStringField(src, 'english');
 
   const response: ChatSuccessResponse = {
-    sentences: korean ? [{ korean, reading, romanization, translation, english }] : undefined,
-    korean,
+    sentences: englishText ? [{ englishText, reading, romanization, translation, english }] : undefined,
+    englishText,
     reading,
     romanization,
     translation,
@@ -247,6 +256,6 @@ export function parseChatResponse(content: string): ChatSuccessResponse {
   if (regexResult) return regexResult;
 
   throw new Error(
-    'Invalid response format: missing required fields (korean, reading, romanization, translation)'
+    'Invalid response format: missing required fields (englishText, reading, romanization, translation)'
   );
 }

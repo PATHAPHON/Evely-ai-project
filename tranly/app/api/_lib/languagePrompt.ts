@@ -1,16 +1,14 @@
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 
 /**
- * Per-language descriptors used to build the AI chat/lesson prompts. The data
- * model keeps Korean-era field names (`korean`, `reading`, `romanization`), but
- * they are repurposed generically: `korean` = the target-language text,
- * `reading` = its pronunciation written in Thai script. These specs tell the
- * model how to fill each field for the chosen learning language.
+ * Per-language descriptors used to build the AI chat/lesson prompts. Each spec
+ * tells the model how to fill the response fields for the chosen learning language.
+ * `englishText` = the target-language sentence, `reading` = Thai-script pronunciation.
  */
 export interface LangPromptSpec {
-  /** Human-readable language name, e.g. "Korean". */
+  /** Human-readable language name, e.g. "English". */
   label: string;
-  /** Writing system to produce for the `korean` (target text) field. */
+  /** Writing system to produce for the `englishText` (target text) field. */
   script: string;
   /** How to fill the `reading` field (pronunciation in Thai script). */
   readingDesc: string;

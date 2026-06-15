@@ -64,7 +64,7 @@ export async function POST(
               `3. Fill out the JSON response schema below.\n\n` +
               `JSON Schema:\n` +
               `{\n` +
-              `  "korean": "<The corrected/translated English text>",\n` +
+              `  "englishText": "<The corrected/translated English text>",\n` +
               `  "reading": "<Phonetic sound of the English text written in Thai script karaoke, e.g. 'เฮลโล' for hello, 'แฟร์ อินัฟ' for fair enough>",\n` +
               `  "romanization": "",\n` +
               `  "translation": "<Thai meaning of the English text>",\n` +

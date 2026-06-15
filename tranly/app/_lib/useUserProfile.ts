@@ -85,7 +85,7 @@ export function useUserProfile(): UseUserProfileReturn {
             energy: 15,
             streak: 0,
             max_streak: 0,
-            target_language: "korean",
+            target_language: "english",
             ui_language: "th",
             claimed_chests: [],
           };

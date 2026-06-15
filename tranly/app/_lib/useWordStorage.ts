@@ -11,7 +11,7 @@ export interface WordRecord {
   imageUrl?: string | null;
   label: string;
   language?: TargetLanguage;
-  korean?: string;
+  englishText?: string;
   reading?: string;
   romanization?: string;
   english?: string;
@@ -21,7 +21,7 @@ export interface WordRecord {
 
 export interface SaveWordInput {
   label: string;
-  korean?: string;
+  englishText?: string;
   reading?: string;
   romanization?: string;
   english?: string;
@@ -85,7 +85,6 @@ export function useWordStorage(): UseWordStorageReturn {
           label: normalized.label,
           image_url: publicUrl,
           language: activeLanguage,
-          korean: normalized.korean,
           reading: normalized.reading,
           romanization: normalized.romanization,
           english: normalized.english,
@@ -135,7 +134,6 @@ export function useWordStorage(): UseWordStorageReturn {
         imageUrl: row.image_url,
         label: row.label,
         language: row.language as TargetLanguage,
-        korean: row.korean,
         reading: row.reading,
         romanization: row.romanization,
         english: row.english,
@@ -177,7 +175,6 @@ export function useWordStorage(): UseWordStorageReturn {
         imageUrl: row.image_url,
         label: row.label,
         language: row.language as TargetLanguage,
-        korean: row.korean,
         reading: row.reading,
         romanization: row.romanization,
         english: row.english,

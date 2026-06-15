@@ -47,7 +47,6 @@ export function useConversationHistory(): UseConversationHistoryReturn {
       const mappedSessions: ConversationSessionRecord[] = (data || []).map((row) => ({
         id: row.id,
         topic: row.topic,
-        proficiencyLevel: row.proficiency_level,
         wordContext: row.word_context || [],
         goal: row.goal || '',
         createdAt: row.created_at,
@@ -82,7 +81,7 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         }
 
         const messages: ChatMessage[] = (data || []).map((r) => {
-          const splitKorean = (r.korean || '').split('|||');
+          const splitKorean = (r.english_text || '').split('|||');
           const splitReading = (r.reading || '').split('|||');
           const splitRomanization = (r.romanization || '').split('|||');
           const splitTranslation = (r.translation || '').split('|||');
@@ -109,7 +108,7 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           const sentences = splitKorean.map((k: string, idx: number) => {
             const phrases = phrasesPerSentence[idx];
             return {
-              korean: k,
+              englishText: k,
               reading: splitReading[idx] || '',
               romanization: splitRomanization[idx] || '',
               translation: splitTranslation[idx] || '',
@@ -122,7 +121,7 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           return {
             id: r.id,
             role: r.role as 'user' | 'assistant',
-            korean: r.korean || '',
+            englishText: r.english_text || '',
             reading: r.reading || '',
             romanization: r.romanization || '',
             translation: r.translation || '',
@@ -164,7 +163,6 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           id: session.id,
           user_id: userId,
           topic: session.topic,
-          proficiency_level: session.proficiencyLevel,
           word_context: session.wordContext,
           goal: session.goal,
           created_at: session.createdAt,
@@ -200,9 +198,9 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           id: message.id,
           session_id: sessionId,
           role: message.role,
-          korean: isAssistant && message.sentences
-            ? message.sentences.map((s) => s.korean).join('|||')
-            : message.korean,
+          english_text: isAssistant && message.sentences
+            ? message.sentences.map((s) => s.englishText).join('|||')
+            : message.englishText,
           reading: isAssistant && message.sentences
             ? message.sentences.map((s) => s.reading).join('|||')
             : message.reading,
