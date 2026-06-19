@@ -60,8 +60,9 @@ export async function POST(
               `Text: "${text}"\n\n` +
               `Instructions:\n` +
               `1. If the text is in Thai or Korean, translate it into correct, natural English.\n` +
-              `2. If the text is in English, check it for grammatical, punctuation, and spelling errors. Correct them to make it correct and natural English.\n` +
-              `3. Fill out the JSON response schema below.\n\n` +
+              `2. If the text is in English, ALWAYS correct every grammatical, punctuation, and spelling error to make it correct and natural English — no matter how many errors there are, never refuse or leave it as-is.\n` +
+              `3. ALWAYS fill "englishText", "reading", and "translation" — these are never empty. "reading" is the Thai-script karaoke pronunciation of the final English text and must always be present. "translation" is the Thai meaning and must always be present.\n` +
+              `4. Fill out the JSON response schema below.\n\n` +
               `JSON Schema:\n` +
               `{\n` +
               `  "englishText": "<The corrected/translated English text>",\n` +

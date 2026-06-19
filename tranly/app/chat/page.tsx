@@ -56,9 +56,6 @@ function ChatPageInner() {
   // Start a fresh open-ended session.
   const startOpenSession = useCallback(() => {
     const config: SessionConfig = {
-      topic: 'พูดคุยทั่วไป',
-      goal: '',
-      wordContext: [],
       language: activeLanguage,
     };
     startSession(config);

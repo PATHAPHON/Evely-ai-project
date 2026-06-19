@@ -12,9 +12,6 @@ export type ChatErrorType =
 export interface ConversationSessionRecord {
   id: string;
   topic: string;
-  wordContext: string[];
-  /** Optional goal/objective the conversation works toward (empty = open-ended). */
-  goal: string;
   createdAt: string;
   endedAt: string | null;
   completed: boolean;
@@ -41,8 +38,6 @@ export interface ChatMessage {
   status: 'sent' | 'pending' | 'error';
   /** Suggested replies the user can tap (assistant messages only). */
   suggestions?: ReplySuggestion[];
-  /** True when this assistant message concludes the conversation (goal reached). */
-  ended?: boolean;
   sentences?: Array<{
     englishText: string;
     reading: string;
@@ -61,14 +56,8 @@ export interface ChatMessage {
 }
 
 export interface SessionConfig {
-  topic: string;
-  wordContext: SavedWord[];
-  /** Optional goal/objective; when set, the AI ends the chat once it's reached. */
-  goal: string;
   /** Learning language the AI should converse in. */
   language: TargetLanguage;
-  /** Optional lesson ID for script-based sessions */
-  lessonId?: string;
 }
 
 export interface SavedWord {
@@ -83,10 +72,7 @@ export interface SavedWord {
 
 export interface ChatRequest {
   messages: ChatMessagePayload[];
-  topic: string;
-  wordContext?: string[];
-  goal?: string;
-  /** Learning language the AI should converse in (defaults to Korean). */
+  /** Learning language the AI should converse in (defaults to English). */
   language?: TargetLanguage;
 }
 
@@ -103,8 +89,6 @@ export interface ChatSuccessResponse {
   english: string;
   /** 2–3 suggested replies the user could send next. */
   suggestions?: ReplySuggestion[];
-  /** True when the AI has concluded the conversation (goal reached). */
-  ended?: boolean;
   sentences?: Array<{
     englishText: string;
     reading: string;

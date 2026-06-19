@@ -2,336 +2,168 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
-import { parseChatResponse } from '@/app/api/chat/parseChatResponse';
-import { parsePartialChat } from '@/app/api/chat/parsePartialChat';
+import { useChatApi } from './useChatApi';
 import { useConversationHistory } from './useConversationHistory';
 
 import type { TargetLanguage } from '@/app/_lib/wordTypes';
 import type {
   ChatMessage,
-  ChatMessagePayload,
-  ChatRequest,
   ChatSuccessResponse,
-  ChatErrorResponse,
   ConversationSessionRecord,
   SessionConfig,
 } from './types';
 
-const MAX_CONTEXT_MESSAGES = 20;
+/** Construct a ChatMessage with required empty fields pre-filled. */
+const baseMessage = (over: Partial<ChatMessage> & Pick<ChatMessage, 'role'>): ChatMessage => ({
+  id: crypto.randomUUID(),
+  englishText: '',
+  reading: '',
+  romanization: '',
+  translation: '',
+  english: '',
+  rawText: '',
+  timestamp: new Date().toISOString(),
+  status: 'sent',
+  ...over,
+});
+
 
 export interface UseConversationSessionReturn {
   messages: ChatMessage[];
-  sendMessage: (text: string) => Promise<void>;
-  retryLastMessage: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
   sessionConfig: SessionConfig | null;
-  /** True once the AI has concluded the conversation (its goal was reached). */
-  isEnded: boolean;
-  startSession: (config: SessionConfig) => void;
-  endSession: () => Promise<void>;
-  /** Append + persist a plain user message. */
-  addUserMessage: (text: string) => Promise<void>;
-  /**
-   * Append + persist a plain assistant message with optional tappable
-   * quick-reply chips.
-   */
-  addAssistantMessage: (text: string, suggestions?: string[]) => Promise<void>;
-  /** Load an existing session's messages and resume sending into it. */
-  restoreSession: (sessionId: string, language: TargetLanguage) => Promise<void>;
   sessionId: string | null;
   sessionSaved: boolean;
+  startSession: (config: SessionConfig) => void;
+  sendMessage: (text: string) => Promise<void>;
+  retryLastMessage: () => Promise<void>;
+  /** Load an existing session's messages and resume sending into it. */
+  restoreSession: (sessionId: string, language: TargetLanguage) => Promise<void>;
 }
 
 export function useConversationSession(): UseConversationSessionReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(
-    null
-  );
-  const [isEnded, setIsEnded] = useState(false);
+  const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionSaved, setSessionSaved] = useState(false);
+
+  // Refs hold values that must be accessible inside async closures without
+  // triggering re-renders or appearing in dependency arrays.
   const sessionIdRef = useRef<string | null>(null);
   const createdAtRef = useRef<string | null>(null);
-  // Lazy persistence: the conversations row is created on the first message,
-  // not on session start, so opening /chat never leaves empty sessions behind.
   const sessionSavedRef = useRef(false);
   const sessionConfigRef = useRef<SessionConfig | null>(null);
-  // Title persisted for this session (first user message) — reused by later
-  // upserts so they don't overwrite it with the generic config topic.
-  const savedTopicRef = useRef<string | null>(null);
 
-  const { saveSession, saveMessage, loadSessionMessages } =
-    useConversationHistory();
+  const { callChatApi } = useChatApi();
+  const { saveSession, saveMessage, loadSessionMessages } = useConversationHistory();
+
+  // ─── Session lifecycle ───────────────────────────────────────────────────────
 
   const startSession = useCallback((config: SessionConfig) => {
     const id = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
     sessionIdRef.current = id;
     setSessionId(id);
-    createdAtRef.current = createdAt;
+    createdAtRef.current = new Date().toISOString();
     sessionSavedRef.current = false;
     setSessionSaved(false);
     sessionConfigRef.current = config;
-    savedTopicRef.current = null;
     setSessionConfig(config);
     setMessages([]);
     setError(null);
-    setIsEnded(false);
   }, []);
 
-  // Create the conversations row if it doesn't exist yet (must run before the
-  // first saveMessage — conversation_messages.session_id references it).
-  // The first user message becomes the session title shown in the history list.
-  const ensureSessionSaved = useCallback(async (firstMessageText?: string): Promise<void> => {
-    if (sessionSavedRef.current) return;
-    const config = sessionConfigRef.current;
-    if (!sessionIdRef.current || !config || !createdAtRef.current) return;
-
-    const title = firstMessageText?.trim().slice(0, 60) || config.topic;
-    savedTopicRef.current = title;
-    const sessionRecord: ConversationSessionRecord = {
-      id: sessionIdRef.current,
-      topic: title,
-      wordContext: config.wordContext.map((w) => w.englishText),
-      goal: config.goal,
-      createdAt: createdAtRef.current,
-      endedAt: null,
-      completed: false,
-    };
-
-    await saveSession(sessionRecord);
-    sessionSavedRef.current = true;
-    setSessionSaved(true);
-  }, [saveSession]);
-
-  // Persist the current session as completed (used when the AI ends the chat).
-  const markCompleted = useCallback(async (): Promise<void> => {
-    if (!sessionIdRef.current || !sessionConfig || !createdAtRef.current) return;
-    const record: ConversationSessionRecord = {
-      id: sessionIdRef.current,
-      topic: savedTopicRef.current ?? sessionConfig.topic,
-      wordContext: sessionConfig.wordContext.map((w) => w.englishText),
-      goal: sessionConfig.goal,
-      createdAt: createdAtRef.current,
-      endedAt: new Date().toISOString(),
-      completed: true,
-    };
-    try {
-      await saveSession(record);
-    } catch {
-      // Non-fatal: the conversation is already shown as ended in the UI.
-    }
-  }, [sessionConfig, saveSession]);
-
-  const buildContextPayload = useCallback(
-    (msgs: ChatMessage[]): ChatMessagePayload[] => {
-      const recent = msgs.slice(-MAX_CONTEXT_MESSAGES);
-      return recent.map(
-        (msg): ChatMessagePayload => ({
-          role: msg.role,
-          content: msg.role === 'user' ? (msg.englishText || msg.rawText) : msg.englishText,
-        })
-      );
-    },
-    []
-  );
-
-  const callChatApi = useCallback(
-    async (
-      contextMessages: ChatMessage[],
-      onPartial?: (partial: { sentences: { englishText: string; english?: string; translation?: string }[] }) => void,
-    ): Promise<ChatSuccessResponse> => {
-      if (!sessionConfig) {
-        throw new Error('ไม่มีเซสชันที่ใช้งานอยู่');
-      }
-
-      const payload: ChatRequest = {
-        messages: buildContextPayload(contextMessages),
-        topic: sessionConfig.topic,
-        wordContext: sessionConfig.wordContext.map((w) => w.englishText),
-        goal: sessionConfig.goal,
-        language: sessionConfig.language,
-      };
-
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getCustomAIHeaders(),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as ChatErrorResponse;
-        throw new Error(
-          errorData.error?.message ?? 'ไม่สามารถสร้างข้อความได้ กรุณาลองอีกครั้ง'
-        );
-      }
-
-      // Stream response body, calling onPartial with each accumulated chunk
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      if (reader) {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            if (onPartial) {
-              const partial = parsePartialChat(buffer);
-              if (partial.sentences.length > 0) {
-                onPartial(partial);
-              }
-            }
-          }
-        } finally {
-          reader.releaseLock();
-        }
-      }
-
-      return parseChatResponse(buffer);
-    },
-    [sessionConfig, buildContextPayload]
-  );
-
-  const sendMessage = useCallback(
-    async (text: string): Promise<void> => {
-      if (!sessionIdRef.current || !sessionConfig) return;
-
+  /** Resume an existing conversation: load its messages and point further sends at the same session id. */
+  const restoreSession = useCallback(
+    async (sessionId: string, language: TargetLanguage): Promise<void> => {
       setError(null);
-
-      setIsLoading(true);
-
-      // Create user message (isTranslating=true triggers skeleton in UI; never persisted)
-      const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        englishText: '',
-        reading: '',
-        romanization: '',
-        translation: '',
-        english: '',
-        rawText: text,
-        timestamp: new Date().toISOString(),
-        status: 'sent',
-        isTranslating: true,
-      };
-
-      // Add user message to state immediately
-      setMessages((prev) => [...prev, userMessage]);
-
-      // Fire translation of the user's input in the background (non-blocking)
-      const userMessageId = userMessage.id;
-      const headers = getCustomAIHeaders();
-      fetch('/api/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-        body: JSON.stringify({ text }),
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (
-            data &&
-            typeof data.englishText === 'string' &&
-            data.englishText.trim().length > 0
-          ) {
-            const updatedUserMessage: ChatMessage = {
-              ...userMessage,
-              englishText: data.englishText,
-              reading: data.reading ?? '',
-              romanization: data.romanization ?? '',
-              translation: data.translation ?? '',
-              english: data.english ?? '',
-              grammarCorrect: data.grammarCorrect,
-              grammarNotes: data.grammarNotes,
-              isTranslating: false,
-            };
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === userMessageId ? updatedUserMessage : msg
-              )
-            );
-            if (sessionIdRef.current) {
-              saveMessage(sessionIdRef.current, updatedUserMessage).catch((err) => {
-                console.error('Failed to update persisted user message with translation:', err);
-              });
-            }
-          } else {
-            // Translation returned no usable data — clear skeleton, fall back to rawText
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === userMessageId ? { ...msg, isTranslating: false } : msg
-              )
-            );
-          }
-        })
-        .catch(() => {
-          // Translation failure — clear skeleton, fall back to rawText
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === userMessageId ? { ...msg, isTranslating: false } : msg
-            )
-          );
-        });
-
-      // Persist user message
+      sessionIdRef.current = sessionId;
+      setSessionId(sessionId);
+      createdAtRef.current = new Date().toISOString();
+      sessionSavedRef.current = true; // row already exists in DB
+      setSessionSaved(true);
+      const config: SessionConfig = { language };
+      sessionConfigRef.current = config;
+      setSessionConfig(config);
       try {
-        await ensureSessionSaved(text);
-        await saveMessage(sessionIdRef.current, userMessage);
+        const msgs = await loadSessionMessages(sessionId);
+        setMessages(msgs);
       } catch {
-        // Continue even if persistence fails — data is in memory
+        setMessages([]);
       }
+    },
+    [loadSessionMessages],
+  );
 
-      // Create pending AI message placeholder
-      const pendingMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        englishText: '',
-        reading: '',
-        romanization: '',
-        translation: '',
-        english: '',
-        rawText: '',
-        timestamp: new Date().toISOString(),
-        status: 'pending',
+  // ─── Persistence helpers ─────────────────────────────────────────────────────
+
+  /**
+   * Lazy persistence: the conversations row is created on the first message,
+   * not on session start, so opening /chat never leaves empty sessions behind.
+   * The first user message becomes the session title shown in the history list.
+   */
+  const ensureSessionSaved = useCallback(
+    async (firstMessageText?: string): Promise<void> => {
+      if (sessionSavedRef.current) return;
+      if (!sessionIdRef.current || !sessionConfigRef.current || !createdAtRef.current) return;
+
+      const sessionRecord: ConversationSessionRecord = {
+        id: sessionIdRef.current,
+        topic: firstMessageText?.trim().slice(0, 60) || 'พูดคุยทั่วไป',
+        createdAt: createdAtRef.current,
+        endedAt: null,
+        completed: false,
       };
+
+      await saveSession(sessionRecord);
+      sessionSavedRef.current = true;
+      setSessionSaved(true);
+    },
+    [saveSession],
+  );
+
+  // ─── AI reply (shared by sendMessage and retryLastMessage) ──────────────────
+
+  /**
+   * Add a pending placeholder, stream the AI reply into it, then persist the
+   * final message.  Returns the resolved message for callers that need it.
+   */
+  const runAssistantReply = useCallback(
+    async (contextMessages: ChatMessage[]): Promise<void> => {
+      const config = sessionConfigRef.current;
+      if (!config || !sessionIdRef.current) return;
+
+      const pendingMessage = baseMessage({ role: 'assistant', status: 'pending' });
 
       setMessages((prev) => [...prev, pendingMessage]);
 
       try {
-        // Build context including the new user message
-        const contextMessages = [...messages, userMessage];
-        const aiResponse = await callChatApi(contextMessages, (partial) => {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === pendingMessage.id
-                ? {
-                    ...msg,
-                    sentences: partial.sentences.map((s) => ({
-                      englishText: s.englishText,
-                      reading: '',
-                      romanization: '',
-                      translation: s.translation ?? '',
-                      english: s.english ?? '',
-                    })),
-                    englishText: partial.sentences[0]?.englishText ?? '',
-                    english: partial.sentences[0]?.english ?? '',
-                  }
-                : msg
-            )
-          );
-        });
+        const aiResponse: ChatSuccessResponse = await callChatApi(
+          contextMessages,
+          config.language,
+          // Stream partial sentences into the placeholder while the response arrives.
+          (partial) => {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id !== pendingMessage.id ? msg : {
+                  ...msg,
+                  sentences: partial.sentences.map((s) => ({
+                    englishText: s.englishText,
+                    reading: '',
+                    romanization: '',
+                    translation: s.translation ?? '',
+                    english: s.english ?? '',
+                  })),
+                  englishText: partial.sentences[0]?.englishText ?? '',
+                  english: partial.sentences[0]?.english ?? '',
+                },
+              ),
+            );
+          },
+        );
 
-        // Update pending message with AI response
         const aiMessage: ChatMessage = {
           ...pendingMessage,
           englishText: aiResponse.englishText,
@@ -343,273 +175,133 @@ export function useConversationSession(): UseConversationSessionReturn {
           timestamp: new Date().toISOString(),
           status: 'sent',
           suggestions: aiResponse.suggestions ?? [],
-          ended: aiResponse.ended ?? false,
           sentences: aiResponse.sentences,
         };
 
         setMessages((prev) =>
-          prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg))
+          prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)),
         );
 
-        // Persist AI message
         try {
           await saveMessage(sessionIdRef.current!, aiMessage);
         } catch {
-          // Continue even if persistence fails — data is in memory
-        }
-
-        // If the AI concluded the conversation (goal reached), lock the chat
-        // and persist the session as completed.
-        if (aiMessage.ended) {
-          setIsEnded(true);
-          void markCompleted();
+          // Keep in memory even if persistence fails.
         }
       } catch (err) {
-        // Remove pending message and mark error
-        setMessages((prev) =>
-          prev.filter((msg) => msg.id !== pendingMessage.id)
-        );
-        const errorMessage =
+        setMessages((prev) => prev.filter((msg) => msg.id !== pendingMessage.id));
+        setError(
           err instanceof Error
             ? err.message
-            : 'ไม่สามารถสร้างข้อความได้ กรุณาลองอีกครั้ง';
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
+            : 'ไม่สามารถสร้างข้อความได้ กรุณาลองอีกครั้ง',
+        );
       }
     },
-    [sessionConfig, messages, saveMessage, callChatApi, markCompleted, ensureSessionSaved]
+    [callChatApi, saveMessage],
+  );
+
+  // ─── Public actions ──────────────────────────────────────────────────────────
+
+  /**
+   * Fire-and-forget: translate userMessage then patch it in state + persist.
+   * Clears `isTranslating` regardless of outcome so the skeleton always resolves.
+   */
+  const translateUserMessage = useCallback(
+    (userMessage: ChatMessage): void => {
+      const { id: userMessageId, rawText } = userMessage;
+      fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getCustomAIHeaders() },
+        body: JSON.stringify({ text: rawText }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && typeof data.englishText === 'string' && data.englishText.trim()) {
+            const updated: ChatMessage = {
+              ...userMessage,
+              englishText: data.englishText,
+              reading: data.reading ?? '',
+              romanization: data.romanization ?? '',
+              translation: data.translation ?? '',
+              english: data.english ?? '',
+              grammarCorrect: data.grammarCorrect,
+              grammarNotes: data.grammarNotes,
+              isTranslating: false,
+            };
+            setMessages((prev) => prev.map((msg) => (msg.id === userMessageId ? updated : msg)));
+            if (sessionIdRef.current) {
+              saveMessage(sessionIdRef.current, updated).catch((err) => {
+                console.error('Failed to persist translated user message:', err);
+              });
+            }
+          } else {
+            // No usable translation — clear skeleton, fall back to rawText.
+            setMessages((prev) =>
+              prev.map((msg) => (msg.id === userMessageId ? { ...msg, isTranslating: false } : msg)),
+            );
+          }
+        })
+        .catch(() => {
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === userMessageId ? { ...msg, isTranslating: false } : msg)),
+          );
+        });
+    },
+    [saveMessage],
+  );
+
+  const sendMessage = useCallback(
+    async (text: string): Promise<void> => {
+      if (!sessionIdRef.current || !sessionConfigRef.current) return;
+
+      setError(null);
+      setIsLoading(true);
+
+      // Add user message immediately so the UI feels responsive.
+      const userMessage = baseMessage({ role: 'user', rawText: text, isTranslating: true });
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Translate in the background (non-blocking) — shows grammar feedback
+      // and target-language rendering; a skeleton is displayed until it resolves.
+      translateUserMessage(userMessage);
+
+      // Persist user message (creates the session row if this is the first message).
+      try {
+        await ensureSessionSaved(text);
+        await saveMessage(sessionIdRef.current, userMessage);
+      } catch {
+        // Continue even if persistence fails — data is in memory.
+      }
+
+      // Fetch and stream the AI reply.
+      await runAssistantReply([...messages, userMessage]);
+
+      setIsLoading(false);
+    },
+    [messages, saveMessage, ensureSessionSaved, runAssistantReply, translateUserMessage],
   );
 
   const retryLastMessage = useCallback(async (): Promise<void> => {
-    // Find the last user message
-    const lastUserMessage = [...messages]
-      .reverse()
-      .find((msg) => msg.role === 'user');
-
+    const lastUserMessage = [...messages].reverse().find((msg) => msg.role === 'user');
     if (!lastUserMessage) return;
 
-    // Clear error and retry
     setError(null);
     setIsLoading(true);
+    await runAssistantReply(messages);
+    setIsLoading(false);
+  }, [messages, runAssistantReply]);
 
-    // Create pending AI message placeholder
-    const pendingMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      englishText: '',
-      reading: '',
-      romanization: '',
-      translation: '',
-      english: '',
-      rawText: '',
-      timestamp: new Date().toISOString(),
-      status: 'pending',
-    };
-
-    setMessages((prev) => [...prev, pendingMessage]);
-
-    try {
-      // Use current messages (which include the last user message) as context
-      const aiResponse = await callChatApi(messages, (partial) => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === pendingMessage.id
-              ? {
-                  ...msg,
-                  sentences: partial.sentences.map((s) => ({
-                    englishText: s.englishText,
-                    reading: '',
-                    romanization: '',
-                    translation: s.translation ?? '',
-                    english: s.english ?? '',
-                  })),
-                  englishText: partial.sentences[0]?.englishText ?? '',
-                  english: partial.sentences[0]?.english ?? '',
-                }
-              : msg
-          )
-        );
-      });
-
-      // Update pending message with AI response
-      const aiMessage: ChatMessage = {
-        ...pendingMessage,
-        englishText: aiResponse.englishText,
-        reading: aiResponse.reading,
-        romanization: aiResponse.romanization,
-        translation: aiResponse.translation,
-        english: aiResponse.english,
-        rawText: aiResponse.englishText,
-        timestamp: new Date().toISOString(),
-        status: 'sent',
-        suggestions: aiResponse.suggestions ?? [],
-        ended: aiResponse.ended ?? false,
-        sentences: aiResponse.sentences,
-      };
-
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg))
-      );
-
-      // Persist AI message
-      try {
-        await saveMessage(sessionIdRef.current!, aiMessage);
-      } catch {
-        // Continue even if persistence fails — data is in memory
-      }
-
-      // If the AI concluded the conversation (goal reached), lock the chat
-      // and persist the session as completed.
-      if (aiMessage.ended) {
-        setIsEnded(true);
-        void markCompleted();
-      }
-    } catch (err) {
-      // Remove pending message and mark error
-      setMessages((prev) =>
-        prev.filter((msg) => msg.id !== pendingMessage.id)
-      );
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : 'Failed to generate message. Please try again.';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [messages, saveMessage, callChatApi, markCompleted]);
-
-  // Append + persist a plain user message.
-  const addUserMessage = useCallback(
-    async (text: string): Promise<void> => {
-      if (!sessionIdRef.current) return;
-      const msg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        englishText: '',
-        reading: '',
-        romanization: '',
-        translation: '',
-        english: '',
-        rawText: text,
-        timestamp: new Date().toISOString(),
-        status: 'sent',
-      };
-      setMessages((prev) => [...prev, msg]);
-      try {
-        await ensureSessionSaved(text);
-        await saveMessage(sessionIdRef.current, msg);
-      } catch {
-        // keep in memory even if persistence fails
-      }
-    },
-    [saveMessage, ensureSessionSaved]
-  );
-
-  // Append + persist a plain assistant message, with optional quick-reply
-  // chips the user can tap to answer.
-  const addAssistantMessage = useCallback(
-    async (text: string, suggestions: string[] = []): Promise<void> => {
-      if (!sessionIdRef.current) return;
-      const msg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        englishText: text,
-        reading: '',
-        romanization: '',
-        translation: '',
-        english: '',
-        rawText: text,
-        timestamp: new Date().toISOString(),
-        status: 'sent',
-        suggestions: suggestions.map((s) => ({ englishText: s, translation: '' })),
-      };
-      setMessages((prev) => [...prev, msg]);
-      try {
-        await ensureSessionSaved();
-        await saveMessage(sessionIdRef.current, msg);
-      } catch {
-        // keep in memory even if persistence fails
-      }
-    },
-    [saveMessage, ensureSessionSaved]
-  );
-
-  // Resume an existing conversation: load its messages and point further
-  // sends at the same session id.
-  const restoreSession = useCallback(
-    async (sessionId: string, language: TargetLanguage): Promise<void> => {
-      setError(null);
-      sessionIdRef.current = sessionId;
-      setSessionId(sessionId);
-      createdAtRef.current = new Date().toISOString();
-      sessionSavedRef.current = true; // row already exists in DB
-      setSessionSaved(true);
-      const config: SessionConfig = {
-        topic: 'พูดคุยทั่วไป',
-        goal: '',
-          wordContext: [],
-        language,
-      };
-      sessionConfigRef.current = config;
-      setSessionConfig(config);
-      setIsEnded(false);
-      try {
-        const msgs = await loadSessionMessages(sessionId);
-        setMessages(msgs);
-        // Keep the existing title (first user message) so later upserts
-        // (markCompleted/endSession) don't reset it to the generic topic.
-        const firstUser = msgs.find((m) => m.role === 'user');
-        savedTopicRef.current =
-          firstUser?.rawText?.trim().slice(0, 60) || null;
-      } catch {
-        setMessages([]);
-        savedTopicRef.current = null;
-      }
-    },
-    [loadSessionMessages]
-  );
-
-  const endSession = useCallback(async (): Promise<void> => {
-    if (!sessionIdRef.current || !sessionConfig || !createdAtRef.current) return;
-
-    try {
-      const sessionRecord: ConversationSessionRecord = {
-        id: sessionIdRef.current,
-        topic: savedTopicRef.current ?? sessionConfig.topic,
-          wordContext: sessionConfig.wordContext.map((w) => w.englishText),
-        goal: sessionConfig.goal,
-        createdAt: createdAtRef.current,
-        endedAt: new Date().toISOString(),
-        completed: true,
-      };
-
-      await saveSession(sessionRecord);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : 'บันทึกเซสชันไม่สำเร็จ กรุณาลองอีกครั้ง';
-      setError(errorMessage);
-      throw err;
-    }
-  }, [sessionConfig, saveSession]);
+  // ─── Return ──────────────────────────────────────────────────────────────────
 
   return {
     messages,
-    sendMessage,
-    retryLastMessage,
     isLoading,
     error,
     sessionConfig,
-    isEnded,
-    startSession,
-    endSession,
-    addUserMessage,
-    addAssistantMessage,
-    restoreSession,
     sessionId,
     sessionSaved,
+    startSession,
+    sendMessage,
+    retryLastMessage,
+    restoreSession,
   };
 }

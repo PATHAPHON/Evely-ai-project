@@ -6,4 +6,5 @@ export interface StudySession {
   flashcardSetId: string;
   completedAt: number;
   cardsReviewed: number;
+  
 }

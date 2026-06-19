@@ -47,8 +47,6 @@ export function useConversationHistory(): UseConversationHistoryReturn {
       const mappedSessions: ConversationSessionRecord[] = (data || []).map((row) => ({
         id: row.id,
         topic: row.topic,
-        wordContext: row.word_context || [],
-        goal: row.goal || '',
         createdAt: row.created_at,
         endedAt: row.ended_at,
         completed: row.completed,
@@ -163,8 +161,6 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           id: session.id,
           user_id: userId,
           topic: session.topic,
-          word_context: session.wordContext,
-          goal: session.goal,
           created_at: session.createdAt,
           ended_at: session.endedAt,
           completed: session.completed,

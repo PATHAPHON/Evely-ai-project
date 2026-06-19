@@ -185,22 +185,6 @@ describe('parseChatResponse', () => {
     expect(result.suggestions?.[0].englishText).toBe('Yes');
   });
 
-  it('reads the ended flag when true', () => {
-    const ended = { ...validResponse, ended: true };
-    expect(parseChatResponse(JSON.stringify(ended)).ended).toBe(true);
-  });
-
-  it('defaults ended to undefined when absent or non-boolean', () => {
-    expect(parseChatResponse(JSON.stringify(validResponse)).ended).toBeUndefined();
-    const weird = { ...validResponse, ended: 'yes' };
-    expect(parseChatResponse(JSON.stringify(weird)).ended).toBeUndefined();
-  });
-
-  it('reads ended:false explicitly', () => {
-    const ended = { ...validResponse, ended: false };
-    expect(parseChatResponse(JSON.stringify(ended)).ended).toBe(false);
-  });
-
   it('ignores extra fields in the response', () => {
     const withExtra = {
       ...validResponse,

@@ -154,9 +154,6 @@ function extractChatResponse(
   if (suggestions !== undefined) {
     response.suggestions = suggestions;
   }
-  if (typeof obj.ended === 'boolean') {
-    response.ended = obj.ended;
-  }
   if (typeof obj.grammarCorrect === 'boolean') {
     response.grammarCorrect = obj.grammarCorrect;
   }

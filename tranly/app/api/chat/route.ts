@@ -33,34 +33,18 @@ function errorResponse(
 }
 
 /**
- * Build the system prompt based on topic, word context, goal, and language.
+ * Build the system prompt based on language.
  */
-function buildSystemPrompt(
-  topic: string,
-  wordContext: string[],
-  goal: string,
-  language: TargetLanguage
-): string {
+function buildSystemPrompt(language: TargetLanguage): string {
   const lang = LANG_PROMPT[language];
 
-  const wordInstruction =
-    wordContext.length > 0
-      ? `When it fits naturally, weave in these ${lang.label} words: ${wordContext.join(', ')}.`
-      : '';
-
-  const goalInstruction =
-    goal.length > 0
-      ? `GOAL: The user wants this conversation to accomplish: "${goal}". Gradually guide the chat toward this goal. Once it has CLEARLY been achieved, send a warm, natural closing line (e.g. say goodbye / wrap up) and set "ended" to true. Until the goal is achieved, keep "ended" false. Do not end too early or drag it out unnecessarily.`
-      : `There is no goal for this chat — always set "ended" to false and keep the conversation going.`;
-
   return (
-    `You are a ${lang.label} friend having an ongoing, casual text chat with the user. The conversation topic is "${topic}".\n\n` +
-    `CONTEXT IS CRITICAL: The messages above are the real conversation so far. Read ALL of them and reply DIRECTLY to the user's most recent message. Acknowledge what they just said, answer their questions, and keep the dialogue flowing on this topic. Never ignore their message, never change the subject randomly, and never repeat one of your earlier replies.\n\n` +
+    `You are a ${lang.label} friend having an ongoing, casual text chat with the user.\n\n` +
+    `CONTEXT IS CRITICAL: The messages above are the real conversation so far. Read ALL of them and reply DIRECTLY to the user's most recent message. Acknowledge what they just said, answer their questions, and keep the dialogue flowing. Never ignore their message, never change the subject randomly, and never repeat one of your earlier replies.\n\n` +
     `The user may write in ${lang.label}, Thai, or English — understand their meaning either way, but ALWAYS reply in ${lang.label}.\n\n` +
-    `Speak naturally like in a real conversation — medium length (3–5 sentences), using a casual or polite tone and normal everyday expressions. Share more details and elaborate on topics. ${wordInstruction}\n\n` +
-    `OPEN-ENDED QUESTION RULE: Unless the conversation has ended (i.e. "ended" is true), the last sentence of your reply (the last item in your "sentences" array) MUST always be a friendly, natural, open-ended question in ${lang.label} related to the conversation flow and topic to keep the conversation active (e.g. asking how they feel, what they think, what they did next, etc.).\n\n` +
-    `${goalInstruction}\n\n` +
-    `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction). When "ended" is true you may use an empty suggestions array.\n\n` +
+    `Speak naturally like in a real conversation — medium length (3–5 sentences), using a casual or polite tone and normal everyday expressions. Share more details and elaborate on topics.\n\n` +
+    `OPEN-ENDED QUESTION RULE: The last sentence of your reply (the last item in your "sentences" array) MUST always be a friendly, natural, open-ended question in ${lang.label} related to the conversation flow to keep the conversation active (e.g. asking how they feel, what they think, what they did next, etc.).\n\n` +
+    `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction).\n\n` +
     `Respond with ONLY a valid JSON object — no prose, no markdown, no code fences, no text before or after it. Exactly this structure:\n` +
     `{\n` +
     `  "sentences": [\n` +
@@ -75,14 +59,12 @@ function buildSystemPrompt(
     `  ],\n` +
     `  "suggestions": [\n` +
     `    { "englishText": "<a reply the user could send, in ${lang.script}>", "translation": "<its Thai meaning>" }\n` +
-    `  ],\n` +
-    `  "ended": false\n` +
+    `  ]\n` +
     `}\n\n` +
     `RULES:\n` +
     `- "sentences" is an array of sentence objects, splitting your reply into natural, shorter sentences.\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
     `- The "englishText" field in each sentence always holds the ${lang.label} text\n` +
-    `- "ended" is a boolean: true ONLY when the conversation's goal has been achieved and you are closing the chat\n` +
     `- "suggestions" are replies for the USER to choose from (${lang.label} + Thai meaning), NOT your reply\n` +
     `- "reading" = ${lang.readingDesc}, NOT a translation\n` +
     `- "englishPhrases" splits the "english" meaning into ordered chunks of 1-3 words each, grouping natural units together (collocations like "good day", phrasal verbs like "up to", "article + noun" like "a book", greetings like "Hey there"). Each chunk MUST keep any punctuation attached at its END (e.g. "Hey there!", "from you."). NEVER start a chunk with punctuation and NEVER make a chunk that is only punctuation. Joining the chunks with single spaces MUST reproduce "english" exactly. Example: english "Hey there! Good to hear from you." → englishPhrases ["Hey there!", "Good to", "hear from you."].\n` +
@@ -110,29 +92,6 @@ function validateInput(body: unknown): ChatRequest | null {
     if (typeof m.content !== 'string') return null;
   }
 
-  // topic must be 2-100 chars after trimming
-  if (typeof record.topic !== 'string') return null;
-  const trimmedTopic = record.topic.trim();
-  if (trimmedTopic.length < 2 || trimmedTopic.length > 100) return null;
-
-  // wordContext is optional, but if present must be an array of strings
-  let wordContext: string[] = [];
-  if (record.wordContext !== undefined) {
-    if (!Array.isArray(record.wordContext)) return null;
-    if (!record.wordContext.every((item) => typeof item === 'string'))
-      return null;
-    wordContext = record.wordContext as string[];
-  }
-
-  // goal is optional free text; trim and ignore if empty or too long
-  let goal = '';
-  if (typeof record.goal === 'string') {
-    const trimmedGoal = record.goal.trim();
-    if (trimmedGoal.length > 0 && trimmedGoal.length <= 100) {
-      goal = trimmedGoal;
-    }
-  }
-
   // language is optional; default to English.
   const language: TargetLanguage = isValidTargetLanguage(record.language)
     ? record.language
@@ -140,9 +99,6 @@ function validateInput(body: unknown): ChatRequest | null {
 
   return {
     messages: record.messages as ChatRequest['messages'],
-    topic: trimmedTopic,
-    wordContext,
-    goal,
     language,
   };
 }
@@ -164,7 +120,7 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { messages, topic, wordContext, goal, language } = input;
+  const { messages, language } = input;
 
   // Read custom API key and model from request headers (user-provided config).
   const customApiKey = request.headers.get('x-custom-api-key');
@@ -176,12 +132,7 @@ export async function POST(
   }
 
   // Build system prompt
-  const systemPrompt = buildSystemPrompt(
-    topic,
-    wordContext ?? [],
-    goal ?? '',
-    language ?? 'english'
-  );
+  const systemPrompt = buildSystemPrompt(language ?? 'english');
 
   // Build conversation context from messages (up to 20 most recent)
   // Convert ChatMessagePayload[] to ChatMessage[] for buildContext
