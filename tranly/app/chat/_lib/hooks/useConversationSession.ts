@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { getCustomAIHeaders } from '@/app/_lib/utils/getCustomAIHeaders';
 import { useChatApi } from './useChatApi';
 import { useConversationHistory } from './useConversationHistory';
+import { baseMessage } from '../utils/baseMessage';
 
 import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
 import type {
@@ -12,21 +13,6 @@ import type {
   ConversationSessionRecord,
   SessionConfig,
 } from '../types/types';
-
-/** Construct a ChatMessage with required empty fields pre-filled. */
-const baseMessage = (over: Partial<ChatMessage> & Pick<ChatMessage, 'role'>): ChatMessage => ({
-  id: crypto.randomUUID(),
-  englishText: '',
-  reading: '',
-  romanization: '',
-  translation: '',
-  english: '',
-  rawText: '',
-  timestamp: new Date().toISOString(),
-  status: 'sent',
-  ...over,
-});
-
 
 export interface UseConversationSessionReturn {
   messages: ChatMessage[];
