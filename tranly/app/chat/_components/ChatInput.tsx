@@ -14,8 +14,8 @@ import {
   PlusOutlined,
   ReadOutlined,
 } from '@ant-design/icons';
-import type { SavedWord } from '../_lib/types';
-import { validateMessage } from '../_lib/validateMessage';
+import type { SavedWord } from '../_lib/types/types';
+import { validateMessage } from '../_lib/utils/validateMessage';
 
 export interface ChatInputProps {
   onSend: (text: string) => void;

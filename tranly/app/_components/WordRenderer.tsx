@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { createPortal } from 'react-dom';
-import { tokenize, tokenizePhrases } from '@/app/_lib/wordTokenizer';
-import { STATUS_COLORS, type WordStatus } from '@/app/_lib/wordStatusDerivation';
+import { tokenize, tokenizePhrases } from '@/app/_lib/utils/wordTokenizer';
+import { STATUS_COLORS, type WordStatus } from '@/app/_lib/utils/wordStatusDerivation';
 import { WordStatusContext } from '@/app/_components/WordStatusProvider';
 import type { WordStatusContextValue } from '@/app/_components/WordStatusProvider';
 import { useRouter } from 'next/navigation';
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from '@/app/_lib/wordTypes';
+import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from '@/app/_lib/types/wordTypes';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -249,8 +249,6 @@ export default function WordRenderer({ text, className, textClassName, phrases }
         generatedDate: '',
         thai: entry?.thai ?? word,
         bookmarked: false,
-        imageBlob: null,
-        imageUrl: entry?.imageUrl ?? undefined,
         createdAt: Date.now(),
         partOfSpeech: entry?.partOfSpeech ?? undefined,
         word,

@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseChatResponse } from './parseChatResponse';
 import { buildContext } from './buildContext';
-import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/languagePrompt';
-import type { TargetLanguage } from '@/app/_lib/wordTypes';
+import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/utils/languagePrompt';
+import { getRequestUser, unauthorizedResponse, consumeChatQuota } from '@/app/api/_lib/utils/requireUser';
+import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
 import type {
   ChatRequest,
   ChatSuccessResponse,
   ChatErrorResponse,
   ChatErrorType,
   ChatMessage,
-} from '@/app/chat/_lib/types';
+} from '@/app/chat/_lib/types/types';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
+const DAILY_CHAT_LIMIT = 15;
 
 const ERROR_MESSAGES: Record<ChatErrorType, string> = {
   invalid_input: 'Invalid input.',
@@ -106,6 +108,8 @@ function validateInput(body: unknown): ChatRequest | null {
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ChatSuccessResponse | ChatErrorResponse> | Response> {
+  if (!await getRequestUser()) return unauthorizedResponse();
+
   // Parse request body
   let body: unknown;
   try {
@@ -121,6 +125,11 @@ export async function POST(
   }
 
   const { messages, language } = input;
+
+  // Enforce the per-user daily chat quota (atomic, resets at the first call of a new day).
+  if (await consumeChatQuota(DAILY_CHAT_LIMIT) === null) {
+    return errorResponse('rate_limit', 429);
+  }
 
   // Read custom API key and model from request headers (user-provided config).
   const customApiKey = request.headers.get('x-custom-api-key');

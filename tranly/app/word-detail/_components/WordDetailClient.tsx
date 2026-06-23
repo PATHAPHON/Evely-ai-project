@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ConfigProvider } from "antd";
 import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
 import WordDetailView from "./WordDetailView";
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/_lib/wordTypes";
+import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/_lib/types/wordTypes";
 
 function readDetailWord(): FeedWordRecord | null {
   try {

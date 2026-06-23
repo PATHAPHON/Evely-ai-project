@@ -1,7 +1,7 @@
 'use client';
 
-import { useTheme } from '../_lib/useTheme';
-import { useStrings } from '@/app/_lib/strings';
+import { useTheme } from '../_lib/hooks/useTheme';
+import { useStrings } from '@/app/_lib/utils/strings';
 
 /**
  * Neobrutalist toggle switch for switching between light and dark mode.

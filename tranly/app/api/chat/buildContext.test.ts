@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildContext } from './buildContext';
-import type { ChatMessage } from '@/app/chat/_lib/types';
+import type { ChatMessage } from '@/app/chat/_lib/types/types';
 
 function makeChatMessage(
   overrides: Partial<ChatMessage> & { role: ChatMessage['role'] },

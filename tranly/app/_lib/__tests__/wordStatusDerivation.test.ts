@@ -4,7 +4,7 @@ import {
   STATUS_COLORS,
   type WordStatus,
   type WordBankEntry,
-} from '../wordStatusDerivation';
+} from '../utils/wordStatusDerivation';
 
 function makeEntry(overrides: Partial<WordBankEntry> = {}): WordBankEntry {
   return {
@@ -13,12 +13,12 @@ function makeEntry(overrides: Partial<WordBankEntry> = {}): WordBankEntry {
     thai: 'สวัสดี',
     ipa: '/həˈloʊ/',
     partOfSpeech: 'interjection',
-    imageUrl: null,
     nextReviewAt: new Date(Date.now() + 86400000), // tomorrow
     lastReviewedAt: new Date(),
     box: 1,
     interval: 1,
     easeFactor: 2.5,
+    repetitions: 0,
     ...overrides,
   };
 }

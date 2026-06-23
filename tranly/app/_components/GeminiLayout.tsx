@@ -9,10 +9,12 @@ import {
   SettingOutlined,
   EditOutlined,
   MessageOutlined,
+  CrownOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
-import { useUserProfile } from '@/app/_lib/useUserProfile';
-import { useConversationHistory } from '@/app/chat/_lib/useConversationHistory';
-import { useStrings } from '@/app/_lib/strings';
+import { useUserProfile } from '@/app/_lib/hooks/useUserProfile';
+import { useConversationHistory } from '@/app/chat/_lib/hooks/useConversationHistory';
+import { useStrings } from '@/app/_lib/utils/strings';
 import { Drawer } from 'antd';
 
 interface GeminiLayoutProps {
@@ -39,6 +41,8 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
   const navLinks = [
     { label: t.drawer.navChat, path: '/chat', icon: <MessageOutlined style={{ fontSize: 18 }} /> },
     { label: t.drawer.navWords, path: '/words', icon: <BookOutlined style={{ fontSize: 18 }} /> },
+    { label: t.drawer.navGem, path: '/gem', icon: <CrownOutlined style={{ fontSize: 18 }} /> },
+    { label: t.drawer.navRefresh, path: '/refresh', icon: <PlayCircleOutlined style={{ fontSize: 18 }} /> },
   ];
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { findLastAssistantId } from "../chatListHelpers";
-import type { ChatMessage } from "../types";
+import { findLastAssistantId } from "../utils/chatListHelpers";
+import type { ChatMessage } from "../types/types";
 
 const msg = (id: string, role: ChatMessage["role"], status?: string): ChatMessage =>
   ({ id, role, status } as ChatMessage);

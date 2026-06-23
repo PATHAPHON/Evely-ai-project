@@ -1,0 +1,74 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/app/_lib/supabase/supabaseClient';
+import { useActiveLanguage } from '@/app/_lib/contexts/ActiveLanguageContext';
+
+export interface LanguageLearningStats {
+  wordCount: number;
+  studySessionCount: number;
+  isLoading: boolean;
+}
+
+export function useLanguageLearningStats(): LanguageLearningStats {
+  const { activeLanguage } = useActiveLanguage();
+  const [wordCount, setWordCount] = useState(0);
+  const [studySessionCount, setStudySessionCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStats() {
+      setIsLoading(true);
+      try {
+        const userRes = await supabase.auth.getUser();
+        const userId = userRes.data.user?.id;
+        if (!userId) {
+          if (!cancelled) {
+            setWordCount(0);
+            setStudySessionCount(0);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        const [wordsRes, sessionsRes] = await Promise.all([
+          supabase
+            .from('words')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('language', activeLanguage),
+          supabase
+            .from('study_sessions')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('language', activeLanguage),
+        ]);
+
+        if (!cancelled) {
+          setWordCount(wordsRes.count || 0);
+          setStudySessionCount(sessionsRes.count || 0);
+        }
+      } catch (err) {
+        console.error('Failed to load language learning stats:', err);
+        if (!cancelled) {
+          setWordCount(0);
+          setStudySessionCount(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeLanguage]);
+
+  return { wordCount, studySessionCount, isLoading };
+}

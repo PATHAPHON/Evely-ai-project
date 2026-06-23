@@ -3,19 +3,19 @@
 import { Suspense, useCallback, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { useActiveLanguage } from '@/app/_lib/ActiveLanguageContext';
+import { useActiveLanguage } from '@/app/_lib/contexts/ActiveLanguageContext';
 
-import { speechLangForLanguage } from './_lib/speechLangForLanguage';
-import { useConversationSession } from './_lib/useConversationSession';
-import { useTTS } from './_lib/useTTS';
-import { useSTT } from './_lib/useSTT';
-import { useSuggestionPanel } from './_lib/useSuggestionPanel';
+import { speechLangForLanguage } from './_lib/utils/speechLangForLanguage';
+import { useConversationSession } from './_lib/hooks/useConversationSession';
+import { useTTS } from './_lib/hooks/useTTS';
+import { useSTT } from './_lib/hooks/useSTT';
+import { useSuggestionPanel } from './_lib/hooks/useSuggestionPanel';
 import ChatList from './_components/ChatList';
 import ChatInput from './_components/ChatInput';
 import SuggestionOptions from './_components/SuggestionOptions';
 import ElephantMascot from './_components/ElephantMascot';
-import { useUserProfile } from '@/app/_lib/useUserProfile';
-import type { SessionConfig } from './_lib/types';
+import { useUserProfile } from '@/app/_lib/hooks/useUserProfile';
+import type { SessionConfig } from './_lib/types/types';
 
 import { BulbOutlined } from '@ant-design/icons';
 import GeminiLayout from '@/app/_components/GeminiLayout';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makePhraseToken, tokenizePhrases } from '../wordTokenizer';
+import { makePhraseToken, tokenizePhrases } from '../utils/wordTokenizer';
 
 describe('makePhraseToken', () => {
   it('keeps a multi-word phrase as a single clickable token', () => {

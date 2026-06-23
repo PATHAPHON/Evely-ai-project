@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
+import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
 
 const GOOGLE_TTS_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 const API_TIMEOUT_MS = 15_000;
@@ -64,6 +65,8 @@ function audioResponse(buffer: Buffer, cacheStatus: 'HIT' | 'MISS'): Response {
 }
 
 export async function POST(request: NextRequest) {
+  if (!await getRequestUser()) return unauthorizedResponse();
+
   let body: unknown;
   try {
     body = await request.json();

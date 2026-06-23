@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isAuthExpiredError, rowToWordBankEntry, type WordRow } from "../wordBankRow";
+import { isAuthExpiredError, rowToWordBankEntry, type WordRow } from "../utils/wordBankRow";
 
 describe("isAuthExpiredError", () => {
   it("returns false for null", () => {
@@ -32,7 +32,6 @@ describe("rowToWordBankEntry", () => {
     thai: "แอปเปิล",
     ipa: "ˈæp.əl",
     part_of_speech: "noun",
-    image_url: "http://img",
   };
 
   it("uses the provided wordKey, not row.word", () => {
@@ -65,10 +64,9 @@ describe("rowToWordBankEntry", () => {
   });
 
   it("nulls out empty string fields", () => {
-    const entry = rowToWordBankEntry({ id: "x", word: "", thai: "", ipa: "", part_of_speech: "", image_url: "" }, "k");
+    const entry = rowToWordBankEntry({ id: "x", word: "", thai: "", ipa: "", part_of_speech: "" }, "k");
     expect(entry.thai).toBeNull();
     expect(entry.ipa).toBeNull();
     expect(entry.partOfSpeech).toBeNull();
-    expect(entry.imageUrl).toBeNull();
   });
 });

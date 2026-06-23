@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseChatResponse } from './parseChatResponse';
-import type { ChatSuccessResponse } from '@/app/chat/_lib/types';
+import type { ChatSuccessResponse } from '@/app/chat/_lib/types/types';
 
 const validResponse: ChatSuccessResponse = {
   englishText: 'Hello',

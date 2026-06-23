@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useStrings } from "@/app/_lib/strings";
-import type { UseUserProfileReturn } from "@/app/_lib/useUserProfile";
+import { useStrings } from "@/app/_lib/utils/strings";
+import type { UseUserProfileReturn } from "@/app/_lib/hooks/useUserProfile";
 import SlothMascot from "./SlothMascot";
 
 interface ProfileViewerModalProps {

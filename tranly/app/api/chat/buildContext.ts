@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatMessagePayload } from '@/app/chat/_lib/types';
+import type { ChatMessage, ChatMessagePayload } from '@/app/chat/_lib/types/types';
 
 const MAX_CONTEXT_MESSAGES = 20;
 

@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { useStudySessions } from '../useStudySessions';
-import { ActiveLanguageProvider, STORAGE_KEY } from '../ActiveLanguageContext';
-import type { StudySession } from '../studySessionTypes';
+import { useStudySessions } from '../hooks/useStudySessions';
+import { ActiveLanguageProvider, STORAGE_KEY } from '../contexts/ActiveLanguageContext';
+import type { StudySession } from '../types/studySessionTypes';
 
 // --- In-memory mock database ---
 let mockSessions: any[] = [];
 let mockUser: any = { id: 'test-user-id' };
 
 // --- Mock Supabase Client ---
-vi.mock('@/app/_lib/supabaseClient', () => {
+vi.mock('@/app/_lib/supabase/supabaseClient', () => {
   return {
     supabase: {
       auth: {

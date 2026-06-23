@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useStrings } from "@/app/_lib/strings";
-import { supabase } from "@/app/_lib/supabaseClient";
-import type { UseUserProfileReturn } from "@/app/_lib/useUserProfile";
+import { useStrings } from "@/app/_lib/utils/strings";
+import { supabase } from "@/app/_lib/supabase/supabaseClient";
+import type { UseUserProfileReturn } from "@/app/_lib/hooks/useUserProfile";
 import SlothMascot from "./SlothMascot";
 
 interface AccountCardProps {

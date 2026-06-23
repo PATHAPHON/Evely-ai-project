@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useActiveLanguage } from '../_lib/ActiveLanguageContext';
-import type { TargetLanguage } from '../_lib/wordTypes';
+import { useActiveLanguage } from '../_lib/contexts/ActiveLanguageContext';
+import type { TargetLanguage } from '../_lib/types/wordTypes';
 
 interface LanguageOption {
   value: TargetLanguage;

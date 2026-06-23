@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import type { TargetLanguage } from '@/app/_lib/wordTypes';
-import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/languagePrompt';
+import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
+import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/utils/languagePrompt';
+import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
 import crypto from 'crypto';
-import { supabaseServer } from '@/app/_lib/supabaseServer';
+import { supabaseServer } from '@/app/_lib/supabase/supabaseServer';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
@@ -190,6 +191,8 @@ function parseWordDetailContent(content: string): WordDetailResponse | null {
 export async function POST(
   request: NextRequest,
 ): Promise<NextResponse<WordDetailResponse | WordDetailErrorResponse>> {
+  if (!await getRequestUser()) return unauthorizedResponse();
+
   // Parse request body
   let body: unknown;
   try {

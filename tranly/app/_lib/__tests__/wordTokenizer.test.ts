@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tokenize } from '../wordTokenizer';
+import { tokenize } from '../utils/wordTokenizer';
 
 describe('wordTokenizer', () => {
   describe('basic tokenization', () => {

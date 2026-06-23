@@ -13,7 +13,7 @@ import {
   CloseCircleFilled,
   CloseOutlined,
 } from '@ant-design/icons';
-import type { ChatMessage } from '../_lib/types';
+import type { ChatMessage } from '../_lib/types/types';
 import WordRenderer from '@/app/_components/WordRenderer';
 
 interface ChatListProps {

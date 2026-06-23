@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useStrings } from "@/app/_lib/strings";
+import { useStrings } from "@/app/_lib/utils/strings";
 import BottomSheet from "./BottomSheet";
 import SlothMascot from "./SlothMascot";
-import type { UseUserProfileReturn } from "@/app/_lib/useUserProfile";
+import type { UseUserProfileReturn } from "@/app/_lib/hooks/useUserProfile";
 
 interface EditProfileSheetProps {
   open: boolean;

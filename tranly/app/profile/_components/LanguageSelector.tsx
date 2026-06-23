@@ -1,7 +1,7 @@
 'use client';
 
-import { useLanguagePreference, type TranslationLanguage } from '@/app/_lib/useLanguagePreference';
-import { useStrings } from '@/app/_lib/strings';
+import { useLanguagePreference, type TranslationLanguage } from '@/app/_lib/hooks/useLanguagePreference';
+import { useStrings } from '@/app/_lib/utils/strings';
 
 const LANGUAGE_OPTIONS: { value: TranslationLanguage; label: string; description: string }[] = [
   { value: 'thai', label: 'Thai', description: 'Show Thai translation & pronunciation' },

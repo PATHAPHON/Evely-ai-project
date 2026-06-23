@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CloseOutlined } from "@ant-design/icons";
-import { getCustomAIHeaders } from "@/app/_lib/getCustomAIHeaders";
-import type { FeedWordRecord } from "@/app/_lib/wordTypes";
+import { getCustomAIHeaders } from "@/app/_lib/utils/getCustomAIHeaders";
+import type { FeedWordRecord } from "@/app/_lib/types/wordTypes";
 import type { WordDetailResponse } from "@/app/api/word-detail/route";
 
 interface WordDetailViewProps {
@@ -124,8 +124,6 @@ export default function WordDetailView({ word, onClose }: WordDetailViewProps) {
 
   if (!word) return null;
 
-  const heroUrl = word.imageUrl || word.imageUrls?.[0] || "";
-
   // The handed-off snapshot may predate background enrichment (thai falls back
   // to the word itself) — prefer fields from the word-detail response then.
   const thaiMissing = !word.thai || word.thai.toLowerCase() === (word.word ?? "").toLowerCase();
@@ -155,21 +153,6 @@ export default function WordDetailView({ word, onClose }: WordDetailViewProps) {
 
       {/* ── Scrollable content ─────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto pb-8">
-        {/* Hero image */}
-        <div className="px-4 pt-4">
-          <div
-            className="w-full overflow-hidden rounded-2xl border-3 border-black shadow-nb-sm"
-            style={{ height: "30dvh" }}
-          >
-            {heroUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={heroUrl} alt={word.word ?? ""} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-[var(--background)]" />
-            )}
-          </div>
-        </div>
-
         {/* Body */}
         <div className="flex flex-col gap-4 px-4 pt-4">
           {/* Headline */}

@@ -2,11 +2,11 @@
 
 import { useCallback, useRef, useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { useStrings } from "@/app/_lib/strings";
-import { supabase } from "@/app/_lib/supabaseClient";
-import { useUserProfile } from "@/app/_lib/useUserProfile";
-import { useTheme } from "./_lib/useTheme";
-import { useLanguageLearningStats } from "./_lib/useLearningStats";
+import { useStrings } from "@/app/_lib/utils/strings";
+import { supabase } from "@/app/_lib/supabase/supabaseClient";
+import { useUserProfile } from "@/app/_lib/hooks/useUserProfile";
+import { useTheme } from "./_lib/hooks/useTheme";
+import { useLanguageLearningStats } from "./_lib/hooks/useLearningStats";
 import AccountCard from "./_components/AccountCard";
 import { Group, SettingsRow } from "./_components/SettingsList";
 import AppInfo from "./_components/AppInfo";

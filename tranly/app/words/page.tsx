@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfigProvider, message } from "antd";
 import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
-import { useStrings } from "@/app/_lib/strings";
-import { useWordStorage, type WordRecord } from "@/app/_lib/useWordStorage";
-import { useTTS } from "@/app/chat/_lib/useTTS";
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/_lib/wordTypes";
-import { useActiveLanguage } from "@/app/_lib/ActiveLanguageContext";
+import { useStrings } from "@/app/_lib/utils/strings";
+import { useWordStorage, type WordRecord } from "@/app/_lib/hooks/useWordStorage";
+import { useTTS } from "@/app/chat/_lib/hooks/useTTS";
+import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/_lib/types/wordTypes";
+import { useActiveLanguage } from "@/app/_lib/contexts/ActiveLanguageContext";
 import GeminiLayout from "@/app/_components/GeminiLayout";
 
 function getLocalDateString(ts: number) {
@@ -34,18 +34,6 @@ interface CompactWordCardProps {
 }
 
 function CompactWordCard({ word, onSpeak, onSelect, baseDelay }: CompactWordCardProps) {
-  const [imgUrl, setImgUrl] = useState<string>("");
-
-  useEffect(() => {
-    if (word.imageUrl) {
-      setImgUrl(word.imageUrl);
-    } else if (word.imageBlob) {
-      const url = URL.createObjectURL(word.imageBlob);
-      setImgUrl(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [word.imageUrl, word.imageBlob]);
-
   const wordText = word.english || word.label;
   const handleSelect = () => onSelect(word);
 
@@ -54,22 +42,6 @@ function CompactWordCard({ word, onSpeak, onSelect, baseDelay }: CompactWordCard
       className="relative flex flex-col items-center w-full bg-gray-50 dark:bg-[#202124] rounded-2xl p-3 border border-gray-200/60 dark:border-gray-800/40 hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-card-fade-in text-left"
       style={{ animationDelay: `${baseDelay}ms` }}
     >
-      {/* Image container */}
-      <div
-        onClick={handleSelect}
-        className="w-full aspect-square bg-white dark:bg-[#131314] rounded-xl overflow-hidden flex items-center justify-center shrink-0 relative cursor-pointer"
-      >
-        {imgUrl ? (
-          <img
-            src={imgUrl}
-            alt={wordText}
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          />
-        ) : (
-          <div className="text-4xl w-full h-full flex items-center justify-center select-none">🍎</div>
-        )}
-      </div>
-
       {/* Label and Audio Speak Button */}
       <div className="flex items-center justify-between w-full mt-3 px-1">
         <span
@@ -110,16 +82,12 @@ export default function WordsPage() {
 
   // Open the saved word in the full-page /word-detail view
   const openWordDetail = (w: WordRecord) => {
-    const imageUrl =
-      w.imageUrl ?? (w.imageBlob ? URL.createObjectURL(w.imageBlob) : undefined);
     const detailWord: FeedWordRecord = {
       id: w.id,
       language: w.language ?? activeLanguage,
       generatedDate: getLocalDateString(w.createdAt),
       thai: w.label,
       bookmarked: true,
-      imageBlob: null,
-      imageUrl,
       createdAt: w.createdAt,
       partOfSpeech: w.partOfSpeech,
       word: w.english || w.label,

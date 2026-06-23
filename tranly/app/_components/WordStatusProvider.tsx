@@ -10,18 +10,18 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/_lib/supabaseClient';
+import { supabase } from '@/app/_lib/supabase/supabaseClient';
 import {
   deriveWordStatus,
   type WordStatus,
   type WordBankEntry,
-} from '@/app/_lib/wordStatusDerivation';
+} from '@/app/_lib/utils/wordStatusDerivation';
 import {
   recalculateProgress,
   createInitialProgress,
-} from '@/app/_lib/spacedRepetition';
-import { getCustomAIHeaders } from '@/app/_lib/getCustomAIHeaders';
-import { isAuthExpiredError, rowToWordBankEntry } from '@/app/_lib/wordBankRow';
+} from '@/app/_lib/utils/spacedRepetition';
+import { getCustomAIHeaders } from '@/app/_lib/utils/getCustomAIHeaders';
+import { isAuthExpiredError, rowToWordBankEntry } from '@/app/_lib/utils/wordBankRow';
 import { useToast } from './Toast';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ export interface WordStatusContextValue {
   getEntry: (word: string) => WordBankEntry | null;
   addWord: (word: string) => Promise<void>;
   removeWord: (wordId: string) => Promise<void>;
-  reviewWord: (wordId: string) => Promise<void>;
+  reviewWord: (wordId: string, quality: number) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -90,11 +90,11 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
             thai,
             ipa,
             part_of_speech,
-            image_url,
             word_progress (
               box,
               interval,
               ease_factor,
+              repetitions,
               last_reviewed_at,
               next_review_at
             )
@@ -239,47 +239,6 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
     [notifyUpdate]
   );
 
-  // ─── Fetch image in background ────────────────────────────────────────────
-
-  const fetchImageInBackground = useCallback(
-    async (wordId: string, normalizedWord: string, originalWord: string) => {
-      const userId = userIdRef.current;
-      if (!userId) return;
-
-      try {
-        const res = await fetch('/api/word-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ word: originalWord }),
-        });
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-        const imageUrl =
-          typeof data.imageUrl === 'string' && data.imageUrl ? data.imageUrl : null;
-        if (!imageUrl) return;
-
-        const { error: updateError } = await supabase
-          .from('words')
-          .update({ image_url: imageUrl })
-          .eq('id', wordId)
-          .eq('user_id', userId);
-
-        if (updateError) return;
-
-        const entry = wordBankRef.current.get(normalizedWord);
-        if (entry) {
-          wordBankRef.current.set(normalizedWord, { ...entry, imageUrl });
-          notifyUpdate();
-        }
-      } catch {
-        // Image fetch failed — word stays without an image
-      }
-    },
-    [notifyUpdate]
-  );
-
   // ─── addWord ────────────────────────────────────────────────────────────────
 
   const addWord = useCallback(
@@ -320,8 +279,8 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
             .from('words')
             .select(
               `
-              id, word, thai, ipa, part_of_speech, image_url,
-              word_progress (box, interval, ease_factor, last_reviewed_at, next_review_at)
+              id, word, thai, ipa, part_of_speech,
+              word_progress (box, interval, ease_factor, repetitions, last_reviewed_at, next_review_at)
             `
             )
             .eq('user_id', userId)
@@ -383,12 +342,12 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
         thai: null,
         ipa: null,
         partOfSpeech: null,
-        imageUrl: null,
         nextReviewAt: initialProgress.nextReviewAt,
         lastReviewedAt: initialProgress.lastReviewedAt,
         box: initialProgress.box,
         interval: initialProgress.interval,
         easeFactor: initialProgress.easeFactor,
+        repetitions: initialProgress.repetitions,
       };
       wordBankRef.current.set(normalizedWord, entry);
 
@@ -397,11 +356,10 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
 
       notifyUpdate();
 
-      // Fetch translation + image in background (non-blocking)
+      // Fetch translation in background (non-blocking)
       fetchTranslationInBackground(wordId, normalizedWord, word);
-      fetchImageInBackground(wordId, normalizedWord, word);
     },
-    [notifyUpdate, handleAuthExpired, showToast, fetchTranslationInBackground, fetchImageInBackground]
+    [notifyUpdate, handleAuthExpired, showToast, fetchTranslationInBackground]
   );
 
   // ─── Helper: find entry by id ───────────────────────────────────────────────
@@ -480,7 +438,7 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
   // ─── reviewWord ─────────────────────────────────────────────────────────────
 
   const reviewWord = useCallback(
-    async (wordId: string): Promise<void> => {
+    async (wordId: string, quality: number): Promise<void> => {
       const userId = userIdRef.current;
       if (!userId) {
         handleAuthExpired();
@@ -496,12 +454,16 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
 
       const { key: wordKey, entry: currentEntry } = found;
 
-      // Recalculate progress using spaced repetition algorithm
-      const newProgress = recalculateProgress({
-        box: currentEntry.box,
-        interval: currentEntry.interval,
-        easeFactor: currentEntry.easeFactor,
-      });
+      // Recalculate progress using SM-2 algorithm
+      const newProgress = recalculateProgress(
+        {
+          box: currentEntry.box,
+          interval: currentEntry.interval,
+          easeFactor: currentEntry.easeFactor,
+          repetitions: currentEntry.repetitions,
+        },
+        quality
+      );
 
       const now = new Date();
 
@@ -512,6 +474,7 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
           box: newProgress.box,
           interval: newProgress.interval,
           ease_factor: newProgress.easeFactor,
+          repetitions: newProgress.repetitions,
           last_reviewed_at: now.toISOString(),
           next_review_at: newProgress.nextReviewAt.toISOString(),
           updated_at: now.toISOString(),
@@ -534,6 +497,7 @@ export function WordStatusProvider({ children }: { children: ReactNode }) {
         box: newProgress.box,
         interval: newProgress.interval,
         easeFactor: newProgress.easeFactor,
+        repetitions: newProgress.repetitions,
         nextReviewAt: newProgress.nextReviewAt,
         lastReviewedAt: now,
       };

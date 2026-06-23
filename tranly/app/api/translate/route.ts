@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseChatResponse } from '@/app/api/chat/parseChatResponse';
-import type { ChatSuccessResponse } from '@/app/chat/_lib/types';
+import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
+import type { ChatSuccessResponse } from '@/app/chat/_lib/types/types';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
@@ -20,7 +21,10 @@ function errorResponse(
 
 export async function POST(
   request: NextRequest
-): Promise<NextResponse<ChatSuccessResponse | TranslateErrorResponse>> {
+  // ponytail: widened return to include 401 shape without over-engineering a union
+): Promise<NextResponse> {
+  if (!await getRequestUser()) return unauthorizedResponse();
+
   let body: unknown;
   try {
     body = await request.json();

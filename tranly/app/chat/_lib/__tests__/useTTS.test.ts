@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useTTS } from '../useTTS';
+import { useTTS } from '../hooks/useTTS';
 
 class MockUtterance {
   text: string;

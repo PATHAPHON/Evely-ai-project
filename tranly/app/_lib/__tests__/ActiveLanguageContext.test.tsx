@@ -5,7 +5,7 @@ import {
   useActiveLanguage,
   STORAGE_KEY,
   DEFAULT_LANGUAGE,
-} from '../ActiveLanguageContext';
+} from '../contexts/ActiveLanguageContext';
 
 const mockGetSession = vi.fn().mockResolvedValue({ data: { session: null } });
 const mockOnAuthStateChange = vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
@@ -23,7 +23,7 @@ const mockFrom = vi.fn().mockReturnValue({
   select: (...args: any[]) => mockSelect(...args),
 });
 
-vi.mock('@/app/_lib/supabaseClient', () => ({
+vi.mock('@/app/_lib/supabase/supabaseClient', () => ({
   supabase: {
     auth: {
       getSession: (...args: any[]) => mockGetSession(...args),

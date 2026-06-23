@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button, ConfigProvider, Card, Typography, Spin } from "antd";
 import { RocketOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
-import { useStrings } from "@/app/_lib/strings";
-import { supabase } from "@/app/_lib/supabaseClient";
+import { useStrings } from "@/app/_lib/utils/strings";
+import { supabase } from "@/app/_lib/supabase/supabaseClient";
 
 const { Title, Paragraph } = Typography;
 

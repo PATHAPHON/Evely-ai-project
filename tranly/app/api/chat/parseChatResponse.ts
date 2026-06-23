@@ -1,4 +1,4 @@
-import type { ChatSuccessResponse, ReplySuggestion } from '@/app/chat/_lib/types';
+import type { ChatSuccessResponse, ReplySuggestion } from '@/app/chat/_lib/types/types';
 
 /**
  * Extract a clean list of reply suggestions from a raw value. Returns undefined

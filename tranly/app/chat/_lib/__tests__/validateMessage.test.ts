@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateMessage } from '../validateMessage';
+import { validateMessage } from '../utils/validateMessage';
 
 describe('validateMessage', () => {
   it('accepts a non-empty message within 500 characters', () => {

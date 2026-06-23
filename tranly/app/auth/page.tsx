@@ -4,8 +4,8 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ConfigProvider } from "antd";
 import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
-import { supabase } from "@/app/_lib/supabaseClient";
-import { useStrings } from "@/app/_lib/strings";
+import { supabase } from "@/app/_lib/supabase/supabaseClient";
+import { useStrings } from "@/app/_lib/utils/strings";
 
 const fieldClass =
   "w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 px-3.5 py-3 text-[15px] text-text-primary outline-none transition-all focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-[#131314] focus:shadow-sm dark:placeholder-white/40 placeholder-black/40";
