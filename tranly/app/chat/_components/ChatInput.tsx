@@ -58,11 +58,15 @@ export default function ChatInput({
 
   useEffect(() => {
     if (transcript) {
+      // Append incoming speech-to-text transcript to the input
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInputValue((prev) => (prev ? `${prev} ${transcript}` : transcript));
     }
   }, [transcript]);
 
   useEffect(() => {
+    // Reset input when parent bumps resetKey (e.g. after send)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInputValue('');
     setPlusMenuOpen(false);
   }, [resetKey]);

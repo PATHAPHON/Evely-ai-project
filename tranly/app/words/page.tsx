@@ -111,6 +111,8 @@ export default function WordsPage() {
     if (cachedDataStr) {
       try {
         cachedList = JSON.parse(cachedDataStr);
+        // Stale-while-revalidate: paint cached words after mount (avoids SSR mismatch)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setWords(cachedList);
       } catch (e) {
         console.error("Failed to parse cached words:", e);

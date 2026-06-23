@@ -85,8 +85,10 @@ function seedStore(
 
 function createWrapper(initialLanguage: TargetLanguage = 'english') {
   localStorage.setItem('tranly:active-language', initialLanguage);
-  return ({ children }: { children: React.ReactNode }) =>
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(ActiveLanguageProvider, null, children);
+  Wrapper.displayName = 'TestWrapper';
+  return Wrapper;
 }
 
 describe('useLanguageLearningStats', () => {

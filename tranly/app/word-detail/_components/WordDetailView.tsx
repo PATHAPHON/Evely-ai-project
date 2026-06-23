@@ -69,6 +69,8 @@ export default function WordDetailView({ word, onClose }: WordDetailViewProps) {
     if (word) {
       requestAnimationFrame(() => requestAnimationFrame(() => setIsVisible(true)));
     } else {
+      // Reset visibility for exit animation when word clears
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsVisible(false);
     }
   }, [word]);
@@ -104,6 +106,8 @@ export default function WordDetailView({ word, onClose }: WordDetailViewProps) {
   }, []);
 
   useEffect(() => {
+    // Fetch detail when the selected word changes
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (word) fetchDetail(word);
   }, [word, fetchDetail]);
 

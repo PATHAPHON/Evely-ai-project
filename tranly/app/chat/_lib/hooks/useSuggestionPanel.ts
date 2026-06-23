@@ -34,6 +34,8 @@ export function useSuggestionPanel({
   // Collapse (hide) options at the start of each new AI turn
   const lastSuggestionsKey = lastMessage ? lastMessage.id : '';
   useEffect(() => {
+    // Collapse options at the start of each new AI turn
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsOptionsCollapsed(true);
   }, [lastSuggestionsKey]);
 

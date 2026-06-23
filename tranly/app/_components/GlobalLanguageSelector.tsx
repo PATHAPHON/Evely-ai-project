@@ -30,6 +30,8 @@ export default function GlobalLanguageSelector() {
   // Show error toast when switchError changes
   useEffect(() => {
     if (!switchError) return;
+    // Surface error prop as an auto-dismissing toast
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setErrorToast(switchError);
     setToast(null); // Clear success toast if showing
     const timer = setTimeout(() => {

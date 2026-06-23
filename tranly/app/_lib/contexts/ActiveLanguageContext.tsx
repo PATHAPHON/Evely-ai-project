@@ -62,8 +62,10 @@ export function ActiveLanguageProvider({ children }: { children: ReactNode }) {
 
   // Read persisted value from localStorage and get user ID on mount
   useEffect(() => {
+    // Hydrate from localStorage after mount to avoid SSR hydration mismatch
     const stored = getStoredLanguage();
     if (isValidLanguage(stored)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveLanguageState(stored);
       previousLanguageRef.current = stored;
     }

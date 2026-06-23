@@ -43,19 +43,16 @@ export function useStudySessions(): UseStudySessionsReturn {
         cardsReviewed: row.cards_reviewed,
       }));
 
-      setSets(mappedSessions);
+      setSessions(mappedSessions);
     } catch (err) {
       console.error('Failed to load study sessions:', err);
-      setSets([]);
+      setSessions([]);
     }
   }, [activeLanguage]);
 
-  // Helper setter to avoid React scope issues
-  function setSets(val: StudySession[]) {
-    setSessions(val);
-  }
-
   useEffect(() => {
+    // Data fetch on mount / language change — intentional async effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh().catch(() => setSessions([]));
   }, [refresh]);
 

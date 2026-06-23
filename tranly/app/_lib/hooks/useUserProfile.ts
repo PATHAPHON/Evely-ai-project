@@ -124,8 +124,9 @@ export function useUserProfile(): UseUserProfileReturn {
   }, []);
 
   useEffect(() => {
-    // 1. Sync from local storage first for speed
+    // 1. Sync from local storage first for speed (after mount, avoids SSR mismatch)
     const storedName = getStoredItem('display-name');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (storedName) setDisplayNameState(storedName);
     setHandle(getStoredItem('profile:handle') || "");
     setRole(getStoredItem('profile:role') || "");

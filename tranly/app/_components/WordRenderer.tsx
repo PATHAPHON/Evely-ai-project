@@ -91,18 +91,18 @@ function WordOverlay({
     });
   }, []);
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    setTimeout(onClose, 250);
+  }, [onClose]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  });
-
-  const handleClose = useCallback(() => {
-    setIsVisible(false);
-    setTimeout(onClose, 250);
-  }, [onClose]);
+  }, [handleClose]);
 
   const handleAdd = async () => {
     setIsAdding(true);
@@ -205,12 +205,15 @@ export default function WordRenderer({ text, className, textClassName, phrases }
   const isLongPassage = tokens.length > LONG_PASSAGE_THRESHOLD;
 
   useEffect(() => {
+    // Progressive-load reset on text change, then chunk remaining tokens via raf
     if (!isLongPassage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisibleCount(tokens.length);
       return;
     }
 
     // Reset to threshold on text change
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(LONG_PASSAGE_THRESHOLD);
 
     // Process remaining tokens async using requestAnimationFrame

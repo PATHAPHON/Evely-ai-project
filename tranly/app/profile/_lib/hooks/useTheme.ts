@@ -26,7 +26,9 @@ export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
+    // Hydrate theme from localStorage after mount to avoid SSR mismatch
     const stored = getStoredTheme();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemeState(stored);
     applyThemeClass(stored);
   }, []);

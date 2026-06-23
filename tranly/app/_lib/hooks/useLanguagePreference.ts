@@ -13,11 +13,12 @@ export function useLanguagePreference() {
 
   // Load from local storage and get user ID on mount
   useEffect(() => {
+    // Hydrate from localStorage after mount to avoid SSR hydration mismatch
     const stored = localStorage.getItem(STORAGE_KEY);
+    // (default state is already 'thai', so only override when a valid value is stored)
     if (stored === 'thai' || stored === 'english') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLanguageState(stored);
-    } else {
-      setLanguageState('thai');
     }
 
     let active = true;
