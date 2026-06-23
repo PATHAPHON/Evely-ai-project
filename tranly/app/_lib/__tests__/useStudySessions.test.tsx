@@ -6,8 +6,9 @@ import { ActiveLanguageProvider } from '../contexts/ActiveLanguageContext';
 import type { StudySession } from '../types/studySessionTypes';
 
 // --- In-memory mock database ---
-let mockSessions: any[] = [];
-let mockUser: any = { id: 'test-user-id' };
+type SessionRow = { user_id: string; language: string; completed_at: string; [k: string]: unknown };
+let mockSessions: SessionRow[] = [];
+let mockUser: { id: string } | null = { id: 'test-user-id' };
 
 // --- Mock Supabase Client ---
 vi.mock('@/app/_lib/supabase/supabaseClient', () => {
@@ -22,9 +23,9 @@ vi.mock('@/app/_lib/supabase/supabaseClient', () => {
         if (table === 'study_sessions') {
           return {
             select: vi.fn(() => ({
-              eq: vi.fn((field1: string, val1: any) => {
+              eq: vi.fn((field1: string, val1: unknown) => {
                 return {
-                  eq: vi.fn((field2: string, val2: any) => {
+                  eq: vi.fn((field2: string, val2: unknown) => {
                     return {
                       order: vi.fn(async (sortField: string, { ascending }: { ascending: boolean }) => {
                         const filtered = mockSessions.filter(
@@ -42,7 +43,7 @@ vi.mock('@/app/_lib/supabase/supabaseClient', () => {
                 };
               }),
             })),
-            insert: vi.fn(async (record: any) => {
+            insert: vi.fn(async (record: SessionRow) => {
               mockSessions.push(record);
               return { error: null };
             }),

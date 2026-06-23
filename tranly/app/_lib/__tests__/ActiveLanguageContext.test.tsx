@@ -13,23 +13,23 @@ const mockOnAuthStateChange = vi.fn().mockReturnValue({ data: { subscription: { 
 const mockEq = vi.fn().mockResolvedValue({ error: null });
 const mockLimit = vi.fn().mockResolvedValue({ error: null });
 const mockSelect = vi.fn().mockReturnValue({
-  limit: (...args: any[]) => mockLimit(...args),
+  limit: (...args: unknown[]) => mockLimit(...args),
 });
 const mockUpdate = vi.fn().mockReturnValue({
-  eq: (...args: any[]) => mockEq(...args),
+  eq: (...args: unknown[]) => mockEq(...args),
 });
 const mockFrom = vi.fn().mockReturnValue({
-  update: (...args: any[]) => mockUpdate(...args),
-  select: (...args: any[]) => mockSelect(...args),
+  update: (...args: unknown[]) => mockUpdate(...args),
+  select: (...args: unknown[]) => mockSelect(...args),
 });
 
 vi.mock('@/app/_lib/supabase/supabaseClient', () => ({
   supabase: {
     auth: {
-      getSession: (...args: any[]) => mockGetSession(...args),
-      onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+      getSession: (...args: unknown[]) => mockGetSession(...args),
+      onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
     },
-    from: (...args: any[]) => mockFrom(...args),
+    from: (...args: unknown[]) => mockFrom(...args),
   },
 }));
 

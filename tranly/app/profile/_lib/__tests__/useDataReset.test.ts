@@ -29,7 +29,7 @@ const mockStorageFrom = vi.fn(() => {
 vi.mock('@/app/_lib/supabase/supabaseClient', () => ({
   supabase: {
     auth: {
-      getUser: (...args: any[]) => mockGetUser(...args),
+      getUser: (...args: unknown[]) => mockGetUser(...args),
     },
     from: () => mockFrom(),
     storage: {

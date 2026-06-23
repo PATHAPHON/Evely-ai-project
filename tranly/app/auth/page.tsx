@@ -64,9 +64,9 @@ function AuthPageContent() {
       setTimeout(() => {
         router.push(redirectTarget);
       }, 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login error:", err);
-      setError(err.message || t.auth.errorGeneric);
+      setError(err instanceof Error ? err.message : t.auth.errorGeneric);
     } finally {
       setIsLoading(false);
     }
@@ -135,9 +135,9 @@ function AuthPageContent() {
           setSuccess(t.auth.successRegister);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Registration error:", err);
-      setError(err.message || t.auth.errorGeneric);
+      setError(err instanceof Error ? err.message : t.auth.errorGeneric);
     } finally {
       setIsLoading(false);
     }
@@ -171,9 +171,9 @@ function AuthPageContent() {
         });
         if (oauthErr) throw oauthErr;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Google Auth error:", err);
-      setError(err.message || t.auth.errorGeneric);
+      setError(err instanceof Error ? err.message : t.auth.errorGeneric);
       setIsLoading(false);
     }
   };
@@ -190,9 +190,9 @@ function AuthPageContent() {
       setTimeout(() => {
         router.push("/chat");
       }, 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Guest login error:", err);
-      setError(err.message || t.auth.errorGeneric);
+      setError(err instanceof Error ? err.message : t.auth.errorGeneric);
       setIsLoading(false);
     }
   };

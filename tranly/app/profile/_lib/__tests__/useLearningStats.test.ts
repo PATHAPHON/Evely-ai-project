@@ -9,17 +9,17 @@ const STUDY_SESSIONS_STORE = 'study-sessions';
 import { ActiveLanguageProvider } from '@/app/_lib/contexts/ActiveLanguageContext';
 import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
 
-let mockWords: any[] = [];
-let mockConversations: any[] = [];
-let mockCaptures: any[] = [];
-let mockStudySessions: any[] = [];
+let mockWords: Record<string, unknown>[] = [];
+let mockConversations: Record<string, unknown>[] = [];
+let mockCaptures: Record<string, unknown>[] = [];
+let mockStudySessions: Record<string, unknown>[] = [];
 
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
 const mockGetSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: 'test-user-id' } } } });
 const mockOnAuthStateChange = vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
 
 const mockFrom = vi.fn((table: string) => {
-  let data: any[] = [];
+  let data: Record<string, unknown>[] = [];
   if (table === 'words') data = mockWords;
   else if (table === 'conversations') data = mockConversations;
   else if (table === 'captures') data = mockCaptures;
@@ -28,12 +28,12 @@ const mockFrom = vi.fn((table: string) => {
   let filtered = [...data];
   const builder = {
     select: vi.fn(() => builder),
-    eq: vi.fn((col: string, val: any) => {
+    eq: vi.fn((col: string, val: unknown) => {
       filtered = filtered.filter((row) => row[col] === val);
       return builder;
     }),
     limit: vi.fn(() => builder),
-    then: (resolve: any) => {
+    then: (resolve: (value: unknown) => void) => {
       resolve({
         data: filtered,
         count: filtered.length,
@@ -47,9 +47,9 @@ const mockFrom = vi.fn((table: string) => {
 vi.mock('@/app/_lib/supabase/supabaseClient', () => ({
   supabase: {
     auth: {
-      getUser: (...args: any[]) => mockGetUser(...args),
-      getSession: (...args: any[]) => mockGetSession(...args),
-      onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+      getUser: (...args: unknown[]) => mockGetUser(...args),
+      getSession: (...args: unknown[]) => mockGetSession(...args),
+      onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
     },
     from: (table: string) => mockFrom(table),
   },
@@ -69,7 +69,7 @@ beforeEach(() => {
 
 function seedStore(
   storeName: string,
-  records: any[]
+  records: Record<string, unknown>[]
 ) {
   const seeded = records.map((r) => ({ ...r, user_id: 'test-user-id' }));
   if (storeName === 'words' || storeName === WORDS_STORE) {

@@ -213,7 +213,7 @@ export function useUserProfile(): UseUserProfileReturn {
 
       // 2. Sync to Supabase profile
       if (userId) {
-        const updates: any = {};
+        const updates: Record<string, string | null> = {};
         if (partial.displayName !== undefined) {
           updates.display_name = partial.displayName.trim() || DEFAULT_NAME;
         }
