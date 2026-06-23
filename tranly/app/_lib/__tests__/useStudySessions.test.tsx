@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { useStudySessions } from '../hooks/useStudySessions';
-import { ActiveLanguageProvider, STORAGE_KEY } from '../contexts/ActiveLanguageContext';
+import { ActiveLanguageProvider } from '../contexts/ActiveLanguageContext';
 import type { StudySession } from '../types/studySessionTypes';
 
 // --- In-memory mock database ---
@@ -27,7 +27,7 @@ vi.mock('@/app/_lib/supabase/supabaseClient', () => {
                   eq: vi.fn((field2: string, val2: any) => {
                     return {
                       order: vi.fn(async (sortField: string, { ascending }: { ascending: boolean }) => {
-                        let filtered = mockSessions.filter(
+                        const filtered = mockSessions.filter(
                           (s) => s.user_id === val1 && s.language === val2
                         );
                         filtered.sort((a, b) => {

@@ -93,7 +93,7 @@ export default function ChatList({
             }
             return (
               <div key={message.id} ref={index === lastUserIndex ? lastUserMsgRef : undefined}>
-                <UserMessage message={message} onSpeak={onSpeak} />
+                <UserMessage message={message} />
               </div>
             );
           });
@@ -222,10 +222,8 @@ function AIMessage({
 
 function UserMessage({
   message,
-  onSpeak,
 }: {
   message: ChatMessage;
-  onSpeak: (messageId: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 

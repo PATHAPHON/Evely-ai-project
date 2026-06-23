@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseChatResponse } from './parseChatResponse';
 import { buildContext } from './buildContext';
 import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/utils/languagePrompt';
 import { getRequestUser, unauthorizedResponse, consumeChatQuota } from '@/app/api/_lib/utils/requireUser';

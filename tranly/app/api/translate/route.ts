@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseChatResponse } from '@/app/api/chat/parseChatResponse';
 import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
-import type { ChatSuccessResponse } from '@/app/chat/_lib/types/types';
 
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
 const API_TIMEOUT_MS = 30_000;
