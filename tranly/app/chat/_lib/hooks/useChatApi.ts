@@ -2,8 +2,9 @@
 
 import { useCallback } from 'react';
 import { getCustomAIHeaders } from '@/app/_lib/utils/getCustomAIHeaders';
+import { markBudgetExhausted, clearBudgetExhausted } from '@/app/_lib/hooks/useBudgetExhausted';
 import { parseChatResponse } from '@/app/api/chat/parseChatResponse';
-import { parsePartialChat } from '@/app/api/chat/parsePartialChat';
+import { MAX_CONTEXT_MESSAGES } from '@/app/api/chat/buildContext';
 
 import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
 import type {
@@ -12,18 +13,10 @@ import type {
   ChatSuccessResponse,
 } from '../types/types';
 
-const MAX_CONTEXT_MESSAGES = 20;
-
-// Shape of each streaming chunk passed to the caller.
-export type PartialReply = {
-  sentences: { englishText: string; english?: string; translation?: string }[];
-};
-
 export interface UseChatApiReturn {
   callChatApi: (
     contextMessages: ChatMessage[],
     language: TargetLanguage,
-    onPartial?: (partial: PartialReply) => void,
   ) => Promise<ChatSuccessResponse>;
 }
 
@@ -31,14 +24,15 @@ export interface UseChatApiReturn {
  * Stateless hook that owns the /api/chat network layer.
  *
  * Responsibilities:
- *  - Trim context to the last MAX_CONTEXT_MESSAGES messages
- *  - POST /api/chat with the right headers
- *  - Stream the response body and call `onPartial` per chunk
+ *  - POST /api/chat with the right headers and the most recent context window
+ *  - Await the complete response text
  *  - Parse and return the final ChatSuccessResponse
  */
 export function useChatApi(): UseChatApiReturn {
   const buildContextPayload = useCallback(
     (msgs: ChatMessage[]): ChatMessagePayload[] =>
+      // Trim from the front to match the server-side cap and shrink the payload
+      // before it goes over the wire. Server still enforces this independently.
       msgs.slice(-MAX_CONTEXT_MESSAGES).map(
         (msg): ChatMessagePayload => ({
           role: msg.role,
@@ -55,7 +49,6 @@ export function useChatApi(): UseChatApiReturn {
     async (
       contextMessages: ChatMessage[],
       language: TargetLanguage,
-      onPartial?: (partial: PartialReply) => void,
     ): Promise<ChatSuccessResponse> => {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -67,34 +60,29 @@ export function useChatApi(): UseChatApiReturn {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData?.error?.message ?? 'ไม่สามารถสร้างข้อความได้ กรุณาลองอีกครั้ง',
-        );
-      }
-
-      // Stream body, forwarding each accumulated chunk to the caller.
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      if (reader) {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            if (onPartial) {
-              const partial = parsePartialChat(buffer);
-              if (partial.sentences.length > 0) onPartial(partial);
-            }
-          }
-        } finally {
-          reader.releaseLock();
+        const errorData = await response.json().catch(() => null);
+        const message = errorData?.error?.message ?? 'ไม่สามารถสร้างข้อความได้ กรุณาลองอีกครั้ง';
+        if (response.status === 401) {
+          window.location.href = '/auth';
+          throw new Error(message);
         }
+        if (response.status === 429) {
+          console.error('AI budget exhausted:', message);
+          markBudgetExhausted();
+          const e = new Error(message);
+          (e as Error & { budget?: boolean }).budget = true;
+          throw e;
+        }
+        throw new Error(message);
       }
 
-      return parseChatResponse(buffer);
+      clearBudgetExhausted();
+
+      const suggestionsLocked = response.headers.get('X-Suggestions-Locked') === '1';
+
+      const responseText = await response.text();
+      const parsed = parseChatResponse(responseText);
+      return suggestionsLocked ? { ...parsed, suggestionsLocked: true } : parsed;
     },
     [buildContextPayload],
   );

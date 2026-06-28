@@ -10,8 +10,6 @@ function makeChatMessage(
     id: `msg-${index}`,
     role: overrides.role,
     englishText: overrides.englishText ?? `english text ${index}`,
-    reading: overrides.reading ?? `reading ${index}`,
-    romanization: overrides.romanization ?? `romanization ${index}`,
     translation: overrides.translation ?? `translation ${index}`,
     english: overrides.english ?? `english ${index}`,
     rawText: overrides.rawText ?? `raw text ${index}`,
@@ -55,18 +53,18 @@ describe('buildContext', () => {
     expect(result).toHaveLength(20);
   });
 
-  it('returns only the 20 most recent messages when history exceeds 20', () => {
+  it('caps to the most recent 20 messages when history exceeds 20', () => {
     const messages: ChatMessage[] = Array.from({ length: 25 }, (_, i) =>
       makeChatMessage({ role: i % 2 === 0 ? 'user' : 'assistant' }, i)
     );
 
     const result = buildContext(messages);
 
+    // Oldest 5 messages (indices 0-4) are dropped from the front.
     expect(result).toHaveLength(20);
-    // Should be messages 5-24 (the last 20)
-    // Index 5 is odd → assistant, so content is englishText
+    // First kept message is index 5 (odd → assistant, content is englishText).
     expect(result[0]).toEqual({ role: 'assistant', content: 'english text 5' });
-    // Index 24 is even → user, so content is rawText
+    // Last kept message is index 24 (even → user, content is rawText).
     expect(result[19]).toEqual({ role: 'user', content: 'raw text 24' });
   });
 

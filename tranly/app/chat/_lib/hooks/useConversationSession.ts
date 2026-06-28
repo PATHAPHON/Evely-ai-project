@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { randomId } from '@/app/_lib/utils/randomId';
 import { getCustomAIHeaders } from '@/app/_lib/utils/getCustomAIHeaders';
+import { markBudgetExhausted } from '@/app/_lib/hooks/useBudgetExhausted';
+import { translateBatchToThai } from '@/app/_lib/utils/translateToThai';
 import { useChatApi } from './useChatApi';
 import { useConversationHistory } from './useConversationHistory';
 import { baseMessage } from '../utils/baseMessage';
@@ -28,7 +31,7 @@ export interface UseConversationSessionReturn {
   restoreSession: (sessionId: string, language: TargetLanguage) => Promise<void>;
 }
 
-export function useConversationSession(): UseConversationSessionReturn {
+export function useConversationSession(isPremium = false): UseConversationSessionReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export function useConversationSession(): UseConversationSessionReturn {
   // ─── Session lifecycle ───────────────────────────────────────────────────────
 
   const startSession = useCallback((config: SessionConfig) => {
-    const id = crypto.randomUUID();
+    const id = randomId();
     sessionIdRef.current = id;
     setSessionId(id);
     createdAtRef.current = new Date().toISOString();
@@ -126,42 +129,46 @@ export function useConversationSession(): UseConversationSessionReturn {
       setMessages((prev) => [...prev, pendingMessage]);
 
       try {
+        // Streaming reveal disabled: omit onPartial so the reply renders as one
+        // complete block when finished (then WordRenderer plays the word-by-word
+        // reveal), instead of sentences popping in mid-stream.
         const aiResponse: ChatSuccessResponse = await callChatApi(
           contextMessages,
           config.language,
-          // Stream partial sentences into the placeholder while the response arrives.
-          (partial) => {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id !== pendingMessage.id ? msg : {
-                  ...msg,
-                  sentences: partial.sentences.map((s) => ({
-                    englishText: s.englishText,
-                    reading: '',
-                    romanization: '',
-                    translation: s.translation ?? '',
-                    english: s.english ?? '',
-                  })),
-                  englishText: partial.sentences[0]?.englishText ?? '',
-                  english: partial.sentences[0]?.english ?? '',
-                },
-              ),
-            );
-          },
         );
+
+        // The model now replies in English only; fill Thai translations on-device
+        // via Chrome's Translator API. When unsupported, translations stay empty
+        // and the UI simply shows no Thai line.
+        const sentences = aiResponse.sentences ?? [];
+        const suggestions = aiResponse.suggestions ?? [];
+        const toTranslate = [
+          ...sentences.map((s) => s.englishText),
+          ...suggestions.map((s) => s.englishText),
+        ];
+        const translated = await translateBatchToThai(toTranslate);
+
+        const translatedSentences = translated
+          ? sentences.map((s, i) => ({ ...s, translation: translated[i] ?? '' }))
+          : sentences;
+        const translatedSuggestions = translated
+          ? suggestions.map((s, i) => ({
+              ...s,
+              translation: translated[sentences.length + i] ?? '',
+            }))
+          : suggestions;
 
         const aiMessage: ChatMessage = {
           ...pendingMessage,
           englishText: aiResponse.englishText,
-          reading: aiResponse.reading,
-          romanization: aiResponse.romanization,
-          translation: aiResponse.translation,
+          translation: translatedSentences.map((s) => s.translation).join(' '),
           english: aiResponse.english,
           rawText: aiResponse.englishText,
           timestamp: new Date().toISOString(),
           status: 'sent',
-          suggestions: aiResponse.suggestions ?? [],
-          sentences: aiResponse.sentences,
+          suggestions: translatedSuggestions,
+          sentences: translatedSentences,
+          suggestionsLocked: aiResponse.suggestionsLocked,
         };
 
         setMessages((prev) =>
@@ -174,12 +181,14 @@ export function useConversationSession(): UseConversationSessionReturn {
           // Keep in memory even if persistence fails.
         }
       } catch (err) {
+        console.error('runAssistantReply failed:', err);
         setMessages((prev) => prev.filter((msg) => msg.id !== pendingMessage.id));
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'ไม่สามารถสร้างข้อความได้ กรุณาลองอีกครั้ง',
-        );
+        // งบหมด: ปล่อยให้ banner + input ที่ปิดสื่อแทน ไม่โชว์แถบแดง inline
+        if ((err as { budget?: boolean })?.budget) {
+          setError(null);
+        } else {
+          setError('ขออภัย เกิดข้อผิดพลาด กรุณาลองอีกครั้ง');
+        }
       }
     },
     [callChatApi, saveMessage],
@@ -188,25 +197,34 @@ export function useConversationSession(): UseConversationSessionReturn {
   // ─── Public actions ──────────────────────────────────────────────────────────
 
   /**
-   * Fire-and-forget: translate userMessage then patch it in state + persist.
+   * Fire-and-forget: grammar-check userMessage then patch it in state + persist.
+   * Premium-only — free users skip this call entirely.
    * Clears `isTranslating` regardless of outcome so the skeleton always resolves.
    */
   const translateUserMessage = useCallback(
-    (userMessage: ChatMessage): void => {
+    (userMessage: ChatMessage): Promise<void> => {
+      if (!isPremium) {
+        // Free tier: clear skeleton immediately, no grammar check
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === userMessage.id ? { ...msg, isTranslating: false } : msg)),
+        );
+        return Promise.resolve();
+      }
       const { id: userMessageId, rawText } = userMessage;
-      fetch('/api/translate', {
+      return fetch('/api/grammar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getCustomAIHeaders() },
         body: JSON.stringify({ text: rawText }),
       })
-        .then((res) => (res.ok ? res.json() : null))
+        .then((res) => {
+          if (res.status === 429) markBudgetExhausted();
+          return res.ok ? res.json() : null;
+        })
         .then((data) => {
           if (data && typeof data.englishText === 'string' && data.englishText.trim()) {
             const updated: ChatMessage = {
               ...userMessage,
               englishText: data.englishText,
-              reading: data.reading ?? '',
-              romanization: data.romanization ?? '',
               translation: data.translation ?? '',
               english: data.english ?? '',
               grammarCorrect: data.grammarCorrect,
@@ -232,7 +250,7 @@ export function useConversationSession(): UseConversationSessionReturn {
           );
         });
     },
-    [saveMessage],
+    [isPremium, saveMessage],
   );
 
   const sendMessage = useCallback(
@@ -246,16 +264,29 @@ export function useConversationSession(): UseConversationSessionReturn {
       const userMessage = baseMessage({ role: 'user', rawText: text, isTranslating: true });
       setMessages((prev) => [...prev, userMessage]);
 
-      // Translate in the background (non-blocking) — shows grammar feedback
-      // and target-language rendering; a skeleton is displayed until it resolves.
-      translateUserMessage(userMessage);
-
-      // Persist user message (creates the session row if this is the first message).
+      // Create the session row first so any async saveMessage calls from
+      // translateUserMessage don't race against a missing conversations row.
       try {
         await ensureSessionSaved(text);
-        await saveMessage(sessionIdRef.current, userMessage);
       } catch {
         // Continue even if persistence fails — data is in memory.
+      }
+
+      // Grammar must fully resolve (bubble shows corrected text) before the AI
+      // reply starts — no timeout race, so the AI can never appear while the user
+      // bubble is still a skeleton. Always resolves; /api/grammar has its own 30s
+      // abort. Premium-only; free resolves instantly.
+      await translateUserMessage(userMessage);
+
+      // Persist user message. Premium already persisted the grammar-corrected
+      // version inside translateUserMessage; saving the stale skeleton here
+      // would overwrite that row, so only the free path needs this save.
+      if (!isPremium) {
+        try {
+          await saveMessage(sessionIdRef.current, userMessage);
+        } catch {
+          // Continue even if persistence fails — data is in memory.
+        }
       }
 
       // Fetch and stream the AI reply.
@@ -263,7 +294,7 @@ export function useConversationSession(): UseConversationSessionReturn {
 
       setIsLoading(false);
     },
-    [messages, saveMessage, ensureSessionSaved, runAssistantReply, translateUserMessage],
+    [messages, isPremium, saveMessage, ensureSessionSaved, runAssistantReply, translateUserMessage],
   );
 
   const retryLastMessage = useCallback(async (): Promise<void> => {

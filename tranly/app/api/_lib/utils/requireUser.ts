@@ -3,10 +3,6 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-/**
- * Builds a Supabase client bound to the request's session cookies.
- * Returns null when env config is missing.
- */
 async function getServerClient(): Promise<SupabaseClient | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -17,45 +13,77 @@ async function getServerClient(): Promise<SupabaseClient | null> {
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll() {
-        // read-only in route handlers — no-op
-      },
+      getAll() { return cookieStore.getAll(); },
+      setAll() { /* read-only in route handlers */ },
     },
   });
 }
 
 /**
- * Reads the Supabase session from request cookies and returns the user.
- * Returns null if the user is not authenticated.
+ * Returns the authenticated user with premium status, or null if unauthenticated.
+ * Reads subscription_status from profiles table.
  */
-export async function getRequestUser(): Promise<{ id: string } | null> {
+export async function getRequestUser(): Promise<{ id: string; isPremium: boolean } | null> {
   const supabase = await getServerClient();
   if (!supabase) return null;
 
   const { data: { user } } = await supabase.auth.getUser();
-  return user ? { id: user.id } : null;
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('subscription_status')
+    .eq('id', user.id)
+    .single();
+
+  return {
+    id: user.id,
+    isPremium: profile?.subscription_status === 'active',
+  };
 }
 
 /**
- * Atomically consumes one unit of the caller's daily chat quota.
- * Returns the remaining units, or null when the quota is exhausted.
+ * Check if the caller has remaining token budget for today.
+ * Resets daily spend when the date has changed.
  */
-export async function consumeChatQuota(dailyLimit: number): Promise<number | null> {
+export async function checkBudget(limitMicrobaht: number): Promise<boolean> {
   const supabase = await getServerClient();
-  if (!supabase) return null;
+  if (!supabase) return false;
 
-  const { data, error } = await supabase.rpc('consume_chat_quota', { p_limit: dailyLimit });
+  const { data, error } = await supabase.rpc('check_budget', {
+    p_limit_microbaht: limitMicrobaht,
+  });
   if (error) {
-    console.error('consume_chat_quota failed:', error);
-    return null;
+    console.error('check_budget failed:', error);
+    return false; // fail-closed: block if DB error
   }
-  return data as number | null;
+  return data as boolean;
 }
 
-/** Shorthand: returns a 401 JSON response for unauthenticated requests. */
+/**
+ * Debit token cost from today's budget. Call after the LLM responds.
+ * Fails silently — overspend by one request is acceptable.
+ */
+export async function debitBudget(costMicrobaht: number): Promise<void> {
+  const supabase = await getServerClient();
+  if (!supabase) return;
+
+  const { error } = await supabase.rpc('debit_budget', {
+    p_cost_microbaht: costMicrobaht,
+  });
+  if (error) console.error('debit_budget failed:', error);
+}
+
 export function unauthorizedResponse() {
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  return NextResponse.json(
+    { error: { type: 'unauthorized', message: 'Session expired. Please sign in again.' } },
+    { status: 401 }
+  );
+}
+
+export function budgetExhaustedResponse() {
+  return NextResponse.json(
+    { error: { type: 'rate_limit', message: 'Daily AI budget exhausted. Upgrade to Premium for more.' } },
+    { status: 429 }
+  );
 }

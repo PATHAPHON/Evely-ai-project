@@ -79,55 +79,39 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         }
 
         const messages: ChatMessage[] = (data || []).map((r) => {
-          const splitKorean = (r.english_text || '').split('|||');
-          const splitReading = (r.reading || '').split('|||');
-          const splitRomanization = (r.romanization || '').split('|||');
+          const splitEnglishText = (r.english_text || '').split('|||');
           const splitTranslation = (r.translation || '').split('|||');
           const splitEnglish = (r.english || '').split('|||');
 
-          // Phrases are stored as JSON.
-          // For user messages, we store grammar correction data.
-          // For assistant messages, we store phrase arrays per sentence.
-          let phrasesPerSentence: string[][] = [];
+          // The english_phrases column now only stores grammar correction data
+          // for user messages (JSON). Assistant rows leave it null.
           let grammarData: { grammarCorrect?: boolean; grammarNotes?: string } | null = null;
-          if (r.english_phrases) {
+          if (r.english_phrases && r.role === 'user') {
             try {
-              const parsed = JSON.parse(r.english_phrases);
-              if (r.role === 'user') {
-                grammarData = parsed;
-              } else if (Array.isArray(parsed)) {
-                phrasesPerSentence = parsed;
-              }
+              grammarData = JSON.parse(r.english_phrases);
             } catch {
-              // ignore malformed phrase data
+              // ignore malformed grammar data
             }
           }
 
-          const sentences = splitKorean.map((k: string, idx: number) => {
-            const phrases = phrasesPerSentence[idx];
-            return {
-              englishText: k,
-              reading: splitReading[idx] || '',
-              romanization: splitRomanization[idx] || '',
-              translation: splitTranslation[idx] || '',
-              english: splitEnglish[idx] || '',
-              englishPhrases:
-                Array.isArray(phrases) && phrases.length > 0 ? phrases : undefined,
-            };
-          });
+          const sentences = splitEnglishText.map((k: string, idx: number) => ({
+            englishText: k,
+            translation: splitTranslation[idx] || '',
+            english: splitEnglish[idx] || '',
+          }));
 
           return {
             id: r.id,
             role: r.role as 'user' | 'assistant',
             englishText: r.english_text || '',
-            reading: r.reading || '',
-            romanization: r.romanization || '',
             translation: r.translation || '',
             english: r.english || '',
             rawText: r.raw_text || '',
             timestamp: r.timestamp,
             status: 'sent' as const,
-            sentences: sentences.length > 0 ? sentences : undefined,
+            // Only assistant messages are serialised with '|||' separators;
+            // user rows store a plain string and never had sentences in memory.
+            sentences: r.role === 'assistant' && sentences.length > 0 ? sentences : undefined,
             grammarCorrect: grammarData?.grammarCorrect,
             grammarNotes: grammarData?.grammarNotes,
           };
@@ -197,24 +181,17 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           english_text: isAssistant && message.sentences
             ? message.sentences.map((s) => s.englishText).join('|||')
             : message.englishText,
-          reading: isAssistant && message.sentences
-            ? message.sentences.map((s) => s.reading).join('|||')
-            : message.reading,
-          romanization: isAssistant && message.sentences
-            ? message.sentences.map((s) => s.romanization).join('|||')
-            : message.romanization,
           translation: isAssistant && message.sentences
             ? message.sentences.map((s) => s.translation).join('|||')
             : message.translation,
           english: isAssistant && message.sentences
             ? message.sentences.map((s) => s.english).join('|||')
             : message.english,
+          // english_phrases column now only carries grammar data for user messages.
           english_phrases:
-            isAssistant && message.sentences
-              ? JSON.stringify(message.sentences.map((s) => s.englishPhrases ?? []))
-              : !isAssistant && (message.grammarCorrect !== undefined || message.grammarNotes)
-                ? JSON.stringify({ grammarCorrect: message.grammarCorrect, grammarNotes: message.grammarNotes })
-                : null,
+            !isAssistant && (message.grammarCorrect !== undefined || message.grammarNotes)
+              ? JSON.stringify({ grammarCorrect: message.grammarCorrect, grammarNotes: message.grammarNotes })
+              : null,
           raw_text: message.rawText,
           timestamp: message.timestamp,
         };

@@ -45,7 +45,10 @@ export async function middleware(request: NextRequest) {
   const PROTECTED_PREFIXES = [
     '/words',
     '/chat',
+    '/new',
+    '/recents',
     '/profile',
+    '/refresh',
     '/tutor',
     '/topik',
     '/backoffice',
@@ -58,9 +61,12 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = pathname === '/auth';
   const isRootRoute = pathname === '/';
 
+  // Anonymous users are treated as unauthenticated (guest mode removed)
+  const isAnonymous = user?.is_anonymous === true;
+  const isLoggedIn = user && !isAnonymous;
+
   if (isProtectedRoute) {
-    if (!user) {
-      // User is not logged in, redirect to login page with preserved target page
+    if (!isLoggedIn) {
       const url = request.nextUrl.clone();
       url.pathname = '/auth';
       url.searchParams.set('redirect', pathname + request.nextUrl.search);
@@ -69,18 +75,21 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isRootRoute) {
-    if (user) {
-      return NextResponse.redirect(new URL('/chat', request.url));
+    if (isLoggedIn) {
+      return NextResponse.redirect(new URL('/new', request.url));
     } else {
-      return NextResponse.redirect(new URL('/auth?redirect=/chat', request.url));
+      return NextResponse.redirect(new URL('/auth?redirect=/new', request.url));
     }
   }
 
   if (isAuthRoute) {
-    if (user) {
-      // User is already logged in, redirect to chat page or targeted redirect route
-      const redirectParam = request.nextUrl.searchParams.get('redirect') || '/chat';
-      return NextResponse.redirect(new URL(redirectParam, request.url));
+    if (isLoggedIn) {
+      const redirectParam = request.nextUrl.searchParams.get('redirect');
+      // Only allow same-origin relative paths; reject absolute/protocol-relative
+      // ('//evil.com') and backslash tricks ('/\evil') to prevent open redirect.
+      const safeRedirect =
+        redirectParam && /^\/[^/\\]/.test(redirectParam) ? redirectParam : '/new';
+      return NextResponse.redirect(new URL(safeRedirect, request.url));
     }
   }
 

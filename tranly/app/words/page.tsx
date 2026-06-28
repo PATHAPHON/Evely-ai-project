@@ -1,119 +1,151 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ConfigProvider, message } from "antd";
-import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { Search } from "lucide-react";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { useWordStorage, type WordRecord } from "@/app/_lib/hooks/useWordStorage";
 import { useTTS } from "@/app/chat/_lib/hooks/useTTS";
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from "@/app/_lib/types/wordTypes";
+import type { FeedWordRecord } from "@/app/_lib/types/wordTypes";
 import { useActiveLanguage } from "@/app/_lib/contexts/ActiveLanguageContext";
 import GeminiLayout from "@/app/_components/GeminiLayout";
+import WordDetailPopup from "@/app/_components/WordDetailPopup";
 
-function getLocalDateString(ts: number) {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+type SortMode = 0 | 1 | 2 | 3; // newest, oldest, A→Z, Z→A
+
+function sortWords(words: WordRecord[], mode: SortMode): WordRecord[] {
+  const arr = [...words];
+  const name = (w: WordRecord) => (w.english || w.label).toLowerCase();
+  switch (mode) {
+    case 0:
+      return arr.sort((a, b) => b.createdAt - a.createdAt);
+    case 1:
+      return arr.sort((a, b) => a.createdAt - b.createdAt);
+    case 2:
+      return arr.sort((a, b) => name(a).localeCompare(name(b)));
+    case 3:
+      return arr.sort((a, b) => name(b).localeCompare(name(a)));
+  }
 }
 
-function formatDayHeader(dateStr: string) {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "2-digit",
-  });
+function toFeedWord(w: WordRecord, activeLanguage: FeedWordRecord["language"]): FeedWordRecord {
+  return {
+    id: w.id,
+    language: w.language ?? activeLanguage,
+    generatedDate: "",
+    thai: w.label,
+    bookmarked: true,
+    createdAt: w.createdAt,
+    partOfSpeech: w.partOfSpeech,
+    word: w.english || w.label,
+  };
 }
 
-interface CompactWordCardProps {
+interface WordRowProps {
   word: WordRecord;
   onSpeak: (text: string) => void;
   onSelect: (word: WordRecord) => void;
-  baseDelay: number;
+  isLast: boolean;
 }
 
-function CompactWordCard({ word, onSpeak, onSelect, baseDelay }: CompactWordCardProps) {
+function WordRow({ word, onSpeak, onSelect, isLast }: WordRowProps) {
   const wordText = word.english || word.label;
-  const handleSelect = () => onSelect(word);
-
   return (
-    <div
-      className="relative flex flex-col items-center w-full bg-gray-50 dark:bg-[#202124] rounded-2xl p-3 border border-gray-200/60 dark:border-gray-800/40 hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-card-fade-in text-left"
-      style={{ animationDelay: `${baseDelay}ms` }}
+    <button
+      type="button"
+      onClick={() => onSelect(word)}
+      className={`relative flex w-full items-center gap-4 px-[18px] py-[17px] text-left transition-colors hover:bg-primary-bg/40 active:bg-primary-bg/75 ${
+        isLast ? "" : "border-b border-border-color"
+      }`}
     >
-      {/* Label and Audio Speak Button */}
-      <div className="flex items-center justify-between w-full mt-3 px-1">
-        <span
-          onClick={handleSelect}
-          className="text-sm font-bold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
-        >
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+          onSpeak(wordText);
+        }}
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-xl transition-all hover:bg-primary-bg active:scale-90 cursor-pointer hover:scale-105"
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <defs>
+            <linearGradient id={`blue-grad-${word.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4f8df7" />
+              <stop offset="100%" stopColor="#1b62d1" />
+            </linearGradient>
+          </defs>
+          <path d="M11 5L6.5 9H3v6h3.5L11 19V5z" fill={`url(#blue-grad-${word.id})`} />
+          <path d="M15.5 8.5a4.5 4.5 0 0 1 0 7" stroke={`url(#blue-grad-${word.id})`} strokeWidth="1.9" strokeLinecap="round" />
+          <path d="M18.5 6a8 8 0 0 1 0 12" stroke={`url(#blue-grad-${word.id})`} strokeWidth="1.9" strokeLinecap="round" />
+        </svg>
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-lg font-bold text-foreground">
           {wordText}
         </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSpeak(wordText);
-          }}
-          className="shrink-0 w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 transition-colors cursor-pointer"
-          aria-label="เล่นเสียง"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-          </svg>
-        </button>
-      </div>
-    </div>
+        {word.label && word.label !== wordText && (
+          <span className="truncate text-[15px] font-medium text-foreground/60">
+            {word.label}
+          </span>
+        )}
+      </span>
+      <svg className="flex-none" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <defs>
+          <linearGradient id={`chevron-grad-${word.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4f8df7" />
+            <stop offset="100%" stopColor="#1b62d1" />
+          </linearGradient>
+        </defs>
+        <polyline points="9 6 15 12 9 18" stroke={`url(#chevron-grad-${word.id})`} />
+      </svg>
+    </button>
   );
 }
 
 export default function WordsPage() {
-  const configProps = useIllustrationTheme();
-  const router = useRouter();
   const t = useStrings();
-  const [, contextHolder] = message.useMessage();
 
   const { speak } = useTTS("en-US");
   const { listByLanguage } = useWordStorage();
   const { activeLanguage } = useActiveLanguage();
 
   const [words, setWords] = useState<WordRecord[] | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>(0);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<FeedWordRecord | null>(null);
 
-  // Open the saved word in the full-page /word-detail view
-  const openWordDetail = (w: WordRecord) => {
-    const detailWord: FeedWordRecord = {
-      id: w.id,
-      language: w.language ?? activeLanguage,
-      generatedDate: getLocalDateString(w.createdAt),
-      thai: w.label,
-      bookmarked: true,
-      createdAt: w.createdAt,
-      partOfSpeech: w.partOfSpeech,
-      word: w.english || w.label,
-      ipa: w.reading,
-    };
-    try {
-      sessionStorage.setItem(DETAIL_WORD_STORAGE_KEY, JSON.stringify(detailWord));
-    } catch {
-      return;
+  const handleWordUpdate = useCallback((updated: { id: string; thai: string; partOfSpeech?: string }) => {
+    if (!words) return;
+
+    const next = words.map((w) =>
+      w.id === updated.id
+        ? { ...w, label: updated.thai, thai: updated.thai, partOfSpeech: updated.partOfSpeech ?? w.partOfSpeech }
+        : w
+    );
+    setWords(next);
+
+    const cacheKey = `tarnly:words:cache:${activeLanguage}`;
+    if (typeof window !== "undefined") {
+      localStorage.setItem(cacheKey, JSON.stringify(next));
     }
-    router.push("/word-detail");
-  };
+
+    setSelected((prev) => {
+      if (!prev || prev.id !== updated.id) return prev;
+      return {
+        ...prev,
+        thai: updated.thai,
+        partOfSpeech: updated.partOfSpeech ?? prev.partOfSpeech,
+      };
+    });
+  }, [words, activeLanguage]);
 
   // Load saved words on mount with Stale-While-Revalidate caching
   useEffect(() => {
     let cancelled = false;
     const cacheKey = `tarnly:words:cache:${activeLanguage}`;
 
-    const cachedDataStr = typeof window !== 'undefined' ? localStorage.getItem(cacheKey) : null;
-    let cachedList: WordRecord[] = [];
+    const cachedDataStr = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
     if (cachedDataStr) {
       try {
-        cachedList = JSON.parse(cachedDataStr);
-        // Stale-while-revalidate: paint cached words after mount (avoids SSR mismatch)
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setWords(cachedList);
+        setWords(JSON.parse(cachedDataStr));
       } catch (e) {
         console.error("Failed to parse cached words:", e);
       }
@@ -125,7 +157,7 @@ export default function WordsPage() {
         if (!cancelled) {
           const newStringified = JSON.stringify(list);
           if (cachedDataStr !== newStringified) {
-            if (typeof window !== 'undefined') {
+            if (typeof window !== "undefined") {
               localStorage.setItem(cacheKey, newStringified);
             }
             setWords(list);
@@ -146,77 +178,143 @@ export default function WordsPage() {
     };
   }, [listByLanguage, activeLanguage]);
 
-  // Grouping by local date
-  const groupsMap: { [dateStr: string]: WordRecord[] } = {};
-  if (words) {
-    words.forEach((word) => {
-      const dateStr = getLocalDateString(word.createdAt);
-      if (!groupsMap[dateStr]) {
-        groupsMap[dateStr] = [];
-      }
-      groupsMap[dateStr].push(word);
-    });
-  }
+  const sorted = useMemo(() => {
+    if (!words) return [];
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? words.filter(
+          (w) =>
+            (w.english || w.label).toLowerCase().includes(q) ||
+            w.label.toLowerCase().includes(q)
+        )
+      : words;
+    return sortWords(filtered, sortMode);
+  }, [words, sortMode, query]);
 
-  const sortedKeys = Object.keys(groupsMap).sort((a, b) => b.localeCompare(a));
-
-  sortedKeys.forEach((key) => {
-    groupsMap[key].sort((a, b) => a.createdAt - b.createdAt);
-  });
+  const sortButton = words && words.length > 0 ? (
+    <button
+      type="button"
+      onClick={() => setSortMode((m) => (((m + 1) % 4) as SortMode))}
+      aria-label={t.words.sortAria(t.words.sortLabels[sortMode])}
+      title={t.words.sortAria(t.words.sortLabels[sortMode])}
+      className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-card-bg active:scale-95 cursor-pointer"
+    >
+      {sortMode === 0 && (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <defs>
+            <linearGradient id="sort-grad-0" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4f8df7" />
+              <stop offset="100%" stopColor="#1b62d1" />
+            </linearGradient>
+          </defs>
+          <circle cx="9" cy="12" r="7" stroke="url(#sort-grad-0)" />
+          <polyline points="9 9 9 12 12 13.5" stroke="url(#sort-grad-0)" />
+          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke="url(#sort-grad-0)" />
+        </svg>
+      )}
+      {sortMode === 1 && (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <defs>
+            <linearGradient id="sort-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4f8df7" />
+              <stop offset="100%" stopColor="#1b62d1" />
+            </linearGradient>
+          </defs>
+          <circle cx="9" cy="12" r="7" stroke="url(#sort-grad-1)" />
+          <polyline points="9 9 9 12 12 13.5" stroke="url(#sort-grad-1)" />
+          <path d="M19 16V8M19 8l-3 3M19 8l3-3" stroke="url(#sort-grad-1)" />
+        </svg>
+      )}
+      {sortMode === 2 && (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <defs>
+            <linearGradient id="sort-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4f8df7" />
+              <stop offset="100%" stopColor="#1b62d1" />
+            </linearGradient>
+          </defs>
+          <path d="M4 11V6h4v5M4 9h4" stroke="url(#sort-grad-2)" />
+          <path d="M4 14h4L4 19h4" stroke="url(#sort-grad-2)" />
+          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke="url(#sort-grad-2)" />
+        </svg>
+      )}
+      {sortMode === 3 && (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <defs>
+            <linearGradient id="sort-grad-3" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4f8df7" />
+              <stop offset="100%" stopColor="#1b62d1" />
+            </linearGradient>
+          </defs>
+          <path d="M4 6h4L4 11h4" stroke="url(#sort-grad-3)" />
+          <path d="M4 19V14h4v5M4 17h4" stroke="url(#sort-grad-3)" />
+          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke="url(#sort-grad-3)" />
+        </svg>
+      )}
+    </button>
+  ) : undefined;
 
   return (
-    <ConfigProvider {...configProps}>
-      {contextHolder}
-      <GeminiLayout title="คลังคำศัพท์">
-        <style>{`
-          @keyframes cardFadeInUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-card-fade-in {
-            animation: cardFadeInUp 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) both;
-          }
-        `}</style>
-
-        <div className="flex-1 overflow-y-auto flex flex-col p-4 pb-24 bg-white dark:bg-[#131314] relative">
-          <div className="flex-1 flex flex-col animate-card-fade-in max-w-2xl mx-auto w-full">
-            {words === null ? null : words.length === 0 ? (
-              <div className="mt-12 flex flex-col items-center gap-4 text-center animate-card-fade-in">
-                <p className="text-sm font-semibold text-gray-500">
-                  {t.learn.noWords}
-                </p>
+    <>
+      <GeminiLayout title={t.words.title} rightElement={sortButton}>
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+          {/* Search */}
+          {words !== null && words.length > 0 && (
+            <div className="px-4 pt-3 pb-3">
+              <div className="flex items-center gap-2.5 rounded-full border border-border-color bg-card-bg/50 px-4 h-12 shadow-soft-sm">
+                <Search className="text-foreground/40 shrink-0" size={17} />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t.words.searchPlaceholder}
+                  className="flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-foreground/45"
+                />
               </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                {sortedKeys.map((dateStr) => {
-                  const groupWords = groupsMap[dateStr];
-                  const dateLabel = formatDayHeader(dateStr);
+            </div>
+          )}
 
-                  return (
-                    <div key={dateStr} className="flex flex-col gap-3">
-                      <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide px-1 flex items-center gap-2">
-                        <span className="w-1.5 h-3.5 rounded bg-blue-600 inline-block"></span>
-                        {dateLabel}
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {groupWords.map((word, wordIndex) => (
-                          <CompactWordCard
-                            key={word.id}
-                            word={word}
-                            onSpeak={speak}
-                            onSelect={openWordDetail}
-                            baseDelay={wordIndex * 40}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+          {/* Count bar */}
+          {words !== null && words.length > 0 && (
+            <div className="flex items-center justify-between px-5 py-2">
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold leading-none text-foreground">
+                  {words.length}
+                </span>
+                <span className="text-sm font-bold text-foreground/75">{t.words.countUnit}</span>
               </div>
-            )}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto px-[18px] pb-24 pt-2">
+            <div className="mx-auto w-full max-w-2xl">
+              {words === null ? null : words.length === 0 ? (
+                <div className="mt-12 flex flex-col items-center gap-4 text-center">
+                  <p className="text-sm font-semibold text-foreground/50">{t.learn.noWords}</p>
+                </div>
+              ) : sorted.length === 0 ? (
+                <div className="mt-12 flex flex-col items-center gap-4 text-center">
+                  <p className="text-sm font-semibold text-foreground/50">{t.words.notFound}</p>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-border-color bg-card-bg shadow-soft-sm">
+                  {sorted.map((word, i) => (
+                    <WordRow
+                      key={word.id}
+                      word={word}
+                      onSpeak={speak}
+                      onSelect={(w) => setSelected(toFeedWord(w, activeLanguage))}
+                      isLast={i === sorted.length - 1}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </GeminiLayout>
-    </ConfigProvider>
+
+      <WordDetailPopup word={selected} onClose={() => setSelected(null)} onUpdate={handleWordUpdate} />
+    </>
   );
 }

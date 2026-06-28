@@ -1,86 +1,61 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
 import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/utils/languagePrompt';
-import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
+import { getRequestUser, unauthorizedResponse, debitBudget } from '@/app/api/_lib/utils/requireUser';
+import { TOKEN_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 import crypto from 'crypto';
 import { supabaseServer } from '@/app/_lib/supabase/supabaseServer';
 
+// ponytail: LLM call can take 30s; without this the serverless gateway 504s
+// at its default cap (10s on Vercel hobby) before our own timeout fires.
+export const maxDuration = 60;
+
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
+const DEFAULT_MODEL = 'deepseek-v4-flash';
 const API_TIMEOUT_MS = 30_000;
 
-export interface WordDetailExample {
-  sentence: string;
-  translation: string;
-  highlight?: string; // the target word as it appears in the sentence
-  tense?: string; // English only — tense of the example sentence
-}
-
+// DeepSeek replies directly: `definition` is Thai; `usage` is one English example
+// sentence using the word; `tense`/`partOfSpeech` are short English labels.
 export interface WordDetailResponse {
-  context: string;      // อธิบาย context ภาษาไทย
-  examples: WordDetailExample[];
-  grammar: string;      // grammar notes ภาษาไทย
-  thai?: string;        // คำแปลไทยสั้น ๆ (English only)
-  ipa?: string;         // IPA pronunciation (English only)
-  partOfSpeech?: string; // part of speech (English only)
+  thai: string;          // short Thai translation of the word
+  definition: string;    // Thai meaning/explanation
+  partOfSpeech?: string; // part of speech (English)
+  tense?: string;        // grammatical form / tense label, e.g. "present simple"
+  usage: string;         // one English example sentence using the word
 }
 
 export interface WordDetailErrorResponse {
-  error: string;
+  error: string | { type: string; message: string };
 }
 
 function buildPrompt(
   word: string,
   language: TargetLanguage,
-  reading?: string,
-  romanization?: string,
   english?: string,
   partOfSpeech?: string,
 ): string {
   const lang = LANG_PROMPT[language];
 
   const meta = [
-    `คำ: "${word}" (${lang.label})`,
-    reading ? `การออกเสียง: ${reading}` : null,
-    romanization ? `Romanization: ${romanization}` : null,
-    english ? `ความหมายภาษาอังกฤษ: ${english}` : null,
+    `Word: "${word}" (${lang.label})`,
+    english ? `English meaning: ${english}` : null,
     partOfSpeech ? `Part of speech: ${partOfSpeech}` : null,
   ]
     .filter(Boolean)
     .join('\n');
-
-  const examplesSpec =
-    language === 'english'
-      ? `  "examples": [\n` +
-        `    { "sentence": "<ประโยคตัวอย่างใน English>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>", "tense": "<ชื่อ tense>" }\n` +
-        `    // exactly 12 items, one for each of the 12 English tenses in this order:\n` +
-        `    // Present Simple, Present Continuous, Present Perfect, Present Perfect Continuous,\n` +
-        `    // Past Simple, Past Continuous, Past Perfect, Past Perfect Continuous,\n` +
-        `    // Future Simple, Future Continuous, Future Perfect, Future Perfect Continuous\n` +
-        `  ],\n`
-      : `  "examples": [\n` +
-        `    { "sentence": "<ประโยคตัวอย่างที่ 1 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" },\n` +
-        `    { "sentence": "<ประโยคตัวอย่างที่ 2 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" },\n` +
-        `    { "sentence": "<ประโยคตัวอย่างที่ 3 ใน${lang.label}>", "translation": "<คำแปลไทย>", "highlight": "<ส่วนของคำในประโยค>" }\n` +
-        `  ],\n`;
 
   return (
     `You are a language-learning assistant for Thai speakers learning ${lang.label}.\n` +
     `Given the following word information:\n${meta}\n\n` +
     `Reply with ONLY a raw JSON object (no markdown, no code fences, no prose). Schema:\n` +
     `{\n` +
-    `  "context": "<อธิบายความหมาย บริบทการใช้คำ และ nuance สำคัญ เป็นภาษาไทย 2-4 ประโยค>",\n` +
-    (language === 'english'
-      ? `  "thai": "<คำแปลไทยสั้น ๆ ของคำนี้ เช่น ถาม>",\n` +
-        `  "ipa": "<IPA pronunciation เช่น /ɑːsk/>",\n` +
-        `  "partOfSpeech": "<part of speech ภาษาอังกฤษตัวพิมพ์เล็ก เช่น verb, noun>",\n`
-      : '') +
-    examplesSpec +
-    `  "grammar": "<อธิบาย part of speech, รูปแบบไวยากรณ์, conjugation หรือ usage pattern สำคัญ เป็นภาษาไทย 2-3 ประโยค>"\n` +
+    `  "thai": "<short Thai translation of the word (คำแปลไทยสั้นๆ)>",\n` +
+    `  "definition": "<explain the meaning and key nuance of the word in 1-2 Thai sentences (ภาษาไทย)>",\n` +
+    `  "partOfSpeech": "<part of speech in English, lowercase, e.g. verb, noun>",\n` +
+    `  "tense": "<short grammatical form or tense label in English, e.g. present simple, past tense, base form; empty string if not applicable>",\n` +
+    `  "usage": "<one natural ${lang.label} example sentence using the word "${word}">"\n` +
     `}\n` +
-    (language === 'english'
-      ? `The "examples" array MUST contain exactly 12 sentences using the word "${word}", one per English tense, in the order listed. Each "tense" value is the English tense name.\n`
-      : '') +
-    `Return ONLY the JSON object and nothing else.`
+    `"definition" MUST be in Thai. "usage" MUST be in ${lang.label}. Return ONLY the JSON object and nothing else.`
   );
 }
 
@@ -106,24 +81,6 @@ function extractStringField(src: string, key: string): string {
   }
 }
 
-/** Extract examples array via regex when JSON parse fails. */
-function extractExamplesField(src: string): WordDetailExample[] {
-  // Try to grab the content inside "examples": [ ... ]
-  const arrMatch = src.match(/"examples"\s*:\s*(\[[\s\S]*?\])/i);
-  if (!arrMatch) return [];
-  const arr = tryParseJson(arrMatch[1]);
-  if (!Array.isArray(arr)) return [];
-  return (arr as unknown[])
-    .filter((e): e is Record<string, unknown> => typeof e === 'object' && e !== null)
-    .map((e) => ({
-      sentence: typeof e.sentence === 'string' ? e.sentence.trim() : '',
-      translation: typeof e.translation === 'string' ? e.translation.trim() : '',
-      highlight: typeof e.highlight === 'string' ? e.highlight.trim() : undefined,
-      tense: typeof e.tense === 'string' ? e.tense.trim() : undefined,
-    }))
-    .filter((e) => e.sentence.length > 0);
-}
-
 function parseWordDetailContent(content: string): WordDetailResponse | null {
   let trimmed = content.trim();
 
@@ -140,47 +97,34 @@ function parseWordDetailContent(content: string): WordDetailResponse | null {
     if (jsonMatch) obj = tryParseJson(jsonMatch[0]);
   }
 
-  // Strategy 3: field-by-field regex extraction (handles truncated / extra prose)
+  // Strategy 3: read fields off the parsed object
   if (obj) {
-    const context = typeof obj.context === 'string' ? obj.context.trim() : '';
-    const grammar = typeof obj.grammar === 'string' ? obj.grammar.trim() : '';
-    const rawExamples = Array.isArray(obj.examples) ? obj.examples : [];
-    const examples: WordDetailExample[] = rawExamples
-      .filter((e): e is Record<string, unknown> => typeof e === 'object' && e !== null)
-      .map((e) => ({
-        sentence: typeof e.sentence === 'string' ? e.sentence.trim() : '',
-        translation: typeof e.translation === 'string' ? e.translation.trim() : '',
-        highlight: typeof e.highlight === 'string' ? e.highlight.trim() : undefined,
-        tense: typeof e.tense === 'string' ? e.tense.trim() : undefined,
-      }))
-      .filter((e) => e.sentence.length > 0);
+    const definition = typeof obj.definition === 'string' ? obj.definition.trim() : '';
+    const usage = typeof obj.usage === 'string' ? obj.usage.trim() : '';
 
-    if (context || examples.length > 0 || grammar) {
+    if (definition || usage) {
       return {
-        context,
-        examples,
-        grammar,
-        thai: typeof obj.thai === 'string' ? obj.thai.trim() : undefined,
-        ipa: typeof obj.ipa === 'string' ? obj.ipa.trim() : undefined,
+        thai: typeof obj.thai === 'string' ? obj.thai.trim() : '',
+        definition,
+        usage,
         partOfSpeech:
           typeof obj.partOfSpeech === 'string' ? obj.partOfSpeech.trim() : undefined,
+        tense: typeof obj.tense === 'string' ? obj.tense.trim() : undefined,
       };
     }
   }
 
   // Strategy 3 fallback: regex extraction when JSON parse fully fails
-  const context = extractStringField(trimmed, 'context');
-  const grammar = extractStringField(trimmed, 'grammar');
-  const examples = extractExamplesField(trimmed);
+  const definition = extractStringField(trimmed, 'definition');
+  const usage = extractStringField(trimmed, 'usage');
 
-  if (context || examples.length > 0 || grammar) {
+  if (definition || usage) {
     return {
-      context: context || '',
-      examples,
-      grammar: grammar || '',
-      thai: extractStringField(trimmed, 'thai') || undefined,
-      ipa: extractStringField(trimmed, 'ipa') || undefined,
+      thai: extractStringField(trimmed, 'thai'),
+      definition,
+      usage,
       partOfSpeech: extractStringField(trimmed, 'partOfSpeech') || undefined,
+      tense: extractStringField(trimmed, 'tense') || undefined,
     };
   }
 
@@ -217,26 +161,21 @@ export async function POST(
     ? languageParam
     : 'english';
 
-  const reading = typeof b.reading === 'string' ? b.reading : undefined;
-  const romanization = typeof b.romanization === 'string' ? b.romanization : undefined;
   const english = typeof b.english === 'string' ? b.english : undefined;
   const partOfSpeech = typeof b.partOfSpeech === 'string' ? b.partOfSpeech : undefined;
 
-  // Read custom API credentials from headers
+  // Read custom API key from headers (model is fixed to DeepSeek on KKU)
   const customApiKey = request.headers.get('x-custom-api-key');
-  const customModel = request.headers.get('x-custom-model');
 
   // Generate unique cache key
-  const modelName = customModel || 'deepseek-v4-flash';
+  const modelName = DEFAULT_MODEL;
   const cacheRawString = [
     word.toLowerCase(),
     language,
-    reading || '',
-    romanization || '',
     english || '',
     partOfSpeech || '',
     modelName,
-    'v3' // prompt version — bump to invalidate cached responses
+    'v9' // prompt version — bump to invalidate cached responses
   ].join(':');
 
   const cacheKey = crypto.createHash('sha256').update(cacheRawString).digest('hex');
@@ -257,6 +196,23 @@ export async function POST(
     if (cacheErr && cacheErr.code !== 'PGRST116') {
       console.error('[word-detail] Cache lookup error:', cacheErr);
     }
+
+    // Fallback: reuse any cached response for this word+language (ignores meta/partOfSpeech).
+    // Filter by 'definition' key so old schema rows ({context,examples}) never sneak through.
+    const { data: fallbackData, error: fallbackErr } = await supabaseServer
+      .from('ai_word_detail_cache')
+      .select('response_json')
+      .eq('word', word.toLowerCase())
+      .eq('language', language)
+      .not('response_json->definition', 'is', null)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (fallbackData && fallbackData.length > 0 && !fallbackErr) {
+      console.log(`[word-detail] Cache HIT (fallback) for word: ${word} (${language})`);
+      return NextResponse.json(fallbackData[0].response_json, { status: 200 });
+    }
   } catch (err) {
     console.error('[word-detail] Cache lookup failed:', err);
   }
@@ -266,7 +222,7 @@ export async function POST(
     return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
   }
 
-  const prompt = buildPrompt(word, language, reading, romanization, english, partOfSpeech);
+  const prompt = buildPrompt(word, language, english, partOfSpeech);
 
   const requestBody = {
     model: modelName,
@@ -317,9 +273,17 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 502 });
     }
 
-    // Write to cache in database (asynchronously, so we don't block the client response)
+    let totalTokens = 0;
+    try {
+      const data = JSON.parse(responseText);
+      totalTokens = data?.usage?.total_tokens ?? 0;
+    } catch { /* ignore */ }
+
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
     after(async () => {
+      // Debit budget for cache-miss AI call
+      const tokens = totalTokens > 0 ? totalTokens : 300;
+      await debitBudget(tokens * TOKEN_COST_MICROBAHT.kku);
       try {
         const { error: saveErr } = await supabaseServer
           .from('ai_word_detail_cache')
