@@ -186,7 +186,6 @@ export async function POST(
       .from('ai_word_detail_cache')
       .select('response_json')
       .eq('cache_key', cacheKey)
-      .gt('expires_at', new Date().toISOString())
       .single();
 
     if (cachedData && !cacheErr) {
@@ -205,7 +204,6 @@ export async function POST(
       .eq('word', word.toLowerCase())
       .eq('language', language)
       .not('response_json->definition', 'is', null)
-      .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -279,7 +277,6 @@ export async function POST(
       totalTokens = data?.usage?.total_tokens ?? 0;
     } catch { /* ignore */ }
 
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
     after(async () => {
       // Debit budget for cache-miss AI call
       const tokens = totalTokens > 0 ? totalTokens : 300;
@@ -295,7 +292,6 @@ export async function POST(
             part_of_speech: partOfSpeech || null,
             model: modelName,
             response_json: parsed,
-            expires_at: expiresAt.toISOString(),
           }, { onConflict: 'cache_key' });
 
         if (saveErr) {
