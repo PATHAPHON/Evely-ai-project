@@ -72,7 +72,7 @@ export function useUserProfile(): UseUserProfileReturn {
           const defaultProfile = {
             id: uid,
             display_name: DEFAULT_NAME,
-            energy: 0,
+            daily_spend_microbaht: 0,
             target_language: "english",
             ui_language: "th",
           };
@@ -87,7 +87,7 @@ export function useUserProfile(): UseUserProfileReturn {
         setHandle(data.handle || "");
         setSubscriptionStatus(data.subscription_status === 'active' ? 'active' : 'free');
         setPeriodEnd(data.subscription_current_period_end ?? null);
-        setEnergySpent(data.energy ?? 0);
+        setEnergySpent(data.daily_spend_microbaht ?? 0);
 
         // Sync back to local storage
         setStoredItem('display-name', data.display_name || DEFAULT_NAME);

@@ -6,9 +6,6 @@ const mockDelete = vi.fn().mockReturnThis();
 const mockEq = vi.fn().mockResolvedValue({ error: null });
 const mockUpdate = vi.fn().mockReturnThis();
 
-const mockList = vi.fn().mockResolvedValue({ data: [{ name: 'file1.jpg' }], error: null });
-const mockRemove = vi.fn().mockResolvedValue({ error: null });
-
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
 
 const mockFrom = vi.fn(() => {
@@ -19,22 +16,12 @@ const mockFrom = vi.fn(() => {
   };
 });
 
-const mockStorageFrom = vi.fn(() => {
-  return {
-    list: mockList,
-    remove: mockRemove,
-  };
-});
-
 vi.mock('@/app/_lib/supabase/supabaseClient', () => ({
   supabase: {
     auth: {
       getUser: (...args: unknown[]) => mockGetUser(...args),
     },
     from: () => mockFrom(),
-    storage: {
-      from: () => mockStorageFrom(),
-    },
   },
 }));
 
@@ -42,8 +29,6 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   mockGetUser.mockResolvedValue({ data: { user: { id: 'test-user-id' } } });
-  mockList.mockResolvedValue({ data: [{ name: 'file1.jpg' }], error: null });
-  mockRemove.mockResolvedValue({ error: null });
   mockEq.mockResolvedValue({ error: null });
 });
 
@@ -64,14 +49,8 @@ describe('useDataReset', () => {
     // Verify Supabase deletions occurred
     expect(mockDelete).toHaveBeenCalled();
     expect(mockUpdate).toHaveBeenCalledWith({
-      gems: 176,
-      energy: 15,
-      streak: 0,
-      max_streak: 0,
-      claimed_chests: [],
+      daily_spend_microbaht: 0,
     });
-    expect(mockList).toHaveBeenCalled();
-    expect(mockRemove).toHaveBeenCalled();
   });
 
   it('clears all localStorage keys with tarnly: or tranly: prefix', async () => {

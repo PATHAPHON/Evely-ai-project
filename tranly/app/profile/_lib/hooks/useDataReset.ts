@@ -39,7 +39,7 @@ export function useDataReset(): UseDataResetReturn {
         await supabase
           .from("profiles")
           .update({
-            energy: 0,
+            daily_spend_microbaht: 0,
           })
           .eq("id", userId);
       }
