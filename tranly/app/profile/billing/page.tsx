@@ -3,7 +3,7 @@
 import { useState, useCallback, Suspense } from "react";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { useUserProfile } from "@/app/_lib/hooks/useUserProfile";
-import GeminiLayout from "@/app/_components/GeminiLayout";
+import AppShell from "@/app/_components/AppShell";
 
 /* ── Plan feature lists (hard-coded; no string keys exist yet) ─── */
 const FREE_FEATURES = [
@@ -57,7 +57,7 @@ function BillingPageContent() {
   const features = isPremium ? PREMIUM_FEATURES : FREE_FEATURES;
 
   return (
-    <GeminiLayout
+    <AppShell
       title={t.profile.billing}
       showBackButton
       backPath="/profile"
@@ -155,7 +155,7 @@ function BillingPageContent() {
           </div>
         </div>
       </div>
-    </GeminiLayout>
+    </AppShell>
   );
 }
 

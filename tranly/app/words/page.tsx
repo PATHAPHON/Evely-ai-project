@@ -7,7 +7,7 @@ import { useWordStorage, type WordRecord } from "@/app/_lib/hooks/useWordStorage
 import { useTTS } from "@/app/chat/_lib/hooks/useTTS";
 import type { FeedWordRecord } from "@/app/_lib/types/wordTypes";
 import { useActiveLanguage } from "@/app/_lib/contexts/ActiveLanguageContext";
-import GeminiLayout from "@/app/_components/GeminiLayout";
+import AppShell from "@/app/_components/AppShell";
 import WordDetailPopup from "@/app/_components/WordDetailPopup";
 
 type SortMode = 0 | 1 | 2 | 3; // newest, oldest, A→Z, Z→A
@@ -252,7 +252,7 @@ export default function WordsPage() {
 
   return (
     <>
-      <GeminiLayout title={t.words.title} rightElement={sortButton}>
+      <AppShell title={t.words.title} rightElement={sortButton}>
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
           {/* Search */}
           {words !== null && words.length > 0 && (
@@ -308,7 +308,7 @@ export default function WordsPage() {
             </div>
           </div>
         </div>
-      </GeminiLayout>
+      </AppShell>
 
       <WordDetailPopup word={selected} onClose={() => setSelected(null)} onUpdate={handleWordUpdate} />
     </>

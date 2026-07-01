@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Trash2, Pencil } from 'lucide-react';
 
-import GeminiLayout from '@/app/_components/GeminiLayout';
+import AppShell from '@/app/_components/AppShell';
 import { useConversationHistory } from '@/app/chat/_lib/hooks/useConversationHistory';
 import { useStrings } from '@/app/_lib/utils/strings';
 import { relativeTimeTh } from '@/app/_lib/utils/relativeTime';
@@ -110,7 +110,7 @@ export default function RecentsPage() {
   ) : undefined;
 
   return (
-    <GeminiLayout title={t.recents.title} rightElement={sortButton}>
+    <AppShell title={t.recents.title} rightElement={sortButton}>
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Search */}
         <div className="px-4 pt-3 pb-3">
@@ -174,6 +174,6 @@ export default function RecentsPage() {
           <span className="text-[15px] font-semibold">{t.drawer.newChat}</span>
         </button>
       </div>
-    </GeminiLayout>
+    </AppShell>
   );
 }

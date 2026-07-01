@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { useUserProfile } from "@/app/_lib/hooks/useUserProfile";
 import { DAILY_BUDGET_MICROBAHT } from "@/app/api/_lib/utils/tokenCost";
-import GeminiLayout from "@/app/_components/GeminiLayout";
+import AppShell from "@/app/_components/AppShell";
 
 function UsagePageContent() {
   const t = useStrings();
@@ -26,7 +26,7 @@ function UsagePageContent() {
         : "bg-primary";
 
   return (
-    <GeminiLayout
+    <AppShell
       title={t.profile.usageToday}
       showBackButton
       backPath="/profile"
@@ -209,7 +209,7 @@ function UsagePageContent() {
           </div>
         </div>
       </div>
-    </GeminiLayout>
+    </AppShell>
   );
 }
 

@@ -10,7 +10,7 @@ import { useTheme } from "./_lib/hooks/useTheme";
 import { useShowTranslation } from "./_lib/hooks/useShowTranslation";
 import AccountCard from "./_components/AccountCard";
 import { Group, SettingsRow } from "./_components/SettingsList";
-import GeminiLayout from "@/app/_components/GeminiLayout";
+import AppShell from "@/app/_components/AppShell";
 
 function ProfilePageContent() {
   const t = useStrings();
@@ -55,7 +55,7 @@ function ProfilePageContent() {
   );
 
   return (
-    <GeminiLayout title={t.profile.title} showNewChatButton={false} rightElement={infoButton}>
+    <AppShell title={t.profile.title} showNewChatButton={false} rightElement={infoButton}>
       <div className="relative flex-1 flex w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
         <style>{`
           @keyframes cardFadeInUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
@@ -205,7 +205,7 @@ function ProfilePageContent() {
           </div>
         </div>
       </div>
-    </GeminiLayout>
+    </AppShell>
   );
 }
 

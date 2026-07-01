@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/_lib/supabase/supabaseClient";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { useUserProfile } from "@/app/_lib/hooks/useUserProfile";
-import GeminiLayout from "@/app/_components/GeminiLayout";
+import AppShell from "@/app/_components/AppShell";
 import SlothMascot from "../_components/SlothMascot";
 
 const fieldClass =
@@ -73,7 +73,7 @@ function EditProfilePageContent() {
   }, [router]);
 
   return (
-    <GeminiLayout
+    <AppShell
       title={t.profile.editProfile}
       showBackButton
       backPath="/profile"
@@ -225,7 +225,7 @@ function EditProfilePageContent() {
           </div>
         )}
       </div>
-    </GeminiLayout>
+    </AppShell>
   );
 }
 

@@ -19,7 +19,7 @@ import { useStrings } from '@/app/_lib/utils/strings';
 import { supabase } from '@/app/_lib/supabase/supabaseClient';
 import SlothMascot from '@/app/profile/_components/SlothMascot';
 
-interface GeminiLayoutProps {
+interface AppShellProps {
   children: React.ReactNode;
   title?: string;
   onNewChat?: () => void;
@@ -34,6 +34,14 @@ interface GeminiLayoutProps {
 interface DrawerContentProps {
   setDrawerOpen: (open: boolean) => void;
   onNewChat?: () => void;
+}
+
+const NAV_ITEM_ACTIVE = 'bg-primary-bg text-primary font-semibold';
+const NAV_ITEM_INACTIVE = 'text-foreground/75 hover:bg-card-bg/60 hover:text-foreground';
+
+/** Shared active/inactive classes for sidebar nav items. */
+function navItemClass(isActive: boolean): string {
+  return isActive ? NAV_ITEM_ACTIVE : NAV_ITEM_INACTIVE;
 }
 
 function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
@@ -107,11 +115,7 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
       <button
         type="button"
         onClick={handleNewChatClick}
-        className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-xl text-[15px] font-medium transition-colors duration-200 cursor-pointer mb-5 ${
-          pathname === '/new'
-            ? 'bg-primary-bg text-primary font-semibold'
-            : 'text-foreground/75 hover:bg-card-bg/60 hover:text-foreground'
-        }`}
+        className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-xl text-[15px] font-medium transition-colors duration-200 cursor-pointer mb-5 ${navItemClass(pathname === '/new')}`}
       >
         <Pencil size={18} stroke="url(#nav-icon-grad)" />
         <span>{t.drawer.newChat}</span>
@@ -126,11 +130,7 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
               key={link.path}
               type="button"
               onClick={() => handleNav(link.path)}
-              className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-xl text-[15px] font-medium transition-colors duration-200 cursor-pointer ${
-                isActive
-                  ? 'bg-primary-bg text-primary font-semibold'
-                  : 'text-foreground/75 hover:bg-card-bg/60 hover:text-foreground'
-              }`}
+              className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-xl text-[15px] font-medium transition-colors duration-200 cursor-pointer ${navItemClass(isActive)}`}
             >
               {link.icon}
               <span>{link.label}</span>
@@ -151,11 +151,7 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
               return (
                 <div
                   key={s.id}
-                  className={`group relative flex items-center w-full rounded-xl transition-colors duration-200 px-5 py-2 text-[15px] cursor-pointer ${
-                    isSessionActive
-                      ? 'bg-primary-bg text-primary font-semibold'
-                      : 'text-foreground/75 hover:bg-card-bg/60 hover:text-foreground'
-                  }`}
+                  className={`group relative flex items-center w-full rounded-xl transition-colors duration-200 px-5 py-2 text-[15px] cursor-pointer ${navItemClass(isSessionActive)}`}
                 >
                   <span
                     onClick={() => {
@@ -263,14 +259,14 @@ function BudgetExhaustedBanner() {
   );
 }
 
-export default function GeminiLayout({
+export default function AppShell({
   children,
   title,
   onNewChat,
   rightElement,
   showBackButton,
   backPath,
-}: GeminiLayoutProps) {
+}: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -328,7 +324,7 @@ export default function GeminiLayout({
         {children}
       </main>
 
-      {/* Gemini Style Sidebar Drawer */}
+      {/* Sidebar Drawer */}
       {/* Backdrop */}
       <div
         onClick={() => setDrawerOpen(false)}

@@ -1,6 +1,6 @@
 'use client';
 
-import GeminiLayout from '@/app/_components/GeminiLayout';
+import AppShell from '@/app/_components/AppShell';
 import { Headphones, BookOpen, Mic } from 'lucide-react';
 
 interface Props {
@@ -16,7 +16,7 @@ const MODES = [
 
 export default function RefreshMenu({ onStart, disabled = false }: Props) {
   return (
-    <GeminiLayout title="ทบทวน">
+    <AppShell title="ทบทวน">
       {/* Hidden SVG Gradient Definition for Refresh Icons */}
       <svg width="0" height="0" className="absolute pointer-events-none" style={{ position: 'absolute', width: 0, height: 0 }}>
         <defs>
@@ -69,6 +69,6 @@ export default function RefreshMenu({ onStart, disabled = false }: Props) {
         </div>
 
       </div>
-    </GeminiLayout>
+    </AppShell>
   );
 }

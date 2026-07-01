@@ -21,7 +21,7 @@ import type { SessionConfig } from '../_lib/types/types';
 import { useToast } from '@/app/_components/Toast';
 
 import { Lightbulb } from 'lucide-react';
-import GeminiLayout from '@/app/_components/GeminiLayout';
+import AppShell from '@/app/_components/AppShell';
 
 interface ChatScreenProps {
   /** Existing session id to restore, or null for a brand-new open session. */
@@ -200,7 +200,7 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   );
 
   return (
-    <GeminiLayout onNewChat={handleNewChat}>
+    <AppShell onNewChat={handleNewChat}>
       <div
         className="flex-1 flex flex-col overflow-hidden relative"
         style={
@@ -291,6 +291,6 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
           </div>
         </div>
       </div>
-    </GeminiLayout>
+    </AppShell>
   );
 }
