@@ -4,10 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 export const STORAGE_KEY = 'tranly:show-translation';
 
+/** Current show-translation preference (defaults to true). Safe during SSR. */
+export function readShowTranslation(): boolean {
+  return typeof localStorage === 'undefined' || localStorage.getItem(STORAGE_KEY) !== 'false';
+}
+
 export function useShowTranslation() {
-  const [showTranslation, setShowTranslation] = useState(
-    () => typeof localStorage === 'undefined' || localStorage.getItem(STORAGE_KEY) !== 'false'
-  );
+  const [showTranslation, setShowTranslation] = useState(readShowTranslation);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

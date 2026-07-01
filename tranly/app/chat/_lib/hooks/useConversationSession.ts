@@ -5,10 +5,11 @@ import { randomId } from '@/app/_lib/utils/randomId';
 import { getCustomAIHeaders } from '@/app/_lib/utils/getCustomAIHeaders';
 import { markBudgetExhausted } from '@/app/_lib/hooks/useBudgetExhausted';
 import { translateBatchToThai } from '@/app/_lib/utils/translateToThai';
-import { STORAGE_KEY as SHOW_TRANSLATION_KEY } from '@/app/profile/_lib/hooks/useShowTranslation';
+import { readShowTranslation } from '@/app/profile/_lib/hooks/useShowTranslation';
 import { useChatApi } from './useChatApi';
 import { useConversationHistory } from './useConversationHistory';
 import { baseMessage } from '../utils/baseMessage';
+import { buildAssistantMessage } from '../utils/buildAssistantMessage';
 
 import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
 import type {
@@ -148,36 +149,11 @@ export function useConversationSession(isPremium = false): UseConversationSessio
           ...suggestions.map((s) => s.englishText),
         ];
 
-        const buildMessage = (translated: string[] | null): ChatMessage => {
-          const translatedSentences = translated
-            ? sentences.map((s, i) => ({ ...s, translation: translated[i] ?? '' }))
-            : sentences;
-          const translatedSuggestions = translated
-            ? suggestions.map((s, i) => ({
-                ...s,
-                translation: translated[sentences.length + i] ?? '',
-              }))
-            : suggestions;
-          return {
-            ...pendingMessage,
-            englishText: aiResponse.englishText,
-            translation: translatedSentences.map((s) => s.translation).join(' '),
-            english: aiResponse.english,
-            rawText: aiResponse.englishText,
-            timestamp: new Date().toISOString(),
-            status: 'sent',
-            suggestions: translatedSuggestions,
-            sentences: translatedSentences,
-            suggestionsLocked: aiResponse.suggestionsLocked,
-          };
-        };
-
         const sid = sessionIdRef.current!;
-        const showTranslation = localStorage.getItem(SHOW_TRANSLATION_KEY) !== 'false';
 
-        if (showTranslation) {
+        if (readShowTranslation()) {
           const translated = await translateBatchToThai(toTranslate);
-          const aiMessage = buildMessage(translated);
+          const aiMessage = buildAssistantMessage(pendingMessage, aiResponse, translated);
           setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)));
           try {
             await saveMessage(sid, aiMessage);
@@ -186,12 +162,12 @@ export function useConversationSession(isPremium = false): UseConversationSessio
           }
         } else {
           // Render immediately without waiting; translate silently in background.
-          const aiMessage = buildMessage(null);
+          const aiMessage = buildAssistantMessage(pendingMessage, aiResponse, null);
           setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)));
           saveMessage(sid, aiMessage).catch(() => {});
           translateBatchToThai(toTranslate).then((translated) => {
             if (!translated) return;
-            const patched = buildMessage(translated);
+            const patched = buildAssistantMessage(pendingMessage, aiResponse, translated);
             setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? patched : msg)));
             saveMessage(sid, patched).catch(() => {});
           });
