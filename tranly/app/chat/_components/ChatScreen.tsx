@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useActiveLanguage } from '@/app/_lib/contexts/ActiveLanguageContext';
 
 import { speechLangForLanguage } from '../_lib/utils/speechLangForLanguage';
 import { useConversationSession } from '../_lib/hooks/useConversationSession';
+import { useSessionUrlSync } from '../_lib/hooks/useSessionUrlSync';
 import { useTTS } from '../_lib/hooks/useTTS';
 import { useSTT } from '../_lib/hooks/useSTT';
 import { useSuggestionPanel } from '../_lib/hooks/useSuggestionPanel';
@@ -79,39 +80,16 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
     startSession(config);
   }, [activeLanguage, startSession]);
 
-  // On mount (or when sessionId changes): restore an existing conversation,
-  // otherwise begin a brand-new one. The sentinel guards against re-starting a
-  // fresh session when this effect re-runs purely because a callback dep's
-  // identity changed.
-  const OPEN_SESSION = '__open__';
-  const restoredRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (sessionParam) {
-      if (restoredRef.current === sessionParam) return;
-      restoredRef.current = sessionParam;
-      void restoreSession(sessionParam, activeLanguage);
-    } else {
-      if (restoredRef.current === OPEN_SESSION) return;
-      restoredRef.current = OPEN_SESSION;
-      startOpenSession();
-    }
-  }, [sessionParam, activeLanguage, restoreSession, startOpenSession]);
-
-  // Reflect the session id in the URL, but only once the first exchange is
-  // durably saved. replaceState across route segments (/new → /chat/[id]) makes
-  // Next re-sync the router and remount this screen, which re-restores from the
-  // DB; firing before the save completes would load an empty session and wipe
-  // the in-memory conversation. Gating on a saved assistant reply guarantees the
-  // restore finds real data.
-  useEffect(() => {
-    const hasSavedReply =
-      !isSessionLoading &&
-      sessionMessages.some((m) => m.role === 'assistant' && m.status === 'sent');
-    if (!sessionParam && sessionId && hasSavedReply) {
-      restoredRef.current = sessionId;
-      window.history.replaceState(null, '', `/chat/${sessionId}`);
-    }
-  }, [sessionParam, sessionId, isSessionLoading, sessionMessages]);
+  // Restore/start the session and reflect its id in the URL once saved.
+  useSessionUrlSync({
+    sessionParam,
+    activeLanguage,
+    restoreSession,
+    startOpenSession,
+    sessionId,
+    isSessionLoading,
+    messages: sessionMessages,
+  });
 
   const handleSendMessage = useCallback(
     async (text: string) => {
@@ -148,8 +126,6 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   const handleStartListening = useCallback(() => {
     startListening(speechLang);
   }, [startListening, speechLang]);
-
-  const noopRemoveWord = useCallback(() => {}, []);
 
   // Start a fresh new chat session.
   const handleNewChat = useCallback(() => {
@@ -189,8 +165,6 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
       onStartListening={handleStartListening}
       onStopListening={stopListening}
       transcript={transcript}
-      selectedWords={[]}
-      onRemoveWord={noopRemoveWord}
       skillsEnabled
       resetKey={inputResetKey}
       disabled={budgetExhausted}

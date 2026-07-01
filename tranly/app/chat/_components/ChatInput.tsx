@@ -21,8 +21,9 @@ export interface ChatInputProps {
   onStartListening: () => void;
   onStopListening: () => void;
   transcript: string;
-  selectedWords: SavedWord[];
-  onRemoveWord: (wordId: string) => void;
+  /** Optional word chips shown above the input (e.g. guided-learning selections). */
+  selectedWords?: SavedWord[];
+  onRemoveWord?: (wordId: string) => void;
   /** Fully disables the input (e.g. the conversation has ended). */
   disabled?: boolean;
   /** Placeholder override (e.g. shown when disabled). */
@@ -44,7 +45,7 @@ export default function ChatInput({
   onStartListening,
   onStopListening,
   transcript,
-  selectedWords,
+  selectedWords = [],
   onRemoveWord,
   disabled = false,
   placeholder,
@@ -115,7 +116,7 @@ export default function ChatInput({
               {word.englishText}
               <button
                 type="button"
-                onClick={() => onRemoveWord(word.id)}
+                onClick={() => onRemoveWord?.(word.id)}
                 aria-label={t.chat.removeWordAria(word.englishText)}
                 className="text-primary/70 hover:text-primary cursor-pointer"
               >
