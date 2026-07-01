@@ -4,7 +4,6 @@ import {
   useState,
   useCallback,
   useEffect,
-  useRef,
   type KeyboardEvent,
 } from 'react';
 import { Send, Mic, XCircle, Plus, BookOpen, Loader2 } from 'lucide-react';
@@ -56,7 +55,6 @@ export default function ChatInput({
   const t = useStrings();
   const [inputValue, setInputValue] = useState('');
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (transcript) {
@@ -164,7 +162,6 @@ export default function ChatInput({
           )}
 
           <input
-            ref={inputRef}
             type="text"
             value={inputValue}
             onChange={(e) => handleChange(e.target.value)}

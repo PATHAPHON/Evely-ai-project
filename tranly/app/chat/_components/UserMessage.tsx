@@ -62,11 +62,6 @@ export default function UserMessage({
             {showTranslation && message.translation && (
               <p className="text-sm text-foreground/70 mt-1 leading-relaxed">{message.translation}</p>
             )}
-            {message.grammarCorrect === false && message.grammarNotes && (
-              <div className="hidden">
-                {/* Keep logic in place if needed, but we render the popup outside the main bubble */}
-              </div>
-            )}
           </div>
         ) : (
           <div className="text-base text-foreground">

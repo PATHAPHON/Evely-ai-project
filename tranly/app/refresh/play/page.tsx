@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWordBank } from '@/app/_lib/hooks/useWordBank';
 import { useUserProfile } from '@/app/_lib/hooks/useUserProfile';
-import { useSTT } from '@/app/chat/_lib/hooks/useSTT';
 import GameShell from '@/app/refresh/_components/GameShell';
 import MatchingGame from '@/app/refresh/_components/MatchingGame';
 import TypingGame from '@/app/refresh/_components/TypingGame';
@@ -33,7 +32,6 @@ export default function RefreshPlayPage() {
   const router = useRouter();
   const { words, reviewWord, isLoading } = useWordBank();
   const { isPremium } = useUserProfile();
-  const { isSupported: sttSupported } = useSTT();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -69,7 +67,7 @@ export default function RefreshPlayPage() {
     setIndex(0);
     setImproved(0);
     setPhase(items.length === 0 ? 'summary' : 'playing');
-  }, [isLoading, words, sttSupported, phase]);
+  }, [isLoading, words, phase]);
 
   async function handleDone(quality: number) {
     const item = queue[index];
