@@ -18,6 +18,29 @@ import { isAuthExpiredError, rowToWordBankEntry } from '@/app/_lib/utils/wordBan
 import { useToast } from '@/app/_components/Toast';
 import { th } from '@/app/_lib/utils/strings';
 
+// Shared `words`-joined-`word_progress` select used by the initial load and the
+// duplicate-recovery fetch, so the two never drift apart.
+const WORD_WITH_PROGRESS_SELECT = `
+  id,
+  word,
+  thai,
+  part_of_speech,
+  word_progress (
+    box,
+    interval,
+    ease_factor,
+    repetitions,
+    last_reviewed_at,
+    next_review_at
+  )
+`;
+
+/** Postgres unique-violation code — a word already exists for this user. */
+const PG_UNIQUE_VIOLATION = '23505';
+/** Match the server-side /api/word-detail timeout. */
+const TRANSLATION_TIMEOUT_MS = 30_000;
+const TOAST_DURATION_MS = 5000;
+
 /** A word bank entry flattened with its derived learning status. */
 export interface WordBankWord {
   id: string;
@@ -94,22 +117,7 @@ export function useWordBank(): WordStatusContextValue {
         // Fetch words joined with word_progress
         const { data: wordsData, error: wordsError } = await supabase
           .from('words')
-          .select(
-            `
-            id,
-            word,
-            thai,
-            part_of_speech,
-            word_progress (
-              box,
-              interval,
-              ease_factor,
-              repetitions,
-              last_reviewed_at,
-              next_review_at
-            )
-          `
-          )
+          .select(WORD_WITH_PROGRESS_SELECT)
           .eq('user_id', userId);
 
         if (wordsError) {
@@ -135,7 +143,7 @@ export function useWordBank(): WordStatusContextValue {
           setError(errorMsg);
           setIsLoading(false);
           // Show notification when word bank fails to load (Requirement 5.6)
-          showToast(th.errors.wordStatusUnavailable, 'warning', 5000);
+          showToast(th.errors.wordStatusUnavailable, 'warning', TOAST_DURATION_MS);
         }
       }
     };
@@ -163,6 +171,21 @@ export function useWordBank(): WordStatusContextValue {
     router.push('/auth');
   }, [router]);
 
+  // Shared handling for a failed Supabase mutation: on an expired session it
+  // redirects and returns (the caller should then `return`); on any other error
+  // it toasts and throws, so callers never fall through to their success path.
+  const raiseMutationError = useCallback(
+    (error: { message: string; code?: string }, toastMessage: string, context: string): void => {
+      if (isAuthExpiredError(error)) {
+        handleAuthExpired();
+        return;
+      }
+      showToast(toastMessage, 'error', TOAST_DURATION_MS);
+      throw new Error(`${context}: ${error.message}`);
+    },
+    [handleAuthExpired, showToast],
+  );
+
   // ─── Fetch translation in background ─────────────────────────────────────
 
   const fetchTranslationInBackground = useCallback(
@@ -173,7 +196,7 @@ export function useWordBank(): WordStatusContextValue {
       try {
         const headers = getCustomAIHeaders();
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // match server-side API timeout
+        const timeoutId = setTimeout(() => controller.abort(), TRANSLATION_TIMEOUT_MS);
 
         const res = await fetch('/api/word-detail', {
           method: 'POST',
@@ -265,16 +288,11 @@ export function useWordBank(): WordStatusContextValue {
 
       // Handle duplicate insert gracefully (Postgres 23505 error)
       if (insertError) {
-        if (insertError.code === '23505') {
+        if (insertError.code === PG_UNIQUE_VIOLATION) {
           // Word already exists in DB — fetch existing and update cache
           const { data: existing } = await supabase
             .from('words')
-            .select(
-              `
-              id, word, thai, part_of_speech,
-              word_progress (box, interval, ease_factor, repetitions, last_reviewed_at, next_review_at)
-            `
-            )
+            .select(WORD_WITH_PROGRESS_SELECT)
             .eq('user_id', userId)
             .eq('word', normalizedWord)
             .single();
@@ -287,15 +305,10 @@ export function useWordBank(): WordStatusContextValue {
           return;
         }
 
-        // Auth session expired — redirect to /auth
-        if (isAuthExpiredError(insertError)) {
-          handleAuthExpired();
-          return;
-        }
-
-        // Other Supabase insert failure — show 5-second error toast, retain previous status (Requirement 3.8)
-        showToast(th.errors.addWordFailed, 'error', 5000);
-        throw new Error(`Failed to add word: ${insertError.message}`);
+        // Auth expired → redirect; otherwise toast + throw, retaining previous
+        // status (Requirement 3.8).
+        raiseMutationError(insertError, th.errors.addWordFailed, 'Failed to add word');
+        return;
       }
 
       const wordId = insertedWord.id;
@@ -317,12 +330,8 @@ export function useWordBank(): WordStatusContextValue {
       if (progressError) {
         // Clean up: remove the word entry if progress insert fails
         await supabase.from('words').delete().eq('id', wordId);
-        if (isAuthExpiredError(progressError)) {
-          handleAuthExpired();
-          return;
-        }
-        showToast(th.errors.addWordFailed, 'error', 5000);
-        throw new Error(`Failed to create word progress: ${progressError.message}`);
+        raiseMutationError(progressError, th.errors.addWordFailed, 'Failed to create word progress');
+        return;
       }
 
       // Update local cache immediately
@@ -348,11 +357,14 @@ export function useWordBank(): WordStatusContextValue {
       // Fetch translation in background (non-blocking)
       fetchTranslationInBackground(wordId, normalizedWord, word);
     },
-    [notifyUpdate, handleAuthExpired, showToast, fetchTranslationInBackground]
+    [notifyUpdate, handleAuthExpired, raiseMutationError, fetchTranslationInBackground]
   );
 
   // ─── Helper: find entry by id ───────────────────────────────────────────────
 
+  // ponytail: O(n) scan over the Map, keyed by word not id. A word bank is a few
+  // hundred entries and this only runs on remove/review taps — a second id→word
+  // index would just be more state to keep in sync. Add one if banks ever get large.
   const findEntryById = useCallback(
     (wordId: string): { key: string; entry: WordBankEntry } | null => {
       let result: { key: string; entry: WordBankEntry } | null = null;
@@ -388,14 +400,8 @@ export function useWordBank(): WordStatusContextValue {
         .eq('user_id', userId);
 
       if (progressDeleteError) {
-        if (isAuthExpiredError(progressDeleteError)) {
-          handleAuthExpired();
-          return;
-        }
-        showToast(th.errors.removeWordFailed, 'error', 5000);
-        throw new Error(
-          `Failed to delete word progress: ${progressDeleteError.message}`
-        );
+        raiseMutationError(progressDeleteError, th.errors.removeWordFailed, 'Failed to delete word progress');
+        return;
       }
 
       // Delete from words table
@@ -406,12 +412,8 @@ export function useWordBank(): WordStatusContextValue {
         .eq('user_id', userId);
 
       if (wordDeleteError) {
-        if (isAuthExpiredError(wordDeleteError)) {
-          handleAuthExpired();
-          return;
-        }
-        showToast(th.errors.removeWordFailed, 'error', 5000);
-        throw new Error(`Failed to delete word: ${wordDeleteError.message}`);
+        raiseMutationError(wordDeleteError, th.errors.removeWordFailed, 'Failed to delete word');
+        return;
       }
 
       // Remove from local cache
@@ -421,7 +423,7 @@ export function useWordBank(): WordStatusContextValue {
 
       notifyUpdate();
     },
-    [notifyUpdate, findEntryById, handleAuthExpired, showToast]
+    [notifyUpdate, findEntryById, handleAuthExpired, raiseMutationError]
   );
 
   // ─── reviewWord ─────────────────────────────────────────────────────────────
@@ -472,12 +474,8 @@ export function useWordBank(): WordStatusContextValue {
         .eq('user_id', userId);
 
       if (updateError) {
-        if (isAuthExpiredError(updateError)) {
-          handleAuthExpired();
-          return;
-        }
-        showToast(th.errors.reviewFailed, 'error', 5000);
-        throw new Error(`Failed to update word progress: ${updateError.message}`);
+        raiseMutationError(updateError, th.errors.reviewFailed, 'Failed to update word progress');
+        return;
       }
 
       // Update local cache
@@ -494,7 +492,7 @@ export function useWordBank(): WordStatusContextValue {
 
       notifyUpdate();
     },
-    [notifyUpdate, findEntryById, handleAuthExpired, showToast]
+    [notifyUpdate, findEntryById, handleAuthExpired, raiseMutationError]
   );
 
   return {
