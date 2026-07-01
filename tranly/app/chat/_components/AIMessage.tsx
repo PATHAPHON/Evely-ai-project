@@ -15,40 +15,29 @@ export default function AIMessage({
 }) {
   const t = useStrings();
   const { showTranslation } = useShowTranslation();
-  const sentences = message.sentences || [];
-  const hasSentences = sentences.length > 0;
+  const sentences = message.sentences?.length
+    ? message.sentences
+    : [{ english: message.english, englishText: message.englishText, translation: message.translation }];
+  const hasSentences = (message.sentences?.length ?? 0) > 0;
 
   return (
     <div className="flex justify-start items-start w-full">
       <div className="animate-bubble-pop-in w-full transition-all duration-300">
         <div className="text-foreground">
-          {hasSentences ? (
-            <div className="flex flex-col gap-4">
-              {sentences.map((s, idx) => (
-                <div key={idx} className="flex flex-col">
-                  <p className="text-base font-medium leading-loose">
-                    <WordRenderer text={s.english || s.englishText || ''} textClassName="text-base font-semibold text-foreground" reveal />
-                  </p>
-                  {showTranslation && s.translation && (
-                    <p className="text-sm text-foreground/60 mt-1 leading-relaxed">
-                      {s.translation}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div>
-              <p className="text-base font-medium leading-loose">
-                <WordRenderer text={message.english || message.englishText || ''} textClassName="text-base font-semibold text-foreground" reveal />
-              </p>
-              {showTranslation && message.translation && (
-                <p className="text-sm text-foreground/60 mt-1 leading-relaxed">
-                  {message.translation}
+          <div className="flex flex-col gap-4">
+            {sentences.map((s, idx) => (
+              <div key={idx} className="flex flex-col">
+                <p className="text-base font-medium leading-loose">
+                  <WordRenderer text={s.english || s.englishText || ''} textClassName="text-base font-semibold text-foreground" reveal />
                 </p>
-              )}
-            </div>
-          )}
+                {showTranslation && s.translation && (
+                  <p className="text-sm text-foreground/60 mt-1 leading-relaxed">
+                    {s.translation}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Action buttons bar */}

@@ -55,7 +55,7 @@ export default function SpeakGame({ word, thai, onDone }: GameProps) {
     setState('listening');
 
     // Evaluate when the recognition session ends (event-driven, not an effect).
-    startListening('en-US', {
+    startListening({
       autoStopSilenceMs: 1500,
       maxDurationMs: 6000,
       onEnd: (t, err) => {

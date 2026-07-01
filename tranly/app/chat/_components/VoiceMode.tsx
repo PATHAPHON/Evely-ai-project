@@ -50,7 +50,7 @@ export default function VoiceMode({
 
   const beginListening = useCallback(() => {
     setStatus('listening');
-    startListening(speechLang, {
+    startListening({
       autoStopSilenceMs: SILENCE_MS,
       maxDurationMs: MAX_TURN_MS,
       onEnd: (transcript) => {
@@ -63,7 +63,7 @@ export default function VoiceMode({
         void onSendRef.current(text);
       },
     });
-  }, [startListening, speechLang]);
+  }, [startListening]);
 
   useEffect(() => {
     onSendRef.current = onSend;

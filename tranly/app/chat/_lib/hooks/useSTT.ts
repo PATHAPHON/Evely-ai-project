@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { SpeechLang } from '../types/types';
 
 export interface StartListeningOptions {
   /** Called once the transcription session ends, with the final transcript and error. */
@@ -13,7 +12,7 @@ export interface StartListeningOptions {
 }
 
 export interface UseSTTReturn {
-  startListening: (lang?: SpeechLang, opts?: StartListeningOptions) => void;
+  startListening: (opts?: StartListeningOptions) => void;
   stopListening: () => void;
   isListening: boolean;
   isTranscribing: boolean;
@@ -22,6 +21,13 @@ export interface UseSTTReturn {
   error: string | null;
   level: number;
 }
+
+/** Analyser FFT size for the mic-level/silence-detection loop. */
+const FFT_SIZE = 256;
+/** Scales RMS (0..~0.3 in practice) up into a display-friendly 0..1 level. */
+const RMS_TO_LEVEL_GAIN = 3;
+/** RMS below this is treated as silence for auto-stop detection. */
+const SILENCE_THRESHOLD = 0.015;
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,6 +40,47 @@ function blobToBase64(blob: Blob): Promise<string> {
     };
     reader.onerror = reject;
   });
+}
+
+/** Pick the best MediaRecorder mimeType this browser supports, and the matching /api/stt format. */
+function pickMimeType(): { mimeType: string; format: string } {
+  if (MediaRecorder.isTypeSupported('audio/webm')) {
+    return { mimeType: 'audio/webm', format: 'webm' };
+  }
+  if (MediaRecorder.isTypeSupported('audio/mp4')) {
+    return { mimeType: 'audio/mp4', format: 'mp4' };
+  }
+  return { mimeType: '', format: 'wav' };
+}
+
+/** POST a recorded blob to /api/stt and map the response into a transcript or an error message. */
+async function transcribeBlob(blob: Blob, format: string): Promise<{ text: string } | { error: string }> {
+  try {
+    const base64 = await blobToBase64(blob);
+
+    const res = await fetch('/api/stt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio: base64, format }),
+    });
+
+    if (!res.ok) {
+      const errResult = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        return { error: 'ยอดเงินคงเหลือในบัญชี OpenRouter ของคุณไม่เพียงพอ (402 Payment Required)' };
+      }
+      if (res.status === 401) {
+        return { error: 'ไม่ได้กำหนด OpenRouter API Key หรือการตั้งค่าสิทธิ์ไม่ถูกต้อง (401 Unauthorized)' };
+      }
+      return { error: errResult.error || `การถอดเสียงล้มเหลว: ${res.statusText}` };
+    }
+
+    const dataResult = await res.json();
+    return { text: dataResult.text };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อถอดเสียง';
+    return { error: message };
+  }
 }
 
 const noopSubscribe = () => () => {};
@@ -93,7 +140,7 @@ export function useSTT(): UseSTTReturn {
     }
   }, []);
 
-  const startListening = useCallback(async (_lang: SpeechLang = 'en-US', opts?: StartListeningOptions) => {
+  const startListening = useCallback(async (opts?: StartListeningOptions) => {
     if (!isSupported) {
       const errMsg = 'การบันทึกเสียงไม่รองรับในเบราว์เซอร์นี้';
       setError(errMsg);
@@ -121,19 +168,7 @@ export function useSTT(): UseSTTReturn {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Determine correct mimeType and format based on browser support
-      let mimeType = 'audio/webm';
-      let format = 'webm';
-      if (!MediaRecorder.isTypeSupported('audio/webm')) {
-        if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          mimeType = 'audio/mp4';
-          format = 'mp4';
-        } else {
-          mimeType = '';
-          format = 'wav';
-        }
-      }
-
+      const { mimeType, format } = pickMimeType();
       const options = mimeType ? { mimeType } : undefined;
       const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
@@ -141,8 +176,6 @@ export function useSTT(): UseSTTReturn {
       // Chunks are local to this recorder so a new session's cleanup can't
       // clear the buffer the old recorder's onstop is about to read.
       const chunks: BlobPart[] = [];
-      const currentMimeType = mimeType;
-      const currentFormat = format;
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -155,7 +188,7 @@ export function useSTT(): UseSTTReturn {
 
         cleanupMedia();
 
-        const blob = new Blob(chunks, { type: currentMimeType || 'audio/ogg' });
+        const blob = new Blob(chunks, { type: mimeType || 'audio/ogg' });
         if (blob.size === 0) {
           setIsTranscribing(false);
           currentOnEnd?.('', 'ไม่มีข้อมูลเสียงที่บันทึก');
@@ -163,54 +196,22 @@ export function useSTT(): UseSTTReturn {
         }
 
         setIsTranscribing(true);
-
-        try {
-          const base64 = await blobToBase64(blob);
-
-          const res = await fetch('/api/stt', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              audio: base64,
-              format: currentFormat,
-            }),
-          });
-
-          if (!res.ok) {
-            const errResult = await res.json().catch(() => ({}));
-            
-            let errMsg = errResult.error;
-            if (res.status === 402) {
-              errMsg = 'ยอดเงินคงเหลือในบัญชี OpenRouter ของคุณไม่เพียงพอ (402 Payment Required)';
-            } else if (res.status === 401) {
-              errMsg = 'ไม่ได้กำหนด OpenRouter API Key หรือการตั้งค่าสิทธิ์ไม่ถูกต้อง (401 Unauthorized)';
-            } else if (!errMsg) {
-              errMsg = `การถอดเสียงล้มเหลว: ${res.statusText}`;
-            }
-
-            setError(errMsg);
-            currentOnEnd?.('', errMsg);
-          } else {
-            const dataResult = await res.json();
-            setTranscript(dataResult.text);
-            currentOnEnd?.(dataResult.text, null);
-          }
-        } catch (e: unknown) {
-          const errMsg = e instanceof Error ? e.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อถอดเสียง';
-          setError(errMsg);
-          currentOnEnd?.('', errMsg);
-        } finally {
-          setIsTranscribing(false);
+        const result = await transcribeBlob(blob, format);
+        if ('error' in result) {
+          setError(result.error);
+          currentOnEnd?.('', result.error);
+        } else {
+          setTranscript(result.text);
+          currentOnEnd?.(result.text, null);
         }
+        setIsTranscribing(false);
       };
 
       // Connect Web Audio API to detect silence and track mic levels
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = FFT_SIZE;
       analyserRef.current = analyser;
 
       const source = audioContext.createMediaStreamSource(stream);
@@ -230,11 +231,10 @@ export function useSTT(): UseSTTReturn {
           sum += d * d;
         }
         const rms = Math.sqrt(sum / data.length);
-        const currentLevel = Math.min(1, rms * 3);
+        const currentLevel = Math.min(1, rms * RMS_TO_LEVEL_GAIN);
         setLevel(currentLevel);
 
         // Silence detection
-        const SILENCE_THRESHOLD = 0.015; // RMS threshold
         if (rms < SILENCE_THRESHOLD) {
           if (silenceStart === null) {
             silenceStart = Date.now();

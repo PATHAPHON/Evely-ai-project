@@ -124,8 +124,8 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   );
 
   const handleStartListening = useCallback(() => {
-    startListening(speechLang);
-  }, [startListening, speechLang]);
+    startListening();
+  }, [startListening]);
 
   // Start a fresh new chat session.
   const handleNewChat = useCallback(() => {

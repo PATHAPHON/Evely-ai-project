@@ -15,6 +15,11 @@ interface ChatListProps {
   onSpeak: (messageId: string, text?: string) => void;
 }
 
+/** True once a pending (streaming) assistant message has anything worth rendering. */
+function hasPartialContent(message: ChatMessage): boolean {
+  return (message.sentences && message.sentences.length > 0) || message.englishText.length > 0;
+}
+
 /**
  * Renders a vertical scrollable message list with auto-scroll to bottom.
  * AI messages aligned left with clean Gemini bubbles.
@@ -57,6 +62,11 @@ export default function ChatList({
     }
   }, [messages]);
 
+  const lastUserIndex = messages.reduce(
+    (acc, m, i) => (m.role === 'user' ? i : acc),
+    -1
+  );
+
   return (
     <div
       ref={scrollRef}
@@ -66,33 +76,24 @@ export default function ChatList({
       aria-label={t.chat.messagesAria}
     >
       <div className="max-w-2xl mx-auto w-full space-y-5 pb-[380px]">
-        {(() => {
-          const lastUserIndex = messages.reduce(
-            (acc, m, i) => (m.role === 'user' ? i : acc),
-            -1
+        {messages.map((message, index) => {
+          if (message.status === 'pending') {
+            // Show partial streaming content if available, otherwise hide
+            if (!hasPartialContent(message)) return null;
+            return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
+          }
+          if (message.role === 'assistant') {
+            return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
+          }
+          return (
+            <div key={message.id} ref={index === lastUserIndex ? lastUserMsgRef : undefined}>
+              <UserMessage message={message} />
+            </div>
           );
-          return messages.map((message, index) => {
-            if (message.status === 'pending') {
-              // Show partial streaming content if available, otherwise hide
-              const hasPartial =
-                (message.sentences && message.sentences.length > 0) ||
-                message.englishText.length > 0;
-              if (!hasPartial) return null;
-              return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
-            }
-            if (message.role === 'assistant') {
-              return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
-            }
-            return (
-              <div key={message.id} ref={index === lastUserIndex ? lastUserMsgRef : undefined}>
-                <UserMessage message={message} />
-              </div>
-            );
-          });
-        })()}
+        })}
 
         {isLoading && !messages.some(
-          (m) => m.status === 'pending' && ((m.sentences && m.sentences.length > 0) || m.englishText.length > 0)
+          (m) => m.status === 'pending' && hasPartialContent(m)
         ) && <LoadingBubble />}
 
         {error && <ErrorBanner error={error} onRetry={onRetry} />}
