@@ -261,10 +261,12 @@ export async function POST(
 
       const responseText = await response.text();
       let content: string | undefined;
+      let attemptTokens = 0;
 
       try {
         const data = JSON.parse(responseText);
         content = data?.choices?.[0]?.message?.content ?? data?.content;
+        attemptTokens = data?.usage?.total_tokens ?? 0;
       } catch {
         // fall through
       }
@@ -282,11 +284,7 @@ export async function POST(
         return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 502 });
       }
 
-      try {
-        const data = JSON.parse(responseText);
-        totalTokens = data?.usage?.total_tokens ?? 0;
-      } catch { /* ignore */ }
-
+      totalTokens = attemptTokens;
       break;
     }
 

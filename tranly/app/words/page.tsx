@@ -12,6 +12,10 @@ import WordDetailPopup from "@/app/_components/WordDetailPopup";
 
 type SortMode = 0 | 1 | 2 | 3; // newest, oldest, A→Z, Z→A
 
+function wordsCacheKey(language: string): string {
+  return `tarnly:words:cache:${language}`;
+}
+
 function sortWords(words: WordRecord[], mode: SortMode): WordRecord[] {
   const arr = [...words];
   const name = (w: WordRecord) => (w.english || w.label).toLowerCase();
@@ -25,6 +29,49 @@ function sortWords(words: WordRecord[], mode: SortMode): WordRecord[] {
     case 3:
       return arr.sort((a, b) => name(b).localeCompare(name(a)));
   }
+}
+
+function SortIcon({ mode }: { mode: SortMode }) {
+  const gradId = `sort-grad-${mode}`;
+  const stroke = `url(#${gradId})`;
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#4f8df7" />
+          <stop offset="100%" stopColor="#1b62d1" />
+        </linearGradient>
+      </defs>
+      {mode === 0 && (
+        <>
+          <circle cx="9" cy="12" r="7" stroke={stroke} />
+          <polyline points="9 9 9 12 12 13.5" stroke={stroke} />
+          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke={stroke} />
+        </>
+      )}
+      {mode === 1 && (
+        <>
+          <circle cx="9" cy="12" r="7" stroke={stroke} />
+          <polyline points="9 9 9 12 12 13.5" stroke={stroke} />
+          <path d="M19 16V8M19 8l-3 3M19 8l3-3" stroke={stroke} />
+        </>
+      )}
+      {mode === 2 && (
+        <>
+          <path d="M4 11V6h4v5M4 9h4" stroke={stroke} />
+          <path d="M4 14h4L4 19h4" stroke={stroke} />
+          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke={stroke} />
+        </>
+      )}
+      {mode === 3 && (
+        <>
+          <path d="M4 6h4L4 11h4" stroke={stroke} />
+          <path d="M4 19V14h4v5M4 17h4" stroke={stroke} />
+          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke={stroke} />
+        </>
+      )}
+    </svg>
+  );
 }
 
 function toFeedWord(w: WordRecord, activeLanguage: FeedWordRecord["language"]): FeedWordRecord {
@@ -121,7 +168,7 @@ export default function WordsPage() {
     );
     setWords(next);
 
-    const cacheKey = `tarnly:words:cache:${activeLanguage}`;
+    const cacheKey = wordsCacheKey(activeLanguage);
     if (typeof window !== "undefined") {
       localStorage.setItem(cacheKey, JSON.stringify(next));
     }
@@ -139,7 +186,7 @@ export default function WordsPage() {
   // Load saved words on mount with Stale-While-Revalidate caching
   useEffect(() => {
     let cancelled = false;
-    const cacheKey = `tarnly:words:cache:${activeLanguage}`;
+    const cacheKey = wordsCacheKey(activeLanguage);
 
     const cachedDataStr = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
     if (cachedDataStr) {
@@ -199,58 +246,7 @@ export default function WordsPage() {
       title={t.words.sortAria(t.words.sortLabels[sortMode])}
       className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-card-bg active:scale-95 cursor-pointer"
     >
-      {sortMode === 0 && (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <defs>
-            <linearGradient id="sort-grad-0" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#4f8df7" />
-              <stop offset="100%" stopColor="#1b62d1" />
-            </linearGradient>
-          </defs>
-          <circle cx="9" cy="12" r="7" stroke="url(#sort-grad-0)" />
-          <polyline points="9 9 9 12 12 13.5" stroke="url(#sort-grad-0)" />
-          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke="url(#sort-grad-0)" />
-        </svg>
-      )}
-      {sortMode === 1 && (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <defs>
-            <linearGradient id="sort-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#4f8df7" />
-              <stop offset="100%" stopColor="#1b62d1" />
-            </linearGradient>
-          </defs>
-          <circle cx="9" cy="12" r="7" stroke="url(#sort-grad-1)" />
-          <polyline points="9 9 9 12 12 13.5" stroke="url(#sort-grad-1)" />
-          <path d="M19 16V8M19 8l-3 3M19 8l3-3" stroke="url(#sort-grad-1)" />
-        </svg>
-      )}
-      {sortMode === 2 && (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <defs>
-            <linearGradient id="sort-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#4f8df7" />
-              <stop offset="100%" stopColor="#1b62d1" />
-            </linearGradient>
-          </defs>
-          <path d="M4 11V6h4v5M4 9h4" stroke="url(#sort-grad-2)" />
-          <path d="M4 14h4L4 19h4" stroke="url(#sort-grad-2)" />
-          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke="url(#sort-grad-2)" />
-        </svg>
-      )}
-      {sortMode === 3 && (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <defs>
-            <linearGradient id="sort-grad-3" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#4f8df7" />
-              <stop offset="100%" stopColor="#1b62d1" />
-            </linearGradient>
-          </defs>
-          <path d="M4 6h4L4 11h4" stroke="url(#sort-grad-3)" />
-          <path d="M4 19V14h4v5M4 17h4" stroke="url(#sort-grad-3)" />
-          <path d="M19 8v8M19 16l-3-3M19 16l3-3" stroke="url(#sort-grad-3)" />
-        </svg>
-      )}
+      <SortIcon mode={sortMode} />
     </button>
   ) : undefined;
 

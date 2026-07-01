@@ -2,12 +2,9 @@
 
 
 /**
- * Single source of truth for user-facing UI copy.
- *
- * The app supports one language per session (Thai or English), chosen in
- * Profile and persisted via {@link useLanguagePreference}. Every screen should
- * pull its strings from here through {@link useStrings} instead of hardcoding
- * text, so a language switch flips the *whole* app consistently.
+ * Single source of truth for user-facing UI copy. Thai-only for now —
+ * every screen should pull its strings from here via {@link useStrings}
+ * instead of hardcoding text.
  */
 export interface UIStrings {
   common: {
@@ -506,7 +503,7 @@ export const th: UIStrings = {
   },
 };
 
-/** Returns the UI string table for the current session language. */
+/** Returns the UI string table (Thai). */
 export function useStrings(): UIStrings {
   return th;
 }
