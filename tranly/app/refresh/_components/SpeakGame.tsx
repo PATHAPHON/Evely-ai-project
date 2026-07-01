@@ -7,11 +7,13 @@ import { useSTT } from '@/app/chat/_lib/hooks/useSTT';
 import type { GameProps } from '../_lib/gameTypes';
 import { speakQuality } from '../_lib/quality';
 import { useToast } from '@/app/_components/Toast';
+import { useGameExit } from '../_lib/useGameExit';
 import VoicePermissionModal, { PermissionModalStatus } from './VoicePermissionModal';
 
 type SpeakState = 'idle' | 'listening' | 'correct' | 'wrong1' | 'wrong2';
 
-function normalize(s: string): string {
+/** Loosely compares recognized speech to the target word, ignoring case/punctuation. */
+function normalizeSpokenText(s: string): string {
   return s.toLowerCase().trim().replace(/[.,!?]/g, '');
 }
 
@@ -39,15 +41,10 @@ export default function SpeakGame({ word, thai, onDone }: GameProps) {
 
   const [state, setState] = useState<SpeakState>('idle');
   const [attempts, setAttempts] = useState(0);
-  const [isExiting, setIsExiting] = useState(false);
+  const { isExiting, finish } = useGameExit(onDone);
 
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionModalStatus, setPermissionModalStatus] = useState<PermissionModalStatus>('unrequested');
-
-  function finish(q: number) {
-    setIsExiting(true);
-    setTimeout(() => onDone(q), 450);
-  }
 
   function runListening() {
     const nextAttempt = attempts + 1;
@@ -77,7 +74,7 @@ export default function SpeakGame({ word, thai, onDone }: GameProps) {
           setAttempts((prev) => Math.max(0, prev - 1));
           return;
         }
-        if (normalize(t) === normalize(word)) setState('correct');
+        if (normalizeSpokenText(t) === normalizeSpokenText(word)) setState('correct');
         else setState(nextAttempt >= 2 ? 'wrong2' : 'wrong1');
       },
     });

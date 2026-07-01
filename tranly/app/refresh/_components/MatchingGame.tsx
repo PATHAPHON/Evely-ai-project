@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import type { GameProps } from '../_lib/gameTypes';
 import { pickDistractors } from '../_lib/gameTypes';
 import { matchingQuality } from '../_lib/quality';
+import { shuffle } from '@/app/_lib/utils/shuffle';
 
 interface Pair {
   word: string;
@@ -12,15 +13,48 @@ interface Pair {
 }
 
 function shuffleIndices(n: number): number[] {
-  const arr = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+  return shuffle(Array.from({ length: n }, (_, i) => i));
 }
 
 type PairState = 'flash' | 'matched';
+
+function getButtonClasses(ps: PairState | undefined, isSel: boolean, isWrong: boolean) {
+  if (ps === 'flash' || ps === 'matched') {
+    return 'border-correct bg-correct/10 text-correct shadow-soft-sm opacity-40';
+  }
+  if (isWrong) {
+    return 'border-incorrect bg-incorrect/15 text-incorrect shadow-soft-sm';
+  }
+  if (isSel) {
+    return 'border-primary bg-primary-bg text-primary font-semibold shadow-soft-sm';
+  }
+  return 'border-border-color bg-card-bg text-foreground hover:bg-primary-bg/30 hover:border-primary/50';
+}
+
+function GameButton({
+  label, ps, isSel, isWrong, isShake, disabled, onClick,
+}: {
+  label: string;
+  ps: PairState | undefined;
+  isSel: boolean;
+  isWrong: boolean;
+  isShake: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const classes = getButtonClasses(ps, isSel, isWrong);
+  const shakeClass = isShake ? 'animate-shake' : '';
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex-1 py-6 rounded-2xl border text-center text-base font-semibold transition-all active:scale-98 cursor-pointer ${classes} ${shakeClass}`}
+    >
+      {label}
+    </button>
+  );
+}
 
 export default function MatchingGame({ word, thai, wordBank, onDone }: GameProps) {
   // Build the pair set once: target + up to 4 distractors (min 2 pairs total).
@@ -88,44 +122,6 @@ export default function MatchingGame({ word, thai, wordBank, onDone }: GameProps
       return;
     }
     setSelWord(i);
-  }
-
-  function getButtonClasses(ps: PairState | undefined, isSel: boolean, isWrong: boolean) {
-    if (ps === 'flash' || ps === 'matched') {
-      return 'border-correct bg-correct/10 text-correct shadow-soft-sm opacity-40';
-    }
-    if (isWrong) {
-      return 'border-incorrect bg-incorrect/15 text-incorrect shadow-soft-sm';
-    }
-    if (isSel) {
-      return 'border-primary bg-primary-bg text-primary font-semibold shadow-soft-sm';
-    }
-    return 'border-border-color bg-card-bg text-foreground hover:bg-primary-bg/30 hover:border-primary/50';
-  }
-
-  function GameButton({
-    label, ps, isSel, isWrong, isShake, disabled, onClick,
-  }: {
-    label: string;
-    ps: PairState | undefined;
-    isSel: boolean;
-    isWrong: boolean;
-    isShake: boolean;
-    disabled: boolean;
-    onClick: () => void;
-  }) {
-    const classes = getButtonClasses(ps, isSel, isWrong);
-    const shakeClass = isShake ? 'animate-shake' : '';
-
-    return (
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={`flex-1 py-6 rounded-2xl border text-center text-base font-semibold transition-all active:scale-98 cursor-pointer ${classes} ${shakeClass}`}
-      >
-        {label}
-      </button>
-    );
   }
 
   return (

@@ -1,4 +1,5 @@
 import type { useWordBank } from '@/app/_lib/hooks/useWordBank';
+import { shuffle } from '@/app/_lib/utils/shuffle';
 
 export type WordBank = ReturnType<typeof useWordBank>['words'];
 
@@ -26,11 +27,7 @@ export function pickDistractors(
   const pool = wordBank.filter(
     (w) => w.word.toLowerCase().trim() !== target && w.thai && w.thai.trim()
   );
-  // Fisher-Yates shuffle a copy
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
+  shuffle(pool);
   return pool.slice(0, Math.max(0, count)).map((w) => ({
     word: w.word,
     thai: w.thai as string,

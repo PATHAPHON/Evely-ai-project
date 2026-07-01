@@ -3,19 +3,15 @@
 import { useState, useEffect } from 'react';
 import type { GameProps } from '../_lib/gameTypes';
 import { typingQuality } from '../_lib/quality';
+import { useGameExit } from '../_lib/useGameExit';
 
 type AnswerState = 'idle' | 'correct' | 'wrong';
 
 export default function TypingGame({ word, thai, onDone }: GameProps) {
   const [input, setInput] = useState('');
   const [answerState, setAnswerState] = useState<AnswerState>('idle');
-  const [isExiting, setIsExiting] = useState(false);
   const [quality, setQuality] = useState(0);
-
-  function finish(q: number) {
-    setIsExiting(true);
-    setTimeout(() => onDone(q), 450);
-  }
+  const { isExiting, finish } = useGameExit(onDone);
 
   // Auto-advance after a correct answer's green glow.
   useEffect(() => {
