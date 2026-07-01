@@ -4,9 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/_lib/supabase/supabaseClient';
 import { useStrings } from '@/app/_lib/utils/strings';
-
-const fieldClass =
-  'w-full rounded-xl border border-border-color bg-background px-3.5 py-3 text-[15px] text-foreground outline-none transition-all focus:border-primary focus:shadow-soft-sm placeholder:text-foreground/40';
+import { AUTH_FIELD_CLASS as fieldClass, MIN_PASSWORD_LENGTH } from '../_lib/utils/fieldStyles';
 
 export default function UpdatePasswordPage() {
   const t = useStrings();
@@ -19,7 +17,7 @@ export default function UpdatePasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) { setError(t.auth.errorPasswordLength); return; }
+    if (password.length < MIN_PASSWORD_LENGTH) { setError(t.auth.errorPasswordLength); return; }
     if (password !== confirm) { setError(t.auth.errorPasswordMismatch); return; }
 
     setIsLoading(true);

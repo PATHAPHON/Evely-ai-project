@@ -6,10 +6,11 @@ import { useStrings } from "@/app/_lib/utils/strings";
 import { supabase } from "@/app/_lib/supabase/supabaseClient";
 import { useUserProfile } from "@/app/_lib/hooks/useUserProfile";
 import { DAILY_BUDGET_MICROBAHT } from "@/app/api/_lib/utils/tokenCost";
+import { computeUsagePct } from "@/app/_lib/utils/usage";
 import { useTheme } from "./_lib/hooks/useTheme";
 import { useShowTranslation } from "./_lib/hooks/useShowTranslation";
 import AccountCard from "./_components/AccountCard";
-import { Group, SettingsRow } from "./_components/SettingsList";
+import { Group, SettingsRow, ToggleSwitch } from "./_components/SettingsList";
 import AppShell from "@/app/_components/AppShell";
 
 function ProfilePageContent() {
@@ -26,10 +27,7 @@ function ProfilePageContent() {
   const usageLimit = isPremium
     ? DAILY_BUDGET_MICROBAHT.premium
     : DAILY_BUDGET_MICROBAHT.free;
-  const usagePct = Math.min(
-    100,
-    Math.round((energySpent / usageLimit) * 100) || 0
-  );
+  const usagePct = computeUsagePct(energySpent, usageLimit);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -57,11 +55,6 @@ function ProfilePageContent() {
   return (
     <AppShell title={t.profile.title} showNewChatButton={false} rightElement={infoButton}>
       <div className="relative flex-1 flex w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
-        <style>{`
-          @keyframes cardFadeInUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
-          .animate-card-fade-in { animation: cardFadeInUp 0.45s cubic-bezier(0.215,0.61,0.355,1) forwards; }
-        `}</style>
-
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
           <div className="animate-card-fade-in flex flex-col gap-3 pt-4 pb-12 max-w-md mx-auto w-full">
@@ -135,18 +128,11 @@ function ProfilePageContent() {
               <SettingsRow
                 title={t.profile.darkMode}
                 rightElement={
-                  <button
-                    type="button"
+                  <ToggleSwitch
+                    on={isDark}
                     onClick={toggleTheme}
-                    aria-label={isDark ? t.profile.themeToLight : t.profile.themeToDark}
-                    className="relative h-[28px] w-[52px] rounded-full border border-border-color transition-colors duration-200 cursor-pointer bg-card-bg"
-                  >
-                    <span
-                      className={`absolute top-[2px] h-[22px] w-[22px] rounded-full shadow-sm transition-all duration-200 ${
-                        isDark ? "left-[28px] bg-primary" : "left-[2px] bg-foreground/30"
-                      }`}
-                    />
-                  </button>
+                    label={isDark ? t.profile.themeToLight : t.profile.themeToDark}
+                  />
                 }
                 icon={
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -158,18 +144,11 @@ function ProfilePageContent() {
                 last
                 title={t.profile.showTranslation}
                 rightElement={
-                  <button
-                    type="button"
+                  <ToggleSwitch
+                    on={showTranslation}
                     onClick={toggleShowTranslation}
-                    aria-label={t.profile.showTranslation}
-                    className="relative h-[28px] w-[52px] rounded-full border border-border-color transition-colors duration-200 cursor-pointer bg-card-bg"
-                  >
-                    <span
-                      className={`absolute top-[2px] h-[22px] w-[22px] rounded-full shadow-sm transition-all duration-200 ${
-                        showTranslation ? "left-[28px] bg-primary" : "left-[2px] bg-foreground/30"
-                      }`}
-                    />
-                  </button>
+                    label={t.profile.showTranslation}
+                  />
                 }
                 icon={
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

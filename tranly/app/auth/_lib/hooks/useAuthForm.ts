@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/app/_lib/supabase/supabaseClient';
 import { useStrings } from '@/app/_lib/utils/strings';
 import { mapAuthError } from '../utils/authErrorMessage';
+import { MIN_PASSWORD_LENGTH } from '../utils/fieldStyles';
 
 type AuthMode = 'login' | 'register';
 
@@ -58,7 +59,7 @@ export function useAuthForm() {
     e.preventDefault();
 
     if (!email.includes('@')) { setError(t.auth.errorInvalidEmail); return; }
-    if (password.length < 6) { setError(t.auth.errorPasswordLength); return; }
+    if (password.length < MIN_PASSWORD_LENGTH) { setError(t.auth.errorPasswordLength); return; }
     if (password !== confirmPassword) { setError(t.auth.errorPasswordMismatch); return; }
     if (!tosAccepted) { setError(t.auth.tosError); return; }
 

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { useUserProfile } from "@/app/_lib/hooks/useUserProfile";
 import { DAILY_BUDGET_MICROBAHT } from "@/app/api/_lib/utils/tokenCost";
+import { computeUsagePct, usageBarColor, usageTextColor } from "@/app/_lib/utils/usage";
 import AppShell from "@/app/_components/AppShell";
 
 function UsagePageContent() {
@@ -13,17 +14,8 @@ function UsagePageContent() {
   const usageLimit = isPremium
     ? DAILY_BUDGET_MICROBAHT.premium
     : DAILY_BUDGET_MICROBAHT.free;
-  const usagePct = Math.min(
-    100,
-    Math.round((energySpent / usageLimit) * 100) || 0
-  );
-
-  const barColor =
-    usagePct >= 90
-      ? "bg-incorrect"
-      : usagePct >= 70
-        ? "bg-warning"
-        : "bg-primary";
+  const usagePct = computeUsagePct(energySpent, usageLimit);
+  const barColor = usageBarColor(usagePct);
 
   return (
     <AppShell
@@ -33,11 +25,6 @@ function UsagePageContent() {
       showNewChatButton={false}
     >
       <div className="relative flex-1 flex w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
-        <style>{`
-          @keyframes cardFadeInUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
-          .animate-card-fade-in { animation: cardFadeInUp 0.45s cubic-bezier(0.215,0.61,0.355,1) forwards; }
-        `}</style>
-
         <div className="flex-1 overflow-y-auto">
           <div className="animate-card-fade-in flex flex-col gap-4 pt-4 pb-12 max-w-md mx-auto w-full px-4">
 
@@ -76,15 +63,7 @@ function UsagePageContent() {
                     / {usageLimit.toLocaleString()}
                   </span>
                 </p>
-                <span
-                  className={`text-sm font-bold tabular-nums ${
-                    usagePct >= 90
-                      ? "text-incorrect"
-                      : usagePct >= 70
-                        ? "text-warning"
-                        : "text-primary"
-                  }`}
-                >
+                <span className={`text-sm font-bold tabular-nums ${usageTextColor(usagePct)}`}>
                   {usagePct}%
                 </span>
               </div>

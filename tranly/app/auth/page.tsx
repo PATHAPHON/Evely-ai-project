@@ -3,11 +3,7 @@
 import { Suspense } from "react";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { useAuthForm } from "./_lib/hooks/useAuthForm";
-
-const fieldClass =
-  "w-full rounded-xl border border-border-color bg-background px-3.5 py-3 text-[15px] text-foreground outline-none transition-all focus:border-primary focus:shadow-soft-sm placeholder:text-foreground/40";
-const labelClass =
-  "mb-2 block text-xs font-bold uppercase tracking-wide text-foreground/70";
+import { AUTH_FIELD_CLASS as fieldClass, AUTH_LABEL_CLASS as labelClass } from "./_lib/utils/fieldStyles";
 
 function AuthPageContent() {
   const t = useStrings();

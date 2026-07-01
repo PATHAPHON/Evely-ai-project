@@ -80,11 +80,6 @@ function EditProfilePageContent() {
       showNewChatButton={false}
     >
       <div className="relative flex-1 flex w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
-        <style>{`
-          @keyframes cardFadeInUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
-          .animate-card-fade-in { animation: cardFadeInUp 0.45s cubic-bezier(0.215,0.61,0.355,1) forwards; }
-        `}</style>
-
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
           <div className="animate-card-fade-in max-w-md mx-auto w-full px-4 py-6">

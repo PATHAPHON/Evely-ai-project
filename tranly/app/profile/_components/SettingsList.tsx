@@ -54,6 +54,30 @@ export function SettingsRow({
   );
 }
 
+export interface ToggleSwitchProps {
+  on: boolean;
+  onClick: () => void;
+  label: string;
+}
+
+/** Pill-shaped on/off switch used in settings rows. */
+export function ToggleSwitch({ on, onClick, label }: ToggleSwitchProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="relative h-[28px] w-[52px] rounded-full border border-border-color transition-colors duration-200 cursor-pointer bg-card-bg"
+    >
+      <span
+        className={`absolute top-[2px] h-[22px] w-[22px] rounded-full shadow-sm transition-all duration-200 ${
+          on ? "left-[28px] bg-primary" : "left-[2px] bg-foreground/30"
+        }`}
+      />
+    </button>
+  );
+}
+
 export function Group({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div className="mx-4 mt-4">
