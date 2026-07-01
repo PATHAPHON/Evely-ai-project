@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { BulbOutlined, EditOutlined, EnterOutlined } from '@ant-design/icons';
+import { Lightbulb, Pencil, CornerDownLeft } from 'lucide-react';
 import WordRenderer from '@/app/_components/WordRenderer';
+import { useStrings } from '@/app/_lib/utils/strings';
 
 export interface SuggestionOption {
   /** The answer text sent when this option is picked. */
@@ -35,6 +36,7 @@ export default function SuggestionOptions({
   onCollapse,
   disabled = false,
 }: SuggestionOptionsProps) {
+  const t = useStrings();
   const choices = options.slice(0, 3);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [typing, setTyping] = useState(false);
@@ -71,23 +73,23 @@ export default function SuggestionOptions({
   const rowBase =
     'flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left text-base font-medium transition-all';
   const badgeBase =
-    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gray-300/60 text-xs font-bold';
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-color text-xs font-bold text-foreground/70';
 
   return (
     <div className="px-2 pt-2">
       <div className="mb-2 flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
-          <BulbOutlined style={{ fontSize: 15 }} />
-          <span>เลือกหรือพิมพ์ตอบได้เลย</span>
+        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground/60">
+          <Lightbulb size={15} />
+          <span>{t.chat.suggestPrompt}</span>
         </div>
         {onCollapse && (
           <button
             type="button"
             onClick={onCollapse}
             disabled={disabled}
-            className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-xs text-primary hover:text-primary-hover font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            พับเก็บ
+            {t.chat.collapse}
           </button>
         )}
       </div>
@@ -104,8 +106,8 @@ export default function SuggestionOptions({
               aria-pressed={active}
               className={`${rowBase} ${
                 active
-                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                  : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202124] hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200'
+                  ? 'border-primary bg-primary-bg text-primary'
+                  : 'border-border-color bg-background hover:bg-card-bg/60 text-foreground'
               } ${
                 disabled
                   ? 'opacity-50 cursor-not-allowed'
@@ -118,7 +120,7 @@ export default function SuggestionOptions({
                   <WordRenderer text={option.text} textClassName="leading-tight" />
                 </span>
                 {option.subtext && (
-                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 text-left">
+                  <span className="text-sm font-normal text-foreground/60 text-left">
                     {option.subtext}
                   </span>
                 )}
@@ -130,9 +132,9 @@ export default function SuggestionOptions({
         {/* 4th row: inline text field for a custom answer. */}
         {typing ? (
           <div
-            className={`${rowBase} border-dashed border-gray-300 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-100`}
+            className={`${rowBase} border-dashed border-border-color bg-transparent text-foreground`}
           >
-            <span className={`${badgeBase} text-gray-400`}>D</span>
+            <span className={`${badgeBase} text-foreground/40`}>D</span>
             <input
               ref={inputRef}
               type="text"
@@ -146,9 +148,9 @@ export default function SuggestionOptions({
               }}
               maxLength={200}
               disabled={disabled}
-              placeholder="พิมพ์คำตอบของคุณ..."
-              aria-label="พิมพ์คำตอบเอง"
-              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 disabled:cursor-not-allowed"
+              placeholder={t.chat.customAnswerPlaceholder}
+              aria-label={t.chat.customAnswerAria}
+              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/40 disabled:cursor-not-allowed"
             />
           </div>
         ) : (
@@ -156,16 +158,16 @@ export default function SuggestionOptions({
             type="button"
             onClick={startTyping}
             disabled={disabled}
-            className={`${rowBase} border-dashed border-gray-300 dark:border-gray-600 bg-transparent text-gray-600 dark:text-gray-400 ${
+            className={`${rowBase} border-dashed border-border-color bg-transparent text-foreground/70 ${
               disabled
                 ? 'opacity-50 cursor-not-allowed'
-                : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                : 'cursor-pointer hover:bg-card-bg/50'
             }`}
           >
-            <span className={`${badgeBase} text-gray-400`}>D</span>
+            <span className={`${badgeBase} text-foreground/40`}>D</span>
             <span className="flex items-center gap-1.5">
-              <EditOutlined style={{ fontSize: 14 }} />
-              พิมพ์คำตอบเอง
+              <Pencil size={14} />
+              {t.chat.customAnswerBtn}
             </span>
           </button>
         )}
@@ -177,18 +179,18 @@ export default function SuggestionOptions({
           type="button"
           onClick={onSkip}
           disabled={disabled}
-          className="rounded-xl px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 transition-colors hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="rounded-xl px-4 py-2 text-sm font-bold text-foreground/60 transition-colors hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          ข้าม
+          {t.chat.skip}
         </button>
         <button
           type="button"
           onClick={submit}
           disabled={disabled || !answer}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2 text-sm font-bold text-white dark:text-gray-900 transition-colors hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
-          ส่งคำตอบ
-          <EnterOutlined style={{ fontSize: 13 }} />
+          {t.chat.submitAnswer}
+          <CornerDownLeft size={13} />
         </button>
       </div>
     </div>

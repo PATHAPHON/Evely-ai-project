@@ -30,7 +30,6 @@ describe("rowToWordBankEntry", () => {
     id: "id-1",
     word: "Apple",
     thai: "แอปเปิล",
-    ipa: "ˈæp.əl",
     part_of_speech: "noun",
   };
 
@@ -64,9 +63,8 @@ describe("rowToWordBankEntry", () => {
   });
 
   it("nulls out empty string fields", () => {
-    const entry = rowToWordBankEntry({ id: "x", word: "", thai: "", ipa: "", part_of_speech: "" }, "k");
+    const entry = rowToWordBankEntry({ id: "x", word: "", thai: "", part_of_speech: "" }, "k");
     expect(entry.thai).toBeNull();
-    expect(entry.ipa).toBeNull();
     expect(entry.partOfSpeech).toBeNull();
   });
 });

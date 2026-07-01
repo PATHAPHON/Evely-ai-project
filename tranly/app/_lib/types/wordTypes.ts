@@ -16,22 +16,18 @@ export interface BaseWordRecord {
   createdAt: number;
 }
 
-/** Word record for English: includes the word and IPA phonetic transcription. */
+/** Word record for English. */
 export interface EnglishWordRecord extends BaseWordRecord {
   language: 'english';
   word: string;
-  ipa: string;
 }
 
 /** Word record type (English only). */
 export type WordRecord = EnglishWordRecord;
 
 /**
- * Record handed off to the `/word-detail` page via sessionStorage.
- *
- * This is the input contract of the word-detail view. It is shared by
- * `/words`, the inline `WordRenderer` (used in chat), and the word-detail
- * page itself.
+ * Input contract of the word-detail popup (`WordDetailPopup`).
+ * Shared by `/words` and the inline `WordRenderer` (used in chat).
  */
 export interface FeedWordRecord {
   id: string;
@@ -43,8 +39,4 @@ export interface FeedWordRecord {
   partOfSpeech?: string;
   // English fields
   word?: string;
-  ipa?: string;
 }
-
-/** sessionStorage key used to hand a word off to the `/word-detail` page. */
-export const DETAIL_WORD_STORAGE_KEY = "tarnly:detail-word";

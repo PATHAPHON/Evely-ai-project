@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useActiveLanguage } from '@/app/_lib/contexts/ActiveLanguageContext';
@@ -12,10 +12,13 @@ import { useSTT } from '../_lib/hooks/useSTT';
 import { useSuggestionPanel } from '../_lib/hooks/useSuggestionPanel';
 import ChatList from './ChatList';
 import ChatInput from './ChatInput';
+import VoiceMode from './VoiceMode';
 import SuggestionOptions from './SuggestionOptions';
 import { useUserProfile } from '@/app/_lib/hooks/useUserProfile';
+import { useBudgetExhausted } from '@/app/_lib/hooks/useBudgetExhausted';
 import { useStrings } from '@/app/_lib/utils/strings';
 import type { SessionConfig } from '../_lib/types/types';
+import { useToast } from '@/app/_components/Toast';
 
 import { Lightbulb } from 'lucide-react';
 import GeminiLayout from '@/app/_components/GeminiLayout';
@@ -32,9 +35,12 @@ interface ChatScreenProps {
 export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps) {
   const router = useRouter();
   const t = useStrings();
+  const { showToast } = useToast();
+  const [voiceMode, setVoiceMode] = useState(false);
 
   const { activeLanguage } = useActiveLanguage();
   const { displayName, isPremium } = useUserProfile();
+  const { exhausted: budgetExhausted } = useBudgetExhausted();
   const {
     messages: sessionMessages,
     sendMessage: sendSessionMessage,
@@ -55,7 +61,15 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
     isListening,
     transcript,
     isSupported: sttSupported,
+    error: sttError,
+    isTranscribing,
   } = useSTT();
+
+  useEffect(() => {
+    if (sttError) {
+      showToast(sttError, 'error');
+    }
+  }, [sttError, showToast]);
 
   // Start a fresh open-ended session.
   const startOpenSession = useCallback(() => {
@@ -83,17 +97,21 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
     }
   }, [sessionParam, activeLanguage, restoreSession, startOpenSession]);
 
-  // On the first message of a brand-new session, reflect the session id in the
-  // URL immediately. Use history.replaceState (not router) so the screen does
-  // NOT remount into the /chat/[id] route — that would re-restore from the DB
-  // and wipe the in-memory conversation. A real visit/refresh of /chat/[id]
-  // still restores normally.
+  // Reflect the session id in the URL, but only once the first exchange is
+  // durably saved. replaceState across route segments (/new → /chat/[id]) makes
+  // Next re-sync the router and remount this screen, which re-restores from the
+  // DB; firing before the save completes would load an empty session and wipe
+  // the in-memory conversation. Gating on a saved assistant reply guarantees the
+  // restore finds real data.
   useEffect(() => {
-    if (!sessionParam && sessionId && sessionMessages.length > 0) {
+    const hasSavedReply =
+      !isSessionLoading &&
+      sessionMessages.some((m) => m.role === 'assistant' && m.status === 'sent');
+    if (!sessionParam && sessionId && hasSavedReply) {
       restoredRef.current = sessionId;
       window.history.replaceState(null, '', `/chat/${sessionId}`);
     }
-  }, [sessionParam, sessionId, sessionMessages.length]);
+  }, [sessionParam, sessionId, isSessionLoading, sessionMessages]);
 
   const handleSendMessage = useCallback(
     async (text: string) => {
@@ -167,6 +185,7 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
       isLoading={isSessionLoading}
       sttSupported={sttSupported}
       isListening={isListening}
+      isTranscribing={isTranscribing}
       onStartListening={handleStartListening}
       onStopListening={stopListening}
       transcript={transcript}
@@ -174,17 +193,24 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
       onRemoveWord={noopRemoveWord}
       skillsEnabled
       resetKey={inputResetKey}
+      disabled={budgetExhausted}
+      placeholder={budgetExhausted ? 'งบ AI วันนี้หมดแล้ว ใช้ต่อพรุ่งนี้' : undefined}
+      onVoiceMode={budgetExhausted ? undefined : () => setVoiceMode(true)}
     />
   );
 
   return (
     <GeminiLayout onNewChat={handleNewChat}>
       <div
-        className={`flex-1 flex flex-col overflow-hidden relative ${
+        className="flex-1 flex flex-col overflow-hidden relative"
+        style={
           isEmptyChat
-            ? 'bg-gradient-to-t from-primary-bg via-background via-25% to-background'
-            : ''
-        }`}
+            ? {
+                background:
+                  'radial-gradient(125% 125% at 50% 10%, var(--background) 50%, color-mix(in srgb, var(--primary) 55%, var(--background)) 100%)',
+              }
+            : undefined
+        }
       >
         {isEmptyChat ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 text-center">
@@ -213,7 +239,15 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
             <div className={`transition-all duration-200 ease-out transform ${
               isAnimating ? 'opacity-0 translate-y-2 scale-[0.99]' : 'opacity-100 translate-y-0 scale-100'
             }`}>
-              {optionsMode && !isOptionsCollapsed ? (
+              {voiceMode ? (
+                <VoiceMode
+                  speechLang={speechLang}
+                  messages={sessionMessages}
+                  isLoading={isSessionLoading}
+                  onSend={handleSendMessage}
+                  onClose={() => setVoiceMode(false)}
+                />
+              ) : optionsMode && !isOptionsCollapsed ? (
                 <div className="rounded-[28px] bg-card-bg p-2 border border-border-color shadow-soft-md">
                   <SuggestionOptions
                     options={currentSuggestions.map((s) => ({

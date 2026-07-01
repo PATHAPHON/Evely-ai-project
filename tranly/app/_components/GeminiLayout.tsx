@@ -1,21 +1,23 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
-  MenuOutlined,
-  DeleteOutlined,
-  BookOutlined,
-  SettingOutlined,
-  EditOutlined,
-  MessageOutlined,
-  CrownOutlined,
-  PlayCircleOutlined,
-} from '@ant-design/icons';
+  Menu,
+  Book,
+  MoreHorizontal,
+  Pencil,
+  MessageCircle,
+  PlayCircle,
+  AlertTriangle,
+} from 'lucide-react';
 import { useUserProfile } from '@/app/_lib/hooks/useUserProfile';
+import { useBudgetExhausted, clearBudgetExhausted } from '@/app/_lib/hooks/useBudgetExhausted';
+import { DAILY_BUDGET_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 import { useConversationHistory } from '@/app/chat/_lib/hooks/useConversationHistory';
 import { useStrings } from '@/app/_lib/utils/strings';
-import { Drawer } from 'antd';
+import { supabase } from '@/app/_lib/supabase/supabaseClient';
+import SlothMascot from '@/app/profile/_components/SlothMascot';
 
 interface GeminiLayoutProps {
   children: React.ReactNode;
@@ -23,6 +25,10 @@ interface GeminiLayoutProps {
   onNewChat?: () => void;
   showNewChatButton?: boolean;
   rightElement?: React.ReactNode;
+  /** When true, replaces the hamburger menu with a back arrow. */
+  showBackButton?: boolean;
+  /** Path for the back button. Defaults to router.back(). */
+  backPath?: string;
 }
 
 interface DrawerContentProps {
@@ -33,21 +39,36 @@ interface DrawerContentProps {
 function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { displayName, avatarInitial } = useUserProfile();
-  const { sessions, loadSessions, deleteSession } = useConversationHistory();
+  const { displayName } = useUserProfile();
+  const { sessions, loadSessions } = useConversationHistory();
   const t = useStrings();
+  const [email, setEmail] = useState<string | null>(null);
 
   const navLinks = [
-    { label: t.drawer.navChat, path: '/chat', icon: <MessageOutlined style={{ fontSize: 18 }} /> },
-    { label: t.drawer.navWords, path: '/words', icon: <BookOutlined style={{ fontSize: 18 }} /> },
-    { label: t.drawer.navGem, path: '/gem', icon: <CrownOutlined style={{ fontSize: 18 }} /> },
-    { label: t.drawer.navRefresh, path: '/refresh', icon: <PlayCircleOutlined style={{ fontSize: 18 }} /> },
+    { label: t.drawer.navChat, path: '/recents', icon: <MessageCircle size={18} stroke="url(#nav-icon-grad)" /> },
+    { label: t.drawer.navWords, path: '/words', icon: <Book size={18} stroke="url(#nav-icon-grad)" /> },
+    { label: t.drawer.navRefresh, path: '/refresh', icon: <PlayCircle size={18} stroke="url(#nav-icon-grad)" /> },
   ];
 
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!active) return;
+        setEmail(user?.email || null);
+      } catch (err) {
+        console.error("Error checking user in DrawerContent:", err);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleNav = (path: string) => {
     setDrawerOpen(false);
@@ -59,18 +80,26 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
     if (onNewChat) {
       onNewChat();
     } else {
-      router.push('/chat');
+      router.push('/new');
     }
   };
 
-  const currentSession = searchParams.get('session');
-
   return (
     <div className="flex flex-col h-full">
+      {/* Hidden SVG Gradient Definition for Sidebar Icons */}
+      <svg width="0" height="0" className="absolute pointer-events-none" style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <linearGradient id="nav-icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4f8df7" />
+            <stop offset="100%" stopColor="#1b62d1" />
+          </linearGradient>
+        </defs>
+      </svg>
+
       {/* Brand Header */}
       <div className="flex items-center gap-2 mb-4 px-2">
-        <span className="text-xl font-bold tracking-tight text-gray-800 dark:text-white font-sans">
-          Gemini
+        <span className="text-xl font-black tracking-tight font-sans bg-gradient-to-br from-[#4f8df7] to-[#1b62d1] bg-clip-text text-transparent">
+          {t.common.appName}
         </span>
       </div>
 
@@ -78,29 +107,29 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
       <button
         type="button"
         onClick={handleNewChatClick}
-        className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-full text-[15px] font-medium transition-colors duration-200 cursor-pointer mb-5 text-[#444746] dark:text-[#c4c7c5] hover:bg-[#e1e3e1]/50 dark:hover:bg-[#3c4043]/40 ${
-          pathname === '/chat' && !currentSession
-            ? 'bg-[#e9eef6] text-[#1a1a1a] font-semibold dark:bg-[#004a77]/30 dark:text-[#c2e7ff]'
-            : ''
+        className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-xl text-[15px] font-medium transition-colors duration-200 cursor-pointer mb-5 ${
+          pathname === '/new'
+            ? 'bg-primary-bg text-primary font-semibold'
+            : 'text-foreground/75 hover:bg-card-bg/60 hover:text-foreground'
         }`}
       >
-        <EditOutlined style={{ fontSize: 18 }} />
+        <Pencil size={18} stroke="url(#nav-icon-grad)" />
         <span>{t.drawer.newChat}</span>
       </button>
 
       {/* Core Navigation Links */}
       <div className="flex flex-col gap-1">
         {navLinks.map((link) => {
-          const isActive = pathname === link.path && !(link.path === '/chat' && currentSession);
+          const isActive = pathname === link.path;
           return (
             <button
               key={link.path}
               type="button"
               onClick={() => handleNav(link.path)}
-              className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-full text-[15px] font-medium transition-colors duration-200 cursor-pointer ${
+              className={`w-full flex items-center gap-3.5 px-5 py-2.5 rounded-xl text-[15px] font-medium transition-colors duration-200 cursor-pointer ${
                 isActive
-                  ? 'bg-[#e9eef6] text-[#1a1a1a] font-semibold dark:bg-[#004a77]/30 dark:text-[#c2e7ff]'
-                  : 'text-[#444746] dark:text-[#c4c7c5] hover:bg-[#e1e3e1]/50 dark:hover:bg-[#3c4043]/40'
+                  ? 'bg-primary-bg text-primary font-semibold'
+                  : 'text-foreground/75 hover:bg-card-bg/60 hover:text-foreground'
               }`}
             >
               {link.icon}
@@ -112,83 +141,123 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
 
       {/* Recent Conversations */}
       {sessions.length > 0 && (
-        <div className="flex flex-col gap-1 mt-6 flex-1 min-h-0 overflow-y-auto pt-4 border-t border-gray-200/50 dark:border-gray-800/40">
-          <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-5 mb-1.5">
+        <div className="flex flex-col gap-1 mt-6 flex-1 min-h-0 overflow-y-auto pt-4">
+          <p className="text-[11px] font-bold text-foreground/60 uppercase tracking-wider px-5 mb-1.5">
             {t.drawer.recent}
           </p>
           <div className="flex flex-col gap-0.5">
-            {sessions.slice(0, 15).map((s) => {
-              const isSessionActive = pathname === '/chat' && currentSession === s.id;
+            {sessions.slice(0, 8).map((s) => {
+              const isSessionActive = pathname === `/chat/${s.id}`;
               return (
                 <div
                   key={s.id}
-                  className={`group relative flex items-center w-full rounded-full transition-colors duration-200 px-5 py-2 text-[15px] cursor-pointer ${
+                  className={`group relative flex items-center w-full rounded-xl transition-colors duration-200 px-5 py-2 text-[15px] cursor-pointer ${
                     isSessionActive
-                      ? 'bg-[#e9eef6] text-[#1a1a1a] font-semibold dark:bg-[#004a77]/30 dark:text-[#c2e7ff]'
-                      : 'text-[#444746] dark:text-[#c4c7c5] hover:bg-[#e1e3e1]/50 dark:hover:bg-[#3c4043]/40'
+                      ? 'bg-primary-bg text-primary font-semibold'
+                      : 'text-foreground/75 hover:bg-card-bg/60 hover:text-foreground'
                   }`}
                 >
                   <span
                     onClick={() => {
                       setDrawerOpen(false);
-                      router.push(`/chat?session=${s.id}`);
+                      router.push(`/chat/${s.id}`);
                     }}
-                    className="flex-1 truncate text-left pr-6 font-normal"
+                    className="flex-1 truncate text-left font-normal"
                   >
                     {s.topic || t.drawer.untitledChat}
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void deleteSession(s.id);
-                    }}
-                    className="absolute right-3 opacity-0 group-hover:opacity-100 hover:text-red-500 p-1 rounded-full transition-all cursor-pointer bg-white/95 dark:bg-[#1e1f20]/95 shadow-sm"
-                    aria-label="Delete history"
-                  >
-                    <DeleteOutlined style={{ fontSize: 11 }} />
-                  </button>
                 </div>
               );
             })}
+            {/* All chats → full recents page */}
+            <button
+              type="button"
+              onClick={() => {
+                setDrawerOpen(false);
+                router.push('/recents');
+              }}
+              className={`flex items-center gap-3.5 w-full rounded-xl px-5 py-2 text-[15px] font-medium transition-colors duration-200 cursor-pointer ${
+                pathname === '/recents'
+                  ? 'bg-primary-bg text-primary font-semibold'
+                  : 'text-primary hover:bg-card-bg/60'
+              }`}
+            >
+              <MoreHorizontal size={18} className="rounded-full border border-current p-0.5" />
+              <span>{t.drawer.allChats}</span>
+            </button>
           </div>
         </div>
       )}
 
       {/* User Profile Footer */}
-      <div className="mt-auto border-t border-gray-200/50 dark:border-gray-800/40 pt-4 flex items-center justify-between gap-3">
+      <div className="mt-auto pt-4">
         <button
           type="button"
           onClick={() => handleNav('/profile')}
-          className={`flex items-center gap-3 min-w-0 text-left p-1.5 rounded-full transition-all cursor-pointer flex-1 ${
+          className={`flex items-center gap-3.5 min-w-0 text-left px-4 py-3.5 w-full rounded-2xl border border-border-color bg-card-bg shadow-soft-sm transition-all cursor-pointer active:scale-[0.99] ${
             pathname === '/profile'
-              ? 'bg-[#e9eef6] text-[#1a1a1a] dark:bg-[#004a77]/30 dark:text-[#c2e7ff] font-semibold'
-              : 'hover:bg-[#e1e3e1]/50 dark:hover:bg-[#3c4043]/40 text-[#444746] dark:text-[#c4c7c5]'
+              ? 'border-primary/40 bg-primary-bg/10 font-semibold'
+              : 'text-foreground/80 hover:bg-card-bg/70'
           }`}
         >
-          <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 dark:from-pink-600 dark:to-rose-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-            {avatarInitial}
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary-bg bg-primary-bg/40">
+            <SlothMascot size={34} />
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-semibold truncate leading-tight">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-extrabold text-foreground leading-tight">
               {displayName}
-            </span>
-            <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-1 py-0.5 rounded w-max mt-0.5 tracking-wider">
-              PRO
-            </span>
+            </p>
+            <p className="truncate text-xs text-foreground/70 leading-normal">{email || ''}</p>
           </div>
+          <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold bg-foreground text-background">
+            {t.profile.badgeMember}
+          </span>
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            setDrawerOpen(false);
-            router.push('/profile');
-          }}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-[#e1e3e1]/50 dark:hover:bg-[#3c4043]/40 hover:text-gray-800 dark:hover:text-gray-200 transition-all cursor-pointer active:scale-95 flex-shrink-0"
-          aria-label={t.drawer.settingsAria}
-        >
-          <SettingOutlined style={{ fontSize: 18 }} />
-        </button>
+      </div>
+    </div>
+  );
+}
+
+function BudgetExhaustedBanner() {
+  const { exhausted } = useBudgetExhausted();
+  const { isPremium, energySpent } = useUserProfile();
+  const router = useRouter();
+
+  // ponytail: localStorage flag คือ cache เพื่อแจ้งทันทีตอนเจอ 429
+  // ถ้า usage จริงจาก server ยังไม่เต็ม แปลว่า flag ค้าง → ล้างทิ้ง ไม่ต้องโชว์
+  const limit = isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+  const reallyExhausted = exhausted && energySpent >= limit;
+  useEffect(() => {
+    if (exhausted && !reallyExhausted) clearBudgetExhausted();
+  }, [exhausted, reallyExhausted]);
+
+  if (!reallyExhausted) return null;
+
+  return (
+    <div className="px-4 pb-2 z-20">
+      <div className="mx-auto max-w-2xl rounded-2xl border border-incorrect/25 bg-incorrect/5 p-4 shadow-soft-sm">
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle className="text-incorrect mt-0.5 shrink-0" size={18} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-incorrect">งบ AI วันนี้หมดแล้ว</p>
+            <p className="mt-0.5 text-xs text-foreground/60">งบจะรีเซ็ตเที่ยงคืนนี้</p>
+
+            {/* หลอด 100% */}
+            <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-border-color">
+              <div className="h-full w-full rounded-full bg-incorrect" />
+            </div>
+
+            {!isPremium && (
+              <button
+                type="button"
+                onClick={() => router.push('/profile')}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-bg px-3.5 py-1.5 text-xs font-bold text-primary hover:bg-primary-bg/80 cursor-pointer"
+              >
+                อัปเกรด Premium เพื่อใช้งานต่อ
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -199,40 +268,60 @@ export default function GeminiLayout({
   title,
   onNewChat,
   rightElement,
+  showBackButton,
+  backPath,
 }: GeminiLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const t = useStrings();
 
   const getPageTitle = () => {
     if (title) return title;
-    if (pathname === '/chat') return '';
-    if (pathname === '/words') return 'คำศัพท์สะสม';
-    if (pathname === '/profile') return 'โปรไฟล์ของคุณ';
-    return 'Tarnly';
+    if (pathname === '/new' || pathname.startsWith('/chat/')) return '';
+    if (pathname === '/words') return t.layout.wordsTitle;
+    if (pathname === '/profile') return t.layout.profileTitle;
+    return t.common.appName;
   };
 
   return (
-    <div className="flex flex-col h-dvh text-gray-900 dark:text-gray-100 relative font-sans select-none">
+    <div className="flex flex-col h-dvh bg-background text-foreground relative font-sans select-none">
       {/* Header */}
       <header
         className="flex items-center justify-between gap-3 px-4 pb-3 z-30"
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
       >
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 dark:text-gray-200 transition-all cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95"
-          aria-label="เมนูหลัก"
-        >
-          <MenuOutlined style={{ fontSize: 16 }} />
-        </button>
+        {showBackButton ? (
+          <button
+            type="button"
+            onClick={() => backPath ? router.push(backPath) : router.back()}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-foreground/80 transition-all cursor-pointer hover:bg-card-bg active:scale-95"
+            aria-label={t.layout.backAria}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-foreground/80 transition-all cursor-pointer hover:bg-card-bg active:scale-95"
+            aria-label={t.layout.menuAria}
+          >
+            <Menu size={16} />
+          </button>
+        )}
 
-        <span className="text-base font-bold text-gray-900 dark:text-white">
+        <span className={`text-base font-bold ${getPageTitle() === t.common.appName ? 'bg-gradient-to-br from-[#4f8df7] to-[#1b62d1] bg-clip-text text-transparent font-extrabold' : 'text-foreground'}`}>
           {getPageTitle()}
         </span>
 
         {rightElement ? rightElement : <div className="w-10 h-10" />}
       </header>
+
+      {/* Budget-exhausted banner (shows on every page using this layout) */}
+      <BudgetExhaustedBanner />
 
       {/* Main content body */}
       <main className="flex-1 overflow-y-auto relative flex flex-col min-h-0">
@@ -240,24 +329,26 @@ export default function GeminiLayout({
       </main>
 
       {/* Gemini Style Sidebar Drawer */}
-      <Drawer
-        placement="left"
-        onClose={() => setDrawerOpen(false)}
-        open={drawerOpen}
-        closable={false}
-        destroyOnClose={true}
-        styles={{
-          body: { padding: '24px 16px', background: 'transparent' },
-          wrapper: { borderTopRightRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden' },
-          content: { borderTopRightRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden' },
-        }}
-        width={280}
-        className="dark:bg-[#1e1f20] bg-[#f0f4f9] text-gray-900 dark:text-gray-100 [&_.ant-drawer-content]:bg-[#f0f4f9] dark:[&_.ant-drawer-content]:bg-[#1e1f20]"
+      {/* Backdrop */}
+      <div
+        onClick={() => setDrawerOpen(false)}
+        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-300 ${
+          drawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      />
+      {/* Panel */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[280px] overflow-hidden rounded-r-2xl bg-card-bg text-foreground shadow-soft-xl transition-transform duration-300 ease-out ${
+          drawerOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ padding: '24px 16px' }}
       >
-        <Suspense fallback={<div className="p-4 text-center text-xs text-gray-400">Loading menu...</div>}>
-          <DrawerContent setDrawerOpen={setDrawerOpen} onNewChat={onNewChat} />
-        </Suspense>
-      </Drawer>
+        {drawerOpen && (
+          <Suspense fallback={<div className="p-4 text-center text-xs text-gray-400">{t.layout.loadingMenu}</div>}>
+            <DrawerContent setDrawerOpen={setDrawerOpen} onNewChat={onNewChat} />
+          </Suspense>
+        )}
+      </aside>
     </div>
   );
 }

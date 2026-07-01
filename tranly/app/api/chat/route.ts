@@ -1,7 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { buildContext } from './buildContext';
 import { LANG_PROMPT, isValidTargetLanguage } from '@/app/api/_lib/utils/languagePrompt';
-import { getRequestUser, unauthorizedResponse, consumeChatQuota } from '@/app/api/_lib/utils/requireUser';
+import {
+  getRequestUser,
+  unauthorizedResponse,
+  checkBudget,
+  debitBudget,
+  budgetExhaustedResponse,
+} from '@/app/api/_lib/utils/requireUser';
+import { TOKEN_COST_MICROBAHT, DAILY_BUDGET_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
 import type {
   ChatRequest,
@@ -11,9 +18,13 @@ import type {
   ChatMessage,
 } from '@/app/chat/_lib/types/types';
 
-const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
+// ponytail: LLM call can take 30s; without this the serverless gateway 504s
+// at its default cap (10s on Vercel hobby) before our own timeout fires.
+export const maxDuration = 60;
+
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_MODEL = 'meta-llama/llama-3.1-8b-instruct';
 const API_TIMEOUT_MS = 30_000;
-const DAILY_CHAT_LIMIT = 15;
 
 const ERROR_MESSAGES: Record<ChatErrorType, string> = {
   invalid_input: 'Invalid input.',
@@ -33,11 +44,16 @@ function errorResponse(
   );
 }
 
-/**
- * Build the system prompt based on language.
- */
-function buildSystemPrompt(language: TargetLanguage): string {
+function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string {
   const lang = LANG_PROMPT[language];
+
+  const suggestionsSection = isPremium
+    ? `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction).\n\n`
+    : '';
+
+  const suggestionsSchema = isPremium
+    ? `  "suggestions": [\n    { "englishText": "<a reply the user could send, in ${lang.script}>" }\n  ]\n`
+    : `  "suggestions": []\n`;
 
   return (
     `You are a ${lang.label} friend having an ongoing, casual text chat with the user.\n\n` +
@@ -45,47 +61,33 @@ function buildSystemPrompt(language: TargetLanguage): string {
     `The user may write in ${lang.label}, Thai, or English — understand their meaning either way, but ALWAYS reply in ${lang.label}.\n\n` +
     `Speak naturally like in a real conversation — medium length (3–5 sentences), using a casual or polite tone and normal everyday expressions. Share more details and elaborate on topics.\n\n` +
     `OPEN-ENDED QUESTION RULE: The last sentence of your reply (the last item in your "sentences" array) MUST always be a friendly, natural, open-ended question in ${lang.label} related to the conversation flow to keep the conversation active (e.g. asking how they feel, what they think, what they did next, etc.).\n\n` +
-    `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction).\n\n` +
+    suggestionsSection +
     `Respond with ONLY a valid JSON object — no prose, no markdown, no code fences, no text before or after it. Exactly this structure:\n` +
     `{\n` +
     `  "sentences": [\n` +
     `    {\n` +
-    `      "englishText": "<sentence in ${lang.script}>",\n` +
-    `      "reading": "<${lang.readingDesc}, e.g. ${lang.readingExample}>",\n` +
-    `      "romanization": "<${lang.romanizationDesc}>",\n` +
-    `      "translation": "<Thai meaning of this sentence>",\n` +
-    `      "english": "<English meaning of this sentence>",\n` +
-    `      "englishPhrases": ["<the same English meaning split into ordered, meaningful chunks>"]\n` +
+    `      "englishText": "<sentence in ${lang.script}>"\n` +
     `    }\n` +
     `  ],\n` +
-    `  "suggestions": [\n` +
-    `    { "englishText": "<a reply the user could send, in ${lang.script}>", "translation": "<its Thai meaning>" }\n` +
-    `  ]\n` +
+    suggestionsSchema +
     `}\n\n` +
     `RULES:\n` +
     `- "sentences" is an array of sentence objects, splitting your reply into natural, shorter sentences.\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
     `- The "englishText" field in each sentence always holds the ${lang.label} text\n` +
-    `- "suggestions" are replies for the USER to choose from (${lang.label} + Thai meaning), NOT your reply\n` +
-    `- "reading" = ${lang.readingDesc}, NOT a translation\n` +
-    `- "englishPhrases" splits the "english" meaning into ordered chunks of 1-3 words each, grouping natural units together (collocations like "good day", phrasal verbs like "up to", "article + noun" like "a book", greetings like "Hey there"). Each chunk MUST keep any punctuation attached at its END (e.g. "Hey there!", "from you."). NEVER start a chunk with punctuation and NEVER make a chunk that is only punctuation. Joining the chunks with single spaces MUST reproduce "english" exactly. Example: english "Hey there! Good to hear from you." → englishPhrases ["Hey there!", "Good to", "hear from you."].\n` +
-    `- Do NOT add any text before or after the JSON`
+    `- "suggestions" are replies for the USER to choose from (in ${lang.label}), NOT your reply\n` +
+    `- Reply ONLY in ${lang.label}. Do NOT add Thai, translations, or any text before or after the JSON`
   );
 }
 
-/**
- * Validate that the request body has the expected shape for a chat request.
- */
 function validateInput(body: unknown): ChatRequest | null {
   if (typeof body !== 'object' || body === null) return null;
 
   const record = body as Record<string, unknown>;
 
-  // messages must be a non-empty array
   if (!Array.isArray(record.messages) || record.messages.length === 0)
     return null;
 
-  // Each message must have role and content
   for (const msg of record.messages) {
     if (typeof msg !== 'object' || msg === null) return null;
     const m = msg as Record<string, unknown>;
@@ -93,7 +95,6 @@ function validateInput(body: unknown): ChatRequest | null {
     if (typeof m.content !== 'string') return null;
   }
 
-  // language is optional; default to English.
   const language: TargetLanguage = isValidTargetLanguage(record.language)
     ? record.language
     : 'english';
@@ -107,9 +108,17 @@ function validateInput(body: unknown): ChatRequest | null {
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ChatSuccessResponse | ChatErrorResponse> | Response> {
-  if (!await getRequestUser()) return unauthorizedResponse();
+  const user = await getRequestUser();
+  if (!user) return unauthorizedResponse();
 
-  // Parse request body
+  const { isPremium } = user;
+  const limit = isPremium
+    ? DAILY_BUDGET_MICROBAHT.premium
+    : DAILY_BUDGET_MICROBAHT.free;
+
+  const hasBudget = await checkBudget(limit);
+  if (!hasBudget) return budgetExhaustedResponse();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -117,7 +126,6 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  // Validate input
   const input = validateInput(body);
   if (!input) {
     return errorResponse('invalid_input', 400);
@@ -125,31 +133,20 @@ export async function POST(
 
   const { messages, language } = input;
 
-  // Enforce the per-user daily chat quota (atomic, resets at the first call of a new day).
-  if (await consumeChatQuota(DAILY_CHAT_LIMIT) === null) {
-    return errorResponse('rate_limit', 429);
-  }
-
-  // Read custom API key and model from request headers (user-provided config).
   const customApiKey = request.headers.get('x-custom-api-key');
   const customModel = request.headers.get('x-custom-model');
 
-  const apiKey = customApiKey || process.env.KKU_API_KEY;
+  const apiKey = customApiKey || process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 401);
   }
 
-  // Build system prompt
-  const systemPrompt = buildSystemPrompt(language ?? 'english');
+  const systemPrompt = buildSystemPrompt(language ?? 'english', isPremium);
 
-  // Build conversation context from messages (up to 20 most recent)
-  // Convert ChatMessagePayload[] to ChatMessage[] for buildContext
   const chatMessages: ChatMessage[] = messages.map((msg, index) => ({
     id: String(index),
     role: msg.role,
     englishText: msg.role === 'assistant' ? msg.content : '',
-    reading: '',
-    romanization: '',
     translation: '',
     english: '',
     rawText: msg.role === 'user' ? msg.content : '',
@@ -159,11 +156,6 @@ export async function POST(
 
   const contextPayload = buildContext(chatMessages);
 
-  // Construct KKU IntelSphere API request.
-  // KKU has no system role, so the instructions are attached to the LATEST user
-  // message (the one the model must reply to). Keeping the prompt adjacent to the
-  // newest turn — instead of buried at the start — keeps replies on-context and
-  // correctly formatted even in long conversations.
   let lastUserIndex = -1;
   for (let i = contextPayload.length - 1; i >= 0; i--) {
     if (contextPayload[i].role === 'user') {
@@ -174,36 +166,29 @@ export async function POST(
 
   const contextWithSystem = contextPayload.map((msg, i) => ({
     role: msg.role as 'user' | 'assistant',
-    content: [
-      {
-        type: 'text' as const,
-        text:
-          i === lastUserIndex
-            ? `${systemPrompt}\n\n--- The user's latest message (reply to this) ---\n${msg.content}`
-            : msg.content,
-      },
-    ],
+    content:
+      i === lastUserIndex
+        ? `${systemPrompt}\n\n--- The user's latest message (reply to this) ---\n${msg.content}`
+        : msg.content,
   }));
 
-  // If no context yet (first message), create a starter
   const apiMessages = contextWithSystem.length > 0
     ? contextWithSystem
-    : [{ role: 'user' as const, content: [{ type: 'text' as const, text: systemPrompt + '\n\nStart the conversation.' }] }];
+    : [{ role: 'user' as const, content: systemPrompt + '\n\nStart the conversation.' }];
 
   const requestBody = {
-    model: customModel || 'deepseek-v4-flash',
+    model: customModel || DEFAULT_MODEL,
     messages: apiMessages,
     max_tokens: 2048,
-    stream: true,
+    stream: false,
   };
 
-  // Set up timeout with AbortController
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(KKU_API_URL, {
+    upstreamResponse = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -222,83 +207,36 @@ export async function POST(
     }
     console.error('Chat API unexpected error:', error);
     return errorResponse('api_error', 502);
+  } finally {
+    clearTimeout(timeoutId);
   }
 
-  // Map upstream error responses (before streaming starts)
   if (!upstreamResponse.ok) {
-    clearTimeout(timeoutId);
     const errorBody = await upstreamResponse.text();
-    console.error(`KKU API error [${upstreamResponse.status}]:`, errorBody);
+    console.error(`OpenRouter API error [${upstreamResponse.status}]:`, errorBody);
     if (upstreamResponse.status === 429) {
       return errorResponse('rate_limit', 429);
     }
     return errorResponse('api_error', 502);
   }
 
-  // Stream SSE delta chunks to the client as plain text.
-  // Each chunk is the raw `delta.content` string from the upstream SSE.
-  // The client accumulates the buffer and runs parseChatResponse on completion.
-  const upstreamBody = upstreamResponse.body;
-  if (!upstreamBody) {
-    clearTimeout(timeoutId);
+  const result = await upstreamResponse.json();
+  const textContent = result?.choices?.[0]?.message?.content;
+  if (typeof textContent !== 'string') {
     return errorResponse('api_error', 502);
   }
 
-  const stream = new ReadableStream({
-    async start(streamController) {
-      const reader = upstreamBody.getReader();
-      const decoder = new TextDecoder();
-      let sseBuffer = '';
+  const totalTokens = result?.usage?.total_tokens ?? 500;
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          sseBuffer += decoder.decode(value, { stream: true });
-
-          // Process complete SSE lines
-          const lines = sseBuffer.split('\n');
-          // Keep last (possibly incomplete) line in buffer
-          sseBuffer = lines.pop() ?? '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data:')) continue;
-            const data = trimmed.slice(5).trim();
-            if (data === '[DONE]') {
-              streamController.close();
-              return;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === 'string' && delta.length > 0) {
-                streamController.enqueue(new TextEncoder().encode(delta));
-              }
-            } catch {
-              // skip malformed SSE data lines
-            }
-          }
-        }
-        streamController.close();
-      } catch {
-        streamController.close();
-      } finally {
-        clearTimeout(timeoutId);
-        reader.releaseLock();
-      }
-    },
-    cancel() {
-      clearTimeout(timeoutId);
-    },
+  // Debit budget after response is parsed
+  after(async () => {
+    await debitBudget(totalTokens * TOKEN_COST_MICROBAHT.openrouter);
   });
 
-  return new Response(stream, {
+  return new Response(textContent, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
-      'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'no-cache',
+      ...(isPremium ? {} : { 'X-Suggestions-Locked': '1' }),
     },
   });
 }

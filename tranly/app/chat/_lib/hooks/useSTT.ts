@@ -93,7 +93,7 @@ export function useSTT(): UseSTTReturn {
     }
   }, []);
 
-  const startListening = useCallback(async (lang: SpeechLang = 'en-US', opts?: StartListeningOptions) => {
+  const startListening = useCallback(async (_lang: SpeechLang = 'en-US', opts?: StartListeningOptions) => {
     if (!isSupported) {
       const errMsg = 'การบันทึกเสียงไม่รองรับในเบราว์เซอร์นี้';
       setError(errMsg);
@@ -197,8 +197,8 @@ export function useSTT(): UseSTTReturn {
             setTranscript(dataResult.text);
             currentOnEnd?.(dataResult.text, null);
           }
-        } catch (e: any) {
-          const errMsg = e.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อถอดเสียง';
+        } catch (e: unknown) {
+          const errMsg = e instanceof Error ? e.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อถอดเสียง';
           setError(errMsg);
           currentOnEnd?.('', errMsg);
         } finally {
@@ -257,10 +257,12 @@ export function useSTT(): UseSTTReturn {
           stopListening();
         }, opts.maxDurationMs);
       }
-    } catch (e: any) {
-      const errMsg = e.message === 'Permission denied' || e.name === 'NotAllowedError'
+    } catch (e: unknown) {
+      const name = e instanceof DOMException ? e.name : undefined;
+      const message = e instanceof Error ? e.message : String(e);
+      const errMsg = message === 'Permission denied' || name === 'NotAllowedError'
         ? 'กรุณาอนุญาตการใช้ไมโครโฟนในการตั้งค่าเบราว์เซอร์'
-        : `ไม่สามารถเข้าถึงไมโครโฟนได้: ${e.message || e.name}`;
+        : `ไม่สามารถเข้าถึงไมโครโฟนได้: ${message || name}`;
       setError(errMsg);
       setIsListening(false);
       opts?.onEnd?.('', errMsg);

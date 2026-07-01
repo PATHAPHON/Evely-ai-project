@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { randomId } from '../utils/randomId';
 import { supabase } from '@/app/_lib/supabase/supabaseClient';
 import { useActiveLanguage } from '@/app/_lib/contexts/ActiveLanguageContext';
 import type { TargetLanguage } from '@/app/_lib/types/wordTypes';
@@ -10,9 +11,8 @@ export interface WordRecord {
   label: string;
   language?: TargetLanguage;
   englishText?: string;
-  reading?: string;
-  romanization?: string;
   english?: string;
+  thai?: string;
   partOfSpeech?: string;
   createdAt: number;
 }
@@ -20,8 +20,6 @@ export interface WordRecord {
 export interface SaveWordInput {
   label: string;
   englishText?: string;
-  reading?: string;
-  romanization?: string;
   english?: string;
   partOfSpeech?: string;
 }
@@ -51,7 +49,7 @@ export function useWordStorage(): UseWordStorageReturn {
           throw new Error('User not authenticated.');
         }
 
-        const id = crypto.randomUUID();
+        const id = randomId();
         const normalized: SaveWordInput =
           typeof input === 'string' ? { label: input } : input;
 
@@ -60,8 +58,6 @@ export function useWordStorage(): UseWordStorageReturn {
           user_id: userId,
           label: normalized.label,
           language: activeLanguage,
-          reading: normalized.reading,
-          romanization: normalized.romanization,
           english: normalized.english,
           part_of_speech: normalized.partOfSpeech,
           created_at: new Date().toISOString(),
@@ -108,9 +104,8 @@ export function useWordStorage(): UseWordStorageReturn {
         id: row.id,
         label: row.label,
         language: row.language as TargetLanguage,
-        reading: row.reading,
-        romanization: row.romanization,
         english: row.english,
+        thai: row.thai,
         partOfSpeech: row.part_of_speech,
         createdAt: new Date(row.created_at).getTime(),
       }));
@@ -148,9 +143,8 @@ export function useWordStorage(): UseWordStorageReturn {
         id: row.id,
         label: row.label,
         language: row.language as TargetLanguage,
-        reading: row.reading,
-        romanization: row.romanization,
         english: row.english,
+        thai: row.thai,
         partOfSpeech: row.part_of_speech,
         createdAt: new Date(row.created_at).getTime(),
       }));

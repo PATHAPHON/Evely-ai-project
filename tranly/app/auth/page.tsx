@@ -1,19 +1,16 @@
 "use client";
 
 import { Suspense } from "react";
-import { ConfigProvider } from "antd";
-import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { useAuthForm } from "./_lib/hooks/useAuthForm";
 
 const fieldClass =
-  "w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 px-3.5 py-3 text-[15px] text-text-primary outline-none transition-all focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-[#131314] focus:shadow-sm dark:placeholder-white/40 placeholder-black/40";
+  "w-full rounded-xl border border-border-color bg-background px-3.5 py-3 text-[15px] text-foreground outline-none transition-all focus:border-primary focus:shadow-soft-sm placeholder:text-foreground/40";
 const labelClass =
-  "mb-2 block text-xs font-bold uppercase tracking-wide text-text-secondary";
+  "mb-2 block text-xs font-bold uppercase tracking-wide text-foreground/70";
 
 function AuthPageContent() {
   const t = useStrings();
-  const configProps = useIllustrationTheme();
 
   const {
     mode,
@@ -24,29 +21,28 @@ function AuthPageContent() {
     setPassword,
     confirmPassword,
     setConfirmPassword,
+    tosAccepted,
+    setTosAccepted,
     isLoading,
     error,
     setError,
     success,
     setSuccess,
-    isGuest,
     hasSession,
     handleLogin,
     handleRegister,
     handleGoogleLogin,
-    handleGuestLogin,
     goToRedirect,
   } = useAuthForm();
 
   return (
-    <ConfigProvider {...configProps}>
-      <div className="relative flex min-h-dvh w-full select-none flex-col justify-center bg-white dark:bg-[#131314] px-4 py-8 text-foreground font-sans">
+      <div className="relative flex min-h-dvh w-full select-none flex-col justify-center bg-background px-4 py-8 text-foreground font-sans">
         
         {/* Decorative elements conforming to reduced motion */}
-        <div className="absolute top-10 left-10 text-text-meta text-opacity-10 font-bold text-7xl select-none pointer-events-none hidden md:block">
+        <div className="absolute top-10 left-10 text-foreground/5 font-bold text-7xl select-none pointer-events-none hidden md:block">
           한
         </div>
-        <div className="absolute bottom-10 right-10 text-text-meta text-opacity-10 font-bold text-7xl select-none pointer-events-none hidden md:block">
+        <div className="absolute bottom-10 right-10 text-foreground/5 font-bold text-7xl select-none pointer-events-none hidden md:block">
           국
         </div>
 
@@ -55,34 +51,27 @@ function AuthPageContent() {
           {/* Header */}
           <div className="text-center flex flex-col gap-2">
             <h1 
-              className="text-4xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 uppercase"
-              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+              className="text-4xl font-extrabold tracking-tight text-primary uppercase"
+              style={{ fontFamily: "var(--font-sans)" }}
             >
-              Tarnly
+              {t.common.appName}
             </h1>
-            <p className="text-sm font-semibold text-text-secondary">
+            <p className="text-sm font-semibold text-foreground/60">
               {mode === "login" ? t.auth.loginSubtitle : t.auth.registerSubtitle}
             </p>
           </div>
 
           {/* Form Card */}
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e1f20] p-6 shadow-md">
+          <div className="rounded-2xl border border-border-color bg-card-bg p-6 shadow-soft-md">
             
-            {/* Guest notice */}
-            {isGuest && mode === "register" && (
-              <div className="mb-5 p-3.5 border border-pink-100 dark:border-pink-900/30 bg-pink-50/50 dark:bg-pink-950/20 text-text-primary rounded-xl text-xs font-semibold leading-relaxed">
-                📢 {t.auth.anonymousAccountNotice}
-              </div>
-            )}
-
             {/* Error & Success States */}
             {error && (
-              <div className="mb-5 p-3.5 border border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-semibold leading-relaxed">
+              <div className="mb-5 p-3.5 border border-incorrect/20 bg-incorrect/5 text-incorrect rounded-xl text-xs font-semibold leading-relaxed">
                 ⚠️ {error}
               </div>
             )}
             {success && (
-              <div className="mb-5 p-3.5 border border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-950/20 text-green-600 dark:text-green-400 rounded-xl text-xs font-semibold leading-relaxed">
+              <div className="mb-5 p-3.5 border border-correct/20 bg-correct/5 text-correct rounded-xl text-xs font-semibold leading-relaxed">
                 🎉 {success}
               </div>
             )}
@@ -104,7 +93,14 @@ function AuthPageContent() {
               </div>
 
               <div>
-                <label className={labelClass} htmlFor="auth-password">{t.auth.passwordLabel}</label>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className={labelClass} htmlFor="auth-password">{t.auth.passwordLabel}</label>
+                  {mode === 'login' && (
+                    <a href="/auth/reset" className="text-xs font-semibold text-primary hover:underline">
+                      {t.auth.forgotPassword}
+                    </a>
+                  )}
+                </div>
                 <input
                   id="auth-password"
                   type="password"
@@ -121,22 +117,44 @@ function AuthPageContent() {
                 <div>
                   <label className={labelClass} htmlFor="auth-confirm-password">{t.auth.confirmPasswordLabel}</label>
                   <input
-                    id="auth-confirm-password"
-                    type="password"
-                    required
-                    className={fieldClass}
-                    placeholder={t.auth.confirmPasswordPlaceholder}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={isLoading}
+                     id="auth-confirm-password"
+                     type="password"
+                     required
+                     className={fieldClass}
+                     placeholder={t.auth.confirmPasswordPlaceholder}
+                     value={confirmPassword}
+                     onChange={(e) => setConfirmPassword(e.target.value)}
+                     disabled={isLoading}
                   />
                 </div>
               )}
 
+              {mode === "register" && (
+                <label className="flex items-start gap-2.5 text-xs font-medium text-foreground/70 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={tosAccepted}
+                    onChange={(e) => setTosAccepted(e.target.checked)}
+                    disabled={isLoading}
+                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+                  />
+                  <span className="leading-relaxed">
+                    {t.auth.tosPrefix}{" "}
+                    <a href="/terms" target="_blank" className="font-bold text-primary hover:underline">
+                      {t.auth.tosTerms}
+                    </a>{" "}
+                    {t.auth.tosAnd}{" "}
+                    <a href="/privacy" target="_blank" className="font-bold text-primary hover:underline">
+                      {t.auth.tosPrivacy}
+                    </a>
+                  </span>
+                </label>
+              )}
+
               <button
                 type="submit"
-                disabled={isLoading}
-                className="mt-2 w-full rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-bold text-white shadow-sm transition-all active:scale-98 cursor-pointer uppercase select-none"
+                disabled={isLoading || (mode === "register" && !tosAccepted)}
+                className="mt-2 w-full rounded-xl bg-primary hover:bg-primary-hover py-3 text-sm font-bold text-white dark:text-gray-900 shadow-soft-sm transition-all active:scale-98 cursor-pointer uppercase select-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? t.common.loading : (mode === "login" ? t.auth.loginBtn : t.auth.registerBtn)}
               </button>
@@ -144,11 +162,11 @@ function AuthPageContent() {
 
             {/* Divider */}
             <div className="my-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary select-none">
-                or
+              <div className="h-px flex-1 bg-border-color" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-foreground/50 select-none">
+                {t.common.or}
               </span>
-              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+              <div className="h-px flex-1 bg-border-color" />
             </div>
 
             {/* Google Button */}
@@ -156,7 +174,7 @@ function AuthPageContent() {
               type="button"
               disabled={isLoading}
               onClick={handleGoogleLogin}
-              className="flex items-center justify-center gap-3 w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#1e1f20] py-3 text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all active:scale-98 select-none"
+              className="flex items-center justify-center gap-3 w-full rounded-xl border border-border-color bg-background py-3 text-sm font-bold text-foreground shadow-soft-sm hover:bg-card-bg/60 cursor-pointer transition-all active:scale-98 select-none"
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -167,22 +185,8 @@ function AuthPageContent() {
               {t.auth.googleBtn}
             </button>
 
-            {/* Guest Button */}
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={handleGuestLogin}
-              className="mt-3 flex items-center justify-center gap-3 w-full rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#1e1f20] py-3 text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all active:scale-98 select-none uppercase"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M20 21a8 8 0 0 0-16 0" />
-                <circle cx="12" cy="8" r="4" />
-              </svg>
-              {t.auth.guestBtn}
-            </button>
-
             {/* Toggle Mode */}
-            <div className="mt-5 text-center text-xs font-semibold text-text-secondary">
+            <div className="mt-5 text-center text-xs font-semibold text-foreground/75">
               {mode === "login" ? (
                 <>
                   {t.auth.dontHaveAccount}{" "}
@@ -193,7 +197,7 @@ function AuthPageContent() {
                       setError(null);
                       setSuccess(null);
                     }}
-                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold cursor-pointer hover:underline"
+                    className="text-primary hover:text-primary-hover font-bold cursor-pointer hover:underline"
                   >
                     {t.auth.switchToRegister}
                   </button>
@@ -208,7 +212,7 @@ function AuthPageContent() {
                       setError(null);
                       setSuccess(null);
                     }}
-                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold cursor-pointer hover:underline"
+                    className="text-primary hover:text-primary-hover font-bold cursor-pointer hover:underline"
                   >
                     {t.auth.switchToLogin}
                   </button>
@@ -223,7 +227,7 @@ function AuthPageContent() {
             <button
               type="button"
               onClick={goToRedirect}
-              className="flex items-center justify-center gap-2 rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#1e1f20] py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-850 cursor-pointer uppercase transition-all active:scale-98"
+              className="flex items-center justify-center gap-2 rounded-xl border border-border-color bg-background py-2.5 text-xs font-bold text-foreground shadow-soft-sm hover:bg-card-bg/60 cursor-pointer uppercase transition-all active:scale-98"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="19" y1="12" x2="5" y2="12" />
@@ -235,17 +239,21 @@ function AuthPageContent() {
 
         </div>
       </div>
-    </ConfigProvider>
+  );
+}
+
+function AuthLoadingFallback() {
+  const t = useStrings();
+  return (
+    <div className="flex h-dvh w-full items-center justify-center bg-white dark:bg-[#131314]">
+      <div className="text-sm font-bold text-text-secondary">{t.common.loading}</div>
+    </div>
   );
 }
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={
-      <div className="flex h-dvh w-full items-center justify-center bg-white dark:bg-[#131314]">
-        <div className="text-sm font-bold text-text-secondary">Loading...</div>
-      </div>
-    }>
+    <Suspense fallback={<AuthLoadingFallback />}>
       <AuthPageContent />
     </Suspense>
   );

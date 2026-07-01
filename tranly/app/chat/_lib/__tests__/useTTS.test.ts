@@ -127,7 +127,7 @@ describe('useTTS', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       const { result } = renderHook(() =>
-        useTTS('en-US', 'ko-KR-Chirp3-HD-Charon'),
+        useTTS('en-US', 'bf_emma'),
       );
 
       act(() => {
@@ -138,7 +138,7 @@ describe('useTTS', () => {
       const init = fetchMock.mock.calls[0]![1] as RequestInit;
       expect(JSON.parse(init.body as string)).toMatchObject({
         text: '안녕',
-        voice: 'ko-KR-Chirp3-HD-Charon',
+        voice: 'bf_emma',
       });
     });
 

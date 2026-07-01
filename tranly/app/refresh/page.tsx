@@ -1,13 +1,16 @@
 'use client';
 
-import GeminiLayout from '@/app/_components/GeminiLayout';
+import { useRouter } from 'next/navigation';
+import { useWordBank } from '@/app/_lib/hooks/useWordBank';
+import RefreshMenu from './_components/RefreshMenu';
 
 export default function RefreshPage() {
-  return (
-    <GeminiLayout title="โหมดการเล่น">
-      <div className="flex flex-1 items-center justify-center text-gray-400 dark:text-gray-500">
-        Coming soon
-      </div>
-    </GeminiLayout>
-  );
+  const router = useRouter();
+  const { isLoading } = useWordBank();
+
+  function start() {
+    router.push('/refresh/play');
+  }
+
+  return <RefreshMenu onStart={start} disabled={isLoading} />;
 }

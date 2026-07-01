@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit, Geist_Mono } from "next/font/google";
-import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { Outfit, Geist_Mono, Noto_Sans_Thai } from "next/font/google";
 import AppProviders from "./_components/AppProviders";
 import "./globals.css";
 
@@ -10,18 +9,24 @@ const outfit = Outfit({
   weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
+const notoSansThai = Noto_Sans_Thai({
+  variable: "--font-noto-sans-thai",
+  subsets: ["thai", "latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+});
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Tarnly",
-  description: "Learn Korean in Neobrutalist illustration style",
+  title: "GeeGeeJobLa",
+  description: "Learn English in Neobrutalist illustration style",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Tarnly",
+    title: "GeeGeeJobLa",
   },
 };
 
@@ -32,8 +37,8 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
+      lang="th"
+      className={`${notoSansThai.variable} ${outfit.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -81,9 +86,7 @@ export default function RootLayout({
         )}
       </head>
       <body className="min-h-full flex flex-col">
-        <AntdRegistry>
-          <AppProviders>{children}</AppProviders>
-        </AntdRegistry>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

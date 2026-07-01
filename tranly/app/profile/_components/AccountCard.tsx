@@ -27,7 +27,7 @@ export default function AccountCard({ profile, onOpenViewer }: AccountCardProps)
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!active) return;
-        setEmail(user && !user.is_anonymous ? user.email || null : null);
+        setEmail(user?.email || null);
       } catch (err) {
         console.error("Error checking user in AccountCard:", err);
       }
@@ -37,35 +37,28 @@ export default function AccountCard({ profile, onOpenViewer }: AccountCardProps)
     };
   }, []);
 
-  const isMember = Boolean(email);
-  const subtitle = email || t.auth.anonymousAccountNotice;
+  const subtitle = email || '';
 
   return (
     <button
       type="button"
       onClick={onOpenViewer}
       aria-label={t.profile.viewProfileAria}
-      className="flex w-full items-center gap-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e1f20] px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04] cursor-pointer"
+      className="flex w-full items-center gap-3.5 rounded-2xl border border-border-color bg-card-bg px-4 py-3.5 text-left shadow-soft-sm transition-colors hover:bg-card-bg/70 cursor-pointer"
     >
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-pink-100 dark:border-pink-900 bg-pink-50/50 dark:bg-pink-950/20">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary-bg bg-primary-bg/40">
         <SlothMascot size={34} />
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-extrabold text-text-primary">
+        <p className="truncate text-base font-extrabold text-foreground">
           {displayName}
         </p>
-        <p className="truncate text-xs text-text-secondary">{subtitle}</p>
+        <p className="truncate text-xs text-foreground/70">{subtitle}</p>
       </div>
 
-      <span
-        className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
-          isMember
-            ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-950"
-            : "border border-gray-200 dark:border-gray-700 text-text-secondary"
-        }`}
-      >
-        {isMember ? t.profile.badgeMember : t.profile.badgeGuest}
+      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold bg-foreground text-background">
+        {t.profile.badgeMember}
       </span>
     </button>
   );

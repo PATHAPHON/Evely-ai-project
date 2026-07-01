@@ -5,48 +5,41 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-  --card-bg: #ffffff;
-  --text-primary: #000000;
-  /* Secondary/meta text bumped to meet WCAG AA (4.5:1) on white. */
-  --text-secondary: rgba(0, 0, 0, 0.62);
-  --text-meta: rgba(0, 0, 0, 0.6);
-  --border-color: #000000;
-  --shadow-color: #000000;
-  /* Accent palette — single source of truth (was hardcoded inline app-wide). */
-  --accent-green: #52c41a;
-  --accent-red: #fa5252;
-  --accent-blue: #4dabf7;
-  --accent-yellow: #ffd93d;
-  --accent-pink-bg: #fff0f6;
-  /* Study heatmap intensity ramp (green, aligned with --accent-green). */
+  --foreground: #1f1f1f;
+  --card-bg: #f0f4f9;
+  --primary: #0a58ca;
+  --primary-hover: #084298;
+  --primary-bg: #e8f0fe;
+  --border-color: #e1e3e1;
+  --shadow-color: rgba(0, 0, 0, 0.08);
+  --correct: #15803d;
+  --incorrect: #b91c1c;
+  --warning: #b45309;
   --heat-0: #ebedf0;
-  --heat-1: #c6e9b4;
-  --heat-2: #97d977;
-  --heat-3: #6cc93f;
-  --heat-4: #52c41a;
+  --heat-1: #d3e3fd;
+  --heat-2: #a8c7fa;
+  --heat-3: #7cacf8;
+  --heat-4: #0a58ca;
   --dot-color: rgba(0, 0, 0, 0.07);
 }
 
 .dark {
-  --background: #1a1a2e;
-  --foreground: #ffffff;
-  --card-bg: #2d2d44;
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-meta: rgba(255, 255, 255, 0.7);
-  --border-color: #4a4a6a;
-  --shadow-color: rgba(0, 0, 0, 0.4);
-  --accent-green: #52c41a;
-  --accent-red: #fa5252;
-  --accent-blue: #4dabf7;
-  --accent-yellow: #ffd93d;
-  --accent-pink-bg: #3d2d44;
+  --background: #131314;
+  --foreground: #e3e3e3;
+  --card-bg: #1e1f20;
+  --primary: #a8c7fa;
+  --primary-hover: #d3e3fd;
+  --primary-bg: rgba(0, 74, 119, 0.3);
+  --border-color: #3c4043;
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --correct: #4ade80;
+  --incorrect: #f87171;
+  --warning: #fbbf24;
   --heat-0: rgba(255, 255, 255, 0.08);
-  --heat-1: #2f5d22;
-  --heat-2: #3d8a2c;
-  --heat-3: #49b035;
-  --heat-4: #52c41a;
+  --heat-1: #002d53;
+  --heat-2: #004a77;
+  --heat-3: #00609b;
+  --heat-4: #a8c7fa;
   --dot-color: rgba(255, 255, 255, 0.05);
 }
 
@@ -54,34 +47,31 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card-bg: var(--card-bg);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-meta: var(--text-meta);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-bg: var(--primary-bg);
   --color-border-color: var(--border-color);
   --color-shadow-color: var(--shadow-color);
-  --color-accent-green: var(--accent-green);
-  --color-accent-red: var(--accent-red);
-  --color-accent-blue: var(--accent-blue);
-  --color-accent-yellow: var(--accent-yellow);
-  --color-accent-pink-bg: var(--accent-pink-bg);
+  --color-correct: var(--correct);
+  --color-incorrect: var(--incorrect);
+  --color-warning: var(--warning);
   --color-heat-0: var(--heat-0);
   --color-heat-1: var(--heat-1);
   --color-heat-2: var(--heat-2);
   --color-heat-3: var(--heat-3);
   --color-heat-4: var(--heat-4);
-  --font-sans: var(--font-outfit);
+  --font-sans: var(--font-outfit), var(--font-noto-sans-thai), sans-serif;
   --font-mono: var(--font-geist-mono);
-  /* Neobrutalist flat-offset shadow scale. The dark variant is baked in via
-     --shadow-color, so one utility covers both themes (no dark: needed). */
-  --shadow-nb-sm: 2px 2px 0 var(--shadow-color);
-  --shadow-nb-md: 4px 4px 0 var(--shadow-color);
-  --shadow-nb-lg: 6px 6px 0 var(--shadow-color);
+  --shadow-soft-sm: 0 2px 8px var(--shadow-color);
+  --shadow-soft-md: 0 4px 16px var(--shadow-color);
+  --shadow-soft-lg: 0 8px 24px var(--shadow-color);
+  --shadow-soft-xl: 0 16px 32px var(--shadow-color);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-outfit), sans-serif;
+  font-family: var(--font-outfit), var(--font-noto-sans-thai), sans-serif;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -116,6 +106,41 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes word-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-word-reveal {
+  animation: word-reveal 0.28s ease-out both;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+.reveal-in {
+  animation: reveal-up 0.6s ease-out forwards;
 }
 
 /* ===== Chat mascot (pixel blue elephant) animations ===== */
@@ -278,7 +303,53 @@ body {
   .loading-dot,
   .animate-mascot-pop-in,
   .animate-bubble-pop-in,
-  .animate-user-bubble-pop-in {
+  .animate-user-bubble-pop-in,
+  .animate-word-reveal,
+  .reveal-in {
     animation: none !important;
   }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(50px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes cardOut {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-160px) scale(0.92); opacity: 0; }
+}
+
+@keyframes cardIn {
+  0%   { transform: translateY(30px) scale(0.92); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.animate-card-out {
+  animation: cardOut 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-card-in {
+  animation: cardIn 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }

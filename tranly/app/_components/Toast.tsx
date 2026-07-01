@@ -73,17 +73,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               role="alert"
               aria-live="assertive"
               onClick={() => dismiss(toast.id)}
-              className="pointer-events-auto rounded-xl border-2 border-border-color px-4 py-2.5 text-sm font-bold shadow-nb-sm animate-[fadeSlideUp_0.2s_ease-out]"
-              style={{
-                background: toast.type === 'error'
-                  ? 'var(--accent-red, #ef4444)'
+              className={`pointer-events-auto rounded-2xl border px-4 py-2.5 text-sm font-semibold shadow-soft-md animate-[fadeSlideUp_0.2s_ease-out] cursor-pointer max-w-[85vw] ${
+                toast.type === 'error'
+                  ? 'border-incorrect/20 bg-incorrect text-white dark:text-gray-900'
                   : toast.type === 'warning'
-                    ? 'var(--accent-yellow, #eab308)'
-                    : 'var(--text-primary)',
-                color: toast.type === 'warning' ? '#1a1a1a' : '#fff',
-                cursor: 'pointer',
-                maxWidth: '85vw',
-              }}
+                    ? 'border-warning/20 bg-warning text-white dark:text-gray-900'
+                    : 'border-primary/20 bg-primary text-white dark:text-gray-900'
+              }`}
             >
               {toast.message}
             </div>
@@ -93,3 +89,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     </ToastContext.Provider>
   );
 }
+

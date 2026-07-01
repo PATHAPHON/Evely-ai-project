@@ -11,7 +11,6 @@ function makeEntry(overrides: Partial<WordBankEntry> = {}): WordBankEntry {
     id: 'test-id',
     word: 'hello',
     thai: 'สวัสดี',
-    ipa: '/həˈloʊ/',
     partOfSpeech: 'interjection',
     nextReviewAt: new Date(Date.now() + 86400000), // tomorrow
     lastReviewedAt: new Date(),

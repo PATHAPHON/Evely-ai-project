@@ -11,9 +11,6 @@ describe('LANG_PROMPT', () => {
     const spec = LANG_PROMPT[lang];
     expect(spec.label).toBe(label);
     expect(spec.script.length).toBeGreaterThan(0);
-    expect(spec.readingDesc.length).toBeGreaterThan(0);
-    expect(spec.romanizationDesc.length).toBeGreaterThan(0);
-    expect(spec.readingExample.length).toBeGreaterThan(0);
   });
 });
 

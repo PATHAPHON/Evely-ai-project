@@ -29,8 +29,6 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   englishText: string;
-  reading: string;
-  romanization: string;
   translation: string;
   english: string;
   rawText: string;
@@ -40,17 +38,15 @@ export interface ChatMessage {
   suggestions?: ReplySuggestion[];
   sentences?: Array<{
     englishText: string;
-    reading: string;
-    romanization: string;
     translation: string;
     english: string;
-    /** English meaning split into clickable phrase chunks (joined = english). */
-    englishPhrases?: string[];
   }>;
   type?: 'text';
   /** Grammar correctness and correction explanation */
   grammarCorrect?: boolean;
   grammarNotes?: string;
+  /** True when suggestions are locked (free tier). */
+  suggestionsLocked?: boolean;
   /** Transient: true while waiting for /api/translate response; never persisted. */
   isTranslating?: boolean;
 }
@@ -63,8 +59,6 @@ export interface SessionConfig {
 export interface SavedWord {
   id: string;
   englishText: string;
-  reading: string;
-  romanization: string;
   english: string;
   thai: string;
   source: 'word-store' | 'feed-words';
@@ -83,20 +77,16 @@ export interface ChatMessagePayload {
 
 export interface ChatSuccessResponse {
   englishText: string;
-  reading: string;
-  romanization: string;
   translation: string;
   english: string;
   /** 2–3 suggested replies the user could send next. */
   suggestions?: ReplySuggestion[];
+  /** True when suggestions are premium-only and this user is on free tier. */
+  suggestionsLocked?: boolean;
   sentences?: Array<{
     englishText: string;
-    reading: string;
-    romanization: string;
     translation: string;
     english: string;
-    /** English meaning split into clickable phrase chunks (joined = english). */
-    englishPhrases?: string[];
   }>;
   grammarCorrect?: boolean;
   grammarNotes?: string;

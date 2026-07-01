@@ -12,7 +12,7 @@ interface ElephantMascotProps {
 }
 
 // Single flat blue for the whole body — no outline, no shading.
-const BLUE = 'var(--accent-blue)';
+const BLUE = 'var(--primary)';
 const EYE = '#0b3d66';
 
 /**
@@ -76,7 +76,7 @@ export default function ElephantMascot({ state = 'idle', size = 40 }: ElephantMa
     <button
       type="button"
       onClick={handleTap}
-      aria-label="Tranly elephant mascot"
+      aria-label="มาสคอตช้างจีจีจบล่ะ"
       className="shrink-0 cursor-pointer border-0 bg-transparent p-0 leading-none outline-none focus-visible:opacity-80"
       style={{ width: size, height: size }}
     >

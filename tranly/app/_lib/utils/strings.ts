@@ -1,6 +1,5 @@
 'use client';
 
-import { useLanguagePreference, type TranslationLanguage } from '../hooks/useLanguagePreference';
 
 /**
  * Single source of truth for user-facing UI copy.
@@ -19,6 +18,32 @@ export interface UIStrings {
     tabProfile: string;
     tabMore: string;
     loading: string;
+    /** Divider word between form and social login (e.g. "หรือ"). */
+    or: string;
+    appName: string;
+    appNameEn: string;
+  };
+  layout: {
+    backAria: string;
+    menuAria: string;
+    loadingMenu: string;
+    /** Header titles for specific routes. */
+    wordsTitle: string;
+    profileTitle: string;
+  };
+  words: {
+    title: string;
+    searchPlaceholder: string;
+    countUnit: string;
+    notFound: string;
+    sortLabels: readonly [string, string, string, string];
+    sortAria: (label: string) => string;
+  };
+  errors: {
+    wordStatusUnavailable: string;
+    addWordFailed: string;
+    removeWordFailed: string;
+    reviewFailed: string;
   };
   landing: {
     launching: string;
@@ -69,6 +94,7 @@ export interface UIStrings {
     learningLanguage: string;
     translationLanguage: string;
     darkMode: string;
+    showTranslation: string;
     /** Header actions + viewer. */
     editProfile: string;
     shareProfile: string;
@@ -84,20 +110,31 @@ export interface UIStrings {
     billing: string;
     usage: string;
     voice: string;
+    /** Billing + usage (Phase E). */
+    planFree: string;
+    planPremium: string;
+    upgradePremium: string;
+    manageBilling: string;
+    expiresOn: string;
+    usageToday: string;
+    usageResetMidnight: string;
+    legalTerms: string;
+    legalPrivacy: string;
     /** Edit-profile form. */
     changePhoto: string;
     displayNameLabel: string;
     handleLabel: string;
-    roleLabel: string;
-    rolePlaceholder: string;
-    bioLabel: string;
-    bioPlaceholder: string;
-    locationLabel: string;
-    locationPlaceholder: string;
     save: string;
     cancel: string;
     saved: string;
-    noBio: string;
+    deleteAccount: string;
+    deleteAccountWarning: string;
+    deleteAccountConfirmWord: string;
+    deleteAccountConfirmPrompt: (word: string) => string;
+    deleteAccountBtn: string;
+    infoAria: string;
+    themeToLight: string;
+    themeToDark: string;
     /** Stat strip. */
     statWords: string;
     statSessions: string;
@@ -122,6 +159,42 @@ export interface UIStrings {
   };
   chat: {
     navLockedHint: string;
+    /** Input bar. */
+    inputPlaceholder: string;
+    inputAria: string;
+    micStart: string;
+    micStop: string;
+    voiceModeAria: string;
+    sendAria: string;
+    optionsMenuAria: string;
+    guidedLearning: string;
+    removeWordAria: (word: string) => string;
+    /** Message list. */
+    messagesAria: string;
+    retry: string;
+    retryAria: string;
+    /** AI message actions. */
+    likeAria: string;
+    dislikeAria: string;
+    copyAria: string;
+    moreAria: string;
+    playAria: string;
+    /** User message grammar feedback. */
+    grammarCorrect: string;
+    grammarErrorHint: string;
+    grammarErrorToggleAria: string;
+    grammarErrorTitle: string;
+    yourSentence: string;
+    closeDetailsAria: string;
+    close: string;
+    /** Reply suggestions. */
+    suggestPrompt: string;
+    collapse: string;
+    customAnswerPlaceholder: string;
+    customAnswerAria: string;
+    customAnswerBtn: string;
+    skip: string;
+    submitAnswer: string;
   };
   drawer: {
     newChat: string;
@@ -130,8 +203,15 @@ export interface UIStrings {
     navGem: string;
     navRefresh: string;
     recent: string;
+    allChats: string;
     untitledChat: string;
     settingsAria: string;
+  };
+  recents: {
+    title: string;
+    searchPlaceholder: string;
+    empty: string;
+    deleteChatAria: string;
   };
   auth: {
     loginTitle: string;
@@ -156,177 +236,32 @@ export interface UIStrings {
     errorPasswordLength: string;
     errorPasswordMismatch: string;
     errorGeneric: string;
+    errorInvalidCredentials: string;
+    errorEmailNotConfirmed: string;
+    errorEmailAlreadyRegistered: string;
+    errorTooManyRequests: string;
     successRegister: string;
     successLogin: string;
     successLogout: string;
-    anonymousAccountNotice: string;
     backToProfile: string;
     googleBtn: string;
-    guestBtn: string;
-    successGuest: string;
+    forgotPassword: string;
+    resetPasswordTitle: string;
+    resetPasswordSubtitle: string;
+    resetPasswordBtn: string;
+    resetPasswordEmailSent: string;
+    updatePasswordTitle: string;
+    updatePasswordBtn: string;
+    updatePasswordSuccess: string;
+    tosPrefix: string;
+    tosTerms: string;
+    tosAnd: string;
+    tosPrivacy: string;
+    tosError: string;
   };
 }
 
-const en: UIStrings = {
-  common: {
-    tabHome: 'Daily',
-    tabWord: 'Words',
-    tabAI: 'AI',
-    tabLibrary: 'Library',
-    tabProfile: 'Profile',
-    tabMore: 'More',
-    loading: 'Loading...',
-  },
-  landing: {
-    launching: 'Launching Portal',
-    loadingApp: 'Loading the app, please wait...',
-    openApp: 'Open App',
-  },
-  home: {
-    greetingSubtitle: 'Ready to learn Korean today?',
-  },
-  learn: {
-    title: 'My Words',
-    subtitle: 'Saved vocabulary for your Flashcards',
-    allWords: 'All Words',
-    flashcard: 'Flashcard',
-    noWords: 'No saved words yet',
-    listenAria: 'Play pronunciation',
-    deleteAria: 'Delete word',
-    deleted: (word: string) => (word ? `Deleted “${word}”` : 'Word deleted'),
-    undo: 'Undo',
-  },
-  library: {
-    title: 'My Vault',
-    subtitle: 'Track your vocabulary, lessons, and chats',
-    wordsTab: 'Word Bank',
-    flashcardsTab: 'Flashcards',
-    lessonsTab: 'AI Lessons',
-    chatsTab: 'Chat Logs',
-    noLessons: 'No lessons generated yet',
-    noChats: 'No chat transcripts saved yet',
-    noFlashcards: 'No flashcard sets created yet',
-    replayLesson: 'Replay Lesson',
-    readChat: 'Read Chat',
-    playFlashcard: 'Play Set',
-    createSet: 'Create Set',
-  },
-  profile: {
-    title: 'Profile',
-    subtitle: 'Customize your learning experience',
-    settings: 'Settings',
-    generalSection: 'General & Learning',
-    generalDesc: 'Change learning language, dark mode, and translations',
-    aiSection: 'AI Assistant Settings',
-    aiDesc: 'Configure API key and model version for AI assistant',
-    dangerZone: 'Danger Zone',
-    dangerDesc: 'Delete or reset all of your learning history data',
-    dangerWarning:
-      'Permanently delete all your learning stats, vocabulary, study sessions, and AI assistant chat transcripts. This action is irreversible.',
-    learningLanguage: 'Learning Language',
-    translationLanguage: 'Translation Language',
-    darkMode: 'Dark Mode',
-    editProfile: 'Edit Profile',
-    shareProfile: 'Share',
-    shareCopied: 'Profile link copied',
-    viewProfileAria: 'View full profile',
-    settingsAria: 'Settings',
-    closeAria: 'Close',
-    account: 'Account',
-    accountItem: 'Account & Profile',
-    accountDesc: 'Manage your personal info',
-    badgeMember: 'Member',
-    badgeGuest: 'Guest',
-    billing: 'Billing',
-    usage: 'Usage',
-    voice: 'Voice',
-    changePhoto: 'Change photo',
-    displayNameLabel: 'Display name',
-    handleLabel: 'Username',
-    roleLabel: 'Status / Learning',
-    rolePlaceholder: 'e.g. Learning Korean N4',
-    bioLabel: 'Bio',
-    bioPlaceholder: 'Tell us a little about yourself',
-    locationLabel: 'Location',
-    locationPlaceholder: 'e.g. Bangkok',
-    save: 'Save',
-    cancel: 'Cancel',
-    saved: 'Profile saved',
-    noBio: 'No bio yet — tap Edit Profile to add one.',
-    statWords: 'Words',
-    statSessions: 'Sessions',
-    statStreak: 'Day streak',
-    heatTitle: (days) => `${days} days studied`,
-    heatSubtitle: (days, period) => `Studied ${days} days in the last ${period}`,
-    period3m: '3mo',
-    period6m: '6mo',
-    period1y: '1yr',
-    legendLess: 'Less',
-    legendMore: 'More',
-    heatTapHint: 'Tap a cell to see that day’s activity',
-    heatStudied: (dateStr, cards) =>
-      `${dateStr} · reviewed ${cards} ${cards === 1 ? 'card' : 'cards'}`,
-    heatRest: (dateStr) => `${dateStr} · rest day, no study`,
-    monthsShort: [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ],
-    streakTitle: (days) => `${days}-day streak`,
-    streakRecord: (max, toBeat) =>
-      toBeat > 0
-        ? `Best ${max} days · ${toBeat} more to beat it!`
-        : `Best ${max} days · new record! 🎉`,
-    streakNew: (days) => `${days} days in a row — keep it up!`,
-    weekdays: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-  },
-  chat: {
-    navLockedHint: 'Finish or end this session first',
-  },
-  drawer: {
-    newChat: 'New chat',
-    navChat: 'Chat',
-    navWords: 'Words',
-    navGem: 'Gem',
-    navRefresh: 'Refresh',
-    recent: 'Recent',
-    untitledChat: 'General chat',
-    settingsAria: 'Settings',
-  },
-  auth: {
-    loginTitle: 'Welcome Back',
-    loginSubtitle: 'Log in to continue your Korean learning journey',
-    registerTitle: 'Create Account',
-    registerSubtitle: 'Save your progress and access your words anywhere',
-    emailLabel: 'Email Address',
-    emailPlaceholder: 'you@example.com',
-    passwordLabel: 'Password',
-    passwordPlaceholder: 'At least 6 characters',
-    confirmPasswordLabel: 'Confirm Password',
-    confirmPasswordPlaceholder: 'Re-enter your password',
-    loginBtn: 'Log In',
-    registerBtn: 'Sign Up',
-    dontHaveAccount: "Don't have an account?",
-    alreadyHaveAccount: 'Already have an account?',
-    switchToRegister: 'Sign Up',
-    switchToLogin: 'Log In',
-    logoutBtn: 'Log Out',
-    loggedInAs: 'Signed in as',
-    errorInvalidEmail: 'Please enter a valid email address.',
-    errorPasswordLength: 'Password must be at least 6 characters.',
-    errorPasswordMismatch: 'Passwords do not match.',
-    errorGeneric: 'An error occurred. Please try again.',
-    successRegister: 'Account created successfully! Check your email to confirm.',
-    successLogin: 'Logged in successfully!',
-    successLogout: 'Logged out successfully!',
-    anonymousAccountNotice: 'You are currently a guest. Sign up to save your words permanently.',
-    backToProfile: 'Back to Profile',
-    googleBtn: 'Continue with Google',
-    guestBtn: 'Continue as Guest',
-    successGuest: 'Logged in as guest!',
-  },
-};
-
-const th: UIStrings = {
+export const th: UIStrings = {
   common: {
     tabHome: 'ประจำวัน',
     tabWord: 'คำศัพท์',
@@ -335,6 +270,30 @@ const th: UIStrings = {
     tabProfile: 'โปรไฟล์',
     tabMore: 'เพิ่มเติม',
     loading: 'กำลังโหลด...',
+    or: 'หรือ',
+    appName: 'จีจีจบล่ะ',
+    appNameEn: 'GeeGeeJobLa',
+  },
+  layout: {
+    backAria: 'ย้อนกลับ',
+    menuAria: 'เปิดเมนู',
+    loadingMenu: 'กำลังโหลดเมนู...',
+    wordsTitle: 'คำศัพท์สะสม',
+    profileTitle: 'โปรไฟล์ของคุณ',
+  },
+  words: {
+    title: 'คลังคำศัพท์',
+    searchPlaceholder: 'ค้นหาคำศัพท์',
+    countUnit: 'คำ',
+    notFound: 'ไม่พบคำที่ค้นหา',
+    sortLabels: ['ใหม่สุด', 'เก่าสุด', 'A → Z', 'Z → A'],
+    sortAria: (label) => `จัดเรียงตาม: ${label}`,
+  },
+  errors: {
+    wordStatusUnavailable: 'ดูสถานะคำไม่ได้ชั่วคราว ทุกคำจะแสดงเป็นยังไม่รู้จัก',
+    addWordFailed: 'เพิ่มคำไม่สำเร็จ ลองอีกครั้ง',
+    removeWordFailed: 'ลบคำไม่สำเร็จ ลองอีกครั้ง',
+    reviewFailed: 'บันทึกการทบทวนไม่สำเร็จ ลองอีกครั้ง',
   },
   landing: {
     launching: 'กำลังเปิดแอป',
@@ -342,7 +301,7 @@ const th: UIStrings = {
     openApp: 'เปิดแอป',
   },
   home: {
-    greetingSubtitle: 'พร้อมเรียนภาษาเกาหลีวันนี้หรือยัง?',
+    greetingSubtitle: 'พร้อมเรียนภาษาอังกฤษวันนี้หรือยัง?',
   },
   learn: {
     title: 'คำของฉัน',
@@ -385,6 +344,7 @@ const th: UIStrings = {
     learningLanguage: 'ภาษาหลักที่เรียน',
     translationLanguage: 'ภาษาของคำแปล',
     darkMode: 'โหมดมืด',
+    showTranslation: 'แสดงคำแปลภาษาไทย',
     editProfile: 'แก้ไขโปรไฟล์',
     shareProfile: 'แชร์',
     shareCopied: 'คัดลอกลิงก์โปรไฟล์แล้ว',
@@ -399,19 +359,29 @@ const th: UIStrings = {
     billing: 'การเรียกเก็บเงิน',
     usage: 'การใช้งาน',
     voice: 'เสียง',
+    planFree: 'ฟรี',
+    planPremium: 'Premium ✓',
+    upgradePremium: 'อัปเกรด Premium',
+    manageBilling: 'จัดการ',
+    expiresOn: 'หมดอายุ',
+    usageToday: 'งบ AI วันนี้',
+    usageResetMidnight: 'รีเซ็ตเที่ยงคืน',
+    legalTerms: 'ข้อกำหนด',
+    legalPrivacy: 'นโยบายความเป็นส่วนตัว',
     changePhoto: 'เปลี่ยนรูปโปรไฟล์',
     displayNameLabel: 'ชื่อที่แสดง',
     handleLabel: 'ชื่อผู้ใช้',
-    roleLabel: 'สถานะ / กำลังเรียน',
-    rolePlaceholder: 'เช่น กำลังเรียนภาษาเกาหลี N4',
-    bioLabel: 'แนะนำตัว',
-    bioPlaceholder: 'เล่าเกี่ยวกับตัวคุณสักนิด',
-    locationLabel: 'ที่อยู่',
-    locationPlaceholder: 'เช่น กรุงเทพฯ',
     save: 'บันทึก',
     cancel: 'ยกเลิก',
     saved: 'บันทึกโปรไฟล์แล้ว',
-    noBio: 'ยังไม่มีคำแนะนำตัว — แตะแก้ไขโปรไฟล์เพื่อเพิ่ม',
+    deleteAccount: 'ลบบัญชี',
+    deleteAccountWarning: 'การลบบัญชีจะลบข้อมูลทั้งหมดของคุณอย่างถาวร ไม่สามารถย้อนกลับได้',
+    deleteAccountConfirmWord: 'ยืนยัน',
+    deleteAccountConfirmPrompt: (word) => `พิมพ์ “${word}” เพื่อยืนยันการลบ`,
+    deleteAccountBtn: 'ลบบัญชีถาวร',
+    infoAria: 'ข้อมูลแอป',
+    themeToLight: 'สลับเป็นโหมดสว่าง',
+    themeToDark: 'สลับเป็นโหมดมืด',
     statWords: 'คำศัพท์',
     statSessions: 'รอบเรียน',
     statStreak: 'วันต่อเนื่อง',
@@ -439,6 +409,37 @@ const th: UIStrings = {
   },
   chat: {
     navLockedHint: 'เรียนหรือสนทนาให้จบ หรือกดสิ้นสุดก่อน',
+    inputPlaceholder: 'ถามจีจีจบล่ะ',
+    inputAria: 'ช่องพิมพ์ข้อความ',
+    micStart: 'เริ่มพูด',
+    micStop: 'หยุดพูด',
+    voiceModeAria: 'เปิดโหมดสนทนาด้วยเสียง',
+    sendAria: 'ส่งข้อความ',
+    optionsMenuAria: 'เปิดเมนูตัวเลือก',
+    guidedLearning: 'การเรียนรู้แบบมีคำแนะนำ',
+    removeWordAria: (word) => `ลบ ${word}`,
+    messagesAria: 'ข้อความในบทสนทนา',
+    retry: 'ลองใหม่อีกครั้ง',
+    retryAria: 'ส่งข้อความอีกครั้ง',
+    likeAria: 'ถูกใจคำตอบนี้',
+    dislikeAria: 'ไม่ถูกใจคำตอบนี้',
+    copyAria: 'คัดลอกข้อความ',
+    moreAria: 'ตัวเลือกเพิ่มเติม',
+    playAria: 'ฟังเสียงอ่าน',
+    grammarCorrect: 'ไวยากรณ์ถูกต้อง',
+    grammarErrorHint: 'พบจุดที่ไวยากรณ์ผิด แตะเพื่อดูรายละเอียด',
+    grammarErrorToggleAria: 'ดูรายละเอียดจุดที่ผิด',
+    grammarErrorTitle: 'จุดที่ไวยากรณ์ผิด',
+    yourSentence: 'ประโยคของคุณ',
+    closeDetailsAria: 'ปิดรายละเอียด',
+    close: 'ปิด',
+    suggestPrompt: 'เลือกหรือพิมพ์ตอบได้เลย',
+    collapse: 'พับเก็บ',
+    customAnswerPlaceholder: 'พิมพ์คำตอบของคุณ...',
+    customAnswerAria: 'พิมพ์คำตอบเอง',
+    customAnswerBtn: 'พิมพ์คำตอบเอง',
+    skip: 'ข้าม',
+    submitAnswer: 'ส่งคำตอบ',
   },
   drawer: {
     newChat: 'แชทใหม่',
@@ -447,12 +448,19 @@ const th: UIStrings = {
     navGem: 'Gem',
     navRefresh: 'โหมดการเล่น',
     recent: 'ล่าสุด',
+    allChats: 'แชททั้งหมด',
     untitledChat: 'คุยทั่วไป',
     settingsAria: 'ตั้งค่า',
   },
+  recents: {
+    title: 'แชท',
+    searchPlaceholder: 'ค้นหาแชท',
+    empty: 'ยังไม่มีแชท',
+    deleteChatAria: 'ลบแชท',
+  },
   auth: {
     loginTitle: 'ยินดีต้อนรับกลับมา',
-    loginSubtitle: 'เข้าสู่ระบบเพื่อเรียนภาษาเกาหลีต่อ',
+    loginSubtitle: 'เข้าสู่ระบบเพื่อเรียนภาษาอังกฤษต่อ',
     registerTitle: 'สมัครสมาชิก',
     registerSubtitle: 'บันทึกความก้าวหน้าและเข้าถึงคำศัพท์ได้จากทุกที่',
     emailLabel: 'อีเมล',
@@ -473,21 +481,32 @@ const th: UIStrings = {
     errorPasswordLength: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร',
     errorPasswordMismatch: 'รหัสผ่านไม่ตรงกัน',
     errorGeneric: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
+    errorInvalidCredentials: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    errorEmailNotConfirmed: 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ',
+    errorEmailAlreadyRegistered: 'อีเมลนี้ถูกใช้งานแล้ว',
+    errorTooManyRequests: 'คำขอมากเกินไป กรุณารอสักครู่แล้วลองใหม่',
     successRegister: 'สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยัน',
     successLogin: 'เข้าสู่ระบบสำเร็จ!',
     successLogout: 'ออกจากระบบสำเร็จแล้ว!',
-    anonymousAccountNotice: 'ขณะนี้คุณกำลังใช้งานในฐานะผู้ใช้ทั่วไป สมัครสมาชิกเพื่อบันทึกคำศัพท์อย่างถาวร',
     backToProfile: 'กลับไปยังโปรไฟล์',
     googleBtn: 'ดำเนินการต่อด้วย Google',
-    guestBtn: 'เข้าใช้งานแบบผู้ใช้ทั่วไป (Guest)',
-    successGuest: 'เข้าสู่ระบบในฐานะผู้ใช้ทั่วไปสำเร็จ!',
+    forgotPassword: 'ลืมรหัสผ่าน?',
+    resetPasswordTitle: 'รีเซ็ตรหัสผ่าน',
+    resetPasswordSubtitle: 'กรอกอีเมลของคุณ เราจะส่งลิงก์รีเซ็ตรหัสผ่านให้',
+    resetPasswordBtn: 'ส่งลิงก์รีเซ็ตรหัสผ่าน',
+    resetPasswordEmailSent: 'ส่งลิงก์รีเซ็ตรหัสผ่านแล้ว กรุณาตรวจสอบอีเมลของคุณ',
+    updatePasswordTitle: 'ตั้งรหัสผ่านใหม่',
+    updatePasswordBtn: 'บันทึกรหัสผ่านใหม่',
+    updatePasswordSuccess: 'เปลี่ยนรหัสผ่านสำเร็จ!',
+    tosPrefix: 'ยอมรับ',
+    tosTerms: 'ข้อกำหนดการใช้บริการ',
+    tosAnd: 'และ',
+    tosPrivacy: 'นโยบายความเป็นส่วนตัว',
+    tosError: 'กรุณายอมรับข้อกำหนดการใช้บริการและนโยบายความเป็นส่วนตัว',
   },
 };
 
-const STRINGS: Record<TranslationLanguage, UIStrings> = { thai: th, english: en };
-
 /** Returns the UI string table for the current session language. */
 export function useStrings(): UIStrings {
-  const { language } = useLanguagePreference();
-  return STRINGS[language];
+  return th;
 }

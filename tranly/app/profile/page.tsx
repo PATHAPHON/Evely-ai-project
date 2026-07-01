@@ -1,21 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect, Suspense } from "react";
+import { useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useStrings } from "@/app/_lib/utils/strings";
 import { supabase } from "@/app/_lib/supabase/supabaseClient";
 import { useUserProfile } from "@/app/_lib/hooks/useUserProfile";
+import { DAILY_BUDGET_MICROBAHT } from "@/app/api/_lib/utils/tokenCost";
 import { useTheme } from "./_lib/hooks/useTheme";
-import { useLanguageLearningStats } from "./_lib/hooks/useLearningStats";
+import { useShowTranslation } from "./_lib/hooks/useShowTranslation";
 import AccountCard from "./_components/AccountCard";
 import { Group, SettingsRow } from "./_components/SettingsList";
-import AppInfo from "./_components/AppInfo";
-import ProfileViewerModal from "./_components/ProfileViewerModal";
-import EditProfileSheet from "./_components/EditProfileSheet";
-import BottomSheet from "./_components/BottomSheet";
-import GlobalLanguageSelector from "@/app/_components/GlobalLanguageSelector";
-import LanguageSelector from "./_components/LanguageSelector";
-import ThemeToggle from "./_components/ThemeToggle";
 import GeminiLayout from "@/app/_components/GeminiLayout";
 
 function ProfilePageContent() {
@@ -23,51 +17,19 @@ function ProfilePageContent() {
   const router = useRouter();
 
   const profile = useUserProfile();
-  const stats = useLanguageLearningStats();
-  const { theme } = useTheme();
+  const { isPremium, energySpent } = profile;
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+  const { showTranslation, toggleShowTranslation } = useShowTranslation();
 
-  const [showEdit, setShowEdit] = useState(false);
-  const [showViewer, setShowViewer] = useState(false);
-  const [showPreferences, setShowPreferences] = useState(false);
-
-  // Auth state for the account group (login vs logout row).
-  const [email, setEmail] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    const refresh = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!active) return;
-        setEmail(user && !user.is_anonymous ? user.email || null : null);
-      } catch (err) {
-        console.error("Error checking user in ProfilePage:", err);
-      }
-    };
-    refresh();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => refresh());
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Lightweight toast.
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showToast = useCallback((msg: string) => {
-    setToastMsg(msg);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastMsg(null), 1800);
-  }, []);
-
-  const handleShare = useCallback(() => {
-    const url =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/profile`
-        : "/profile";
-    navigator.clipboard?.writeText(url).catch(() => {});
-    showToast(t.profile.shareCopied);
-  }, [showToast, t.profile.shareCopied]);
+  // Usage summary for the menu row.
+  const usageLimit = isPremium
+    ? DAILY_BUDGET_MICROBAHT.premium
+    : DAILY_BUDGET_MICROBAHT.free;
+  const usagePct = Math.min(
+    100,
+    Math.round((energySpent / usageLimit) * 100) || 0
+  );
 
   const handleLogout = useCallback(async () => {
     try {
@@ -75,17 +37,14 @@ function ProfilePageContent() {
     } catch (err) {
       console.error("Failed to sign out:", err);
     }
-  }, []);
-
-  const viewerStats = [
-    { n: stats.wordCount, label: t.profile.statWords },
-  ];
+    router.push("/auth");
+  }, [router]);
 
   const infoButton = (
     <button
       type="button"
-      aria-label="Info"
-      className="flex h-10 w-10 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06] active:scale-95 cursor-pointer"
+      aria-label={t.profile.infoAria}
+      className="flex h-10 w-10 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-card-bg active:scale-95 cursor-pointer"
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="9" />
@@ -97,7 +56,7 @@ function ProfilePageContent() {
 
   return (
     <GeminiLayout title={t.profile.title} showNewChatButton={false} rightElement={infoButton}>
-      <div className="relative flex-1 flex w-full select-none flex-col overflow-hidden bg-white dark:bg-[#131314] font-sans text-foreground">
+      <div className="relative flex-1 flex w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
         <style>{`
           @keyframes cardFadeInUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
           .animate-card-fade-in { animation: cardFadeInUp 0.45s cubic-bezier(0.215,0.61,0.355,1) forwards; }
@@ -107,14 +66,14 @@ function ProfilePageContent() {
         <div className="flex-1 overflow-y-auto">
           <div className="animate-card-fade-in flex flex-col gap-3 pt-4 pb-12 max-w-md mx-auto w-full">
             <div className="px-4">
-              <AccountCard profile={profile} onOpenViewer={() => setShowViewer(true)} />
+              <AccountCard profile={profile} onOpenViewer={() => router.push("/profile/edit")} />
             </div>
 
-            {/* Account */}
+            {/* Edit Profile / Billing / AI Usage — one group */}
             <Group>
               <SettingsRow
                 title={t.profile.editProfile}
-                onClick={() => setShowEdit(true)}
+                onClick={() => router.push("/profile/edit")}
                 icon={
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <circle cx="12" cy="8" r="4" />
@@ -124,7 +83,23 @@ function ProfilePageContent() {
               />
               <SettingsRow
                 title={t.profile.billing}
-                onClick={() => {}}
+                onClick={() => router.push("/profile/billing")}
+                rightElement={
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                        isPremium
+                          ? "bg-warning/10 text-warning"
+                          : "bg-card-bg text-foreground/70"
+                      }`}
+                    >
+                      {isPremium ? t.profile.planPremium : t.profile.planFree}
+                    </span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" className="shrink-0 text-foreground/45" aria-hidden="true">
+                      <polyline points="9 6 15 12 9 18" />
+                    </svg>
+                  </div>
+                }
                 icon={
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />
@@ -134,8 +109,18 @@ function ProfilePageContent() {
               />
               <SettingsRow
                 last
-                title={t.profile.usage}
-                onClick={() => {}}
+                title={t.profile.usageToday}
+                onClick={() => router.push("/profile/usage")}
+                rightElement={
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground/70">
+                      {usagePct}%
+                    </span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" className="shrink-0 text-foreground/45" aria-hidden="true">
+                      <polyline points="9 6 15 12 9 18" />
+                    </svg>
+                  </div>
+                }
                 icon={
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M3 3v18h18" />
@@ -145,25 +130,23 @@ function ProfilePageContent() {
               />
             </Group>
 
-            {/* Settings */}
+            {/* Display Settings */}
             <Group>
               <SettingsRow
-                title={t.profile.generalSection}
-                onClick={() => setShowPreferences(true)}
-                icon={
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                }
-              />
-              <SettingsRow
                 title={t.profile.darkMode}
-                onClick={() => setShowPreferences(true)}
                 rightElement={
-                  <span className="text-xs font-semibold capitalize text-text-secondary">
-                    {theme}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    aria-label={isDark ? t.profile.themeToLight : t.profile.themeToDark}
+                    className="relative h-[28px] w-[52px] rounded-full border border-border-color transition-colors duration-200 cursor-pointer bg-card-bg"
+                  >
+                    <span
+                      className={`absolute top-[2px] h-[22px] w-[22px] rounded-full shadow-sm transition-all duration-200 ${
+                        isDark ? "left-[28px] bg-primary" : "left-[2px] bg-foreground/30"
+                      }`}
+                    />
+                  </button>
                 }
                 icon={
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -173,107 +156,54 @@ function ProfilePageContent() {
               />
               <SettingsRow
                 last
-                title={t.profile.voice}
-                onClick={() => {}}
+                title={t.profile.showTranslation}
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={toggleShowTranslation}
+                    aria-label={t.profile.showTranslation}
+                    className="relative h-[28px] w-[52px] rounded-full border border-border-color transition-colors duration-200 cursor-pointer bg-card-bg"
+                  >
+                    <span
+                      className={`absolute top-[2px] h-[22px] w-[22px] rounded-full shadow-sm transition-all duration-200 ${
+                        showTranslation ? "left-[28px] bg-primary" : "left-[2px] bg-foreground/30"
+                      }`}
+                    />
+                  </button>
+                }
                 icon={
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <line x1="4" y1="10" x2="4" y2="14" />
-                    <line x1="8" y1="6" x2="8" y2="18" />
-                    <line x1="12" y1="9" x2="12" y2="15" />
-                    <line x1="16" y1="5" x2="16" y2="19" />
-                    <line x1="20" y1="10" x2="20" y2="14" />
+                    <path d="M5 3l14 0M5 9l6 0M5 15l14 0M5 21l6 0" />
                   </svg>
                 }
               />
             </Group>
 
-            {/* Session (logout/login) — kept at the very bottom */}
+            {/* Log Out */}
             <Group>
-              {email ? (
-                <SettingsRow
-                  last
-                  danger
-                  title={t.auth.logoutBtn}
-                  onClick={handleLogout}
-                  icon={
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                  }
-                />
-              ) : (
-                <SettingsRow
-                  last
-                  title={`${t.auth.loginBtn} / ${t.auth.registerBtn}`}
-                  onClick={() => router.push("/auth")}
-                  icon={
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                      <polyline points="10 17 15 12 10 7" />
-                      <line x1="15" y1="12" x2="3" y2="12" />
-                    </svg>
-                  }
-                />
-              )}
+              <SettingsRow
+                last
+                danger
+                title={t.auth.logoutBtn}
+                onClick={handleLogout}
+                icon={
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                }
+              />
             </Group>
 
-            <AppInfo />
-          </div>
-        </div>
-
-        {/* Toast */}
-        {toastMsg && (
-          <div className="pointer-events-none absolute bottom-[32px] left-1/2 z-[60] -translate-x-1/2 rounded-full bg-gray-900/90 dark:bg-gray-100/90 text-white dark:text-gray-950 px-5 py-2 text-sm font-semibold shadow-lg backdrop-blur-sm animate-card-fade-in">
-            {toastMsg}
-          </div>
-        )}
-
-        {/* Overlays */}
-        <ProfileViewerModal
-          open={showViewer}
-          onClose={() => setShowViewer(false)}
-          profile={profile}
-          stats={viewerStats}
-          onEdit={() => {
-            setShowViewer(false);
-            setShowEdit(true);
-          }}
-          onShare={handleShare}
-        />
-
-        <EditProfileSheet
-          open={showEdit}
-          onClose={() => setShowEdit(false)}
-          profile={profile}
-          onSaved={() => showToast(t.profile.saved)}
-        />
-
-        {/* General & Learning Preferences */}
-        <BottomSheet
-          open={showPreferences}
-          onClose={() => setShowPreferences(false)}
-          title={t.profile.generalSection}
-          ariaLabel={t.profile.generalSection}
-          closeAria={t.profile.closeAria}
-        >
-          <div className="p-4">
-            <div className="flex flex-col gap-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e1f20] p-5 shadow-sm">
-              <div>
-                <p className="mb-3 text-sm font-semibold text-text-primary">
-                  {t.profile.learningLanguage}
-                </p>
-                <GlobalLanguageSelector />
-              </div>
-              <div className="h-px bg-gray-100 dark:bg-gray-800/40" />
-              <LanguageSelector />
-              <div className="h-px bg-gray-100 dark:bg-gray-800/40" />
-              <ThemeToggle />
+            {/* Legal footer */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-foreground/60">
+              <a href="/terms" className="hover:underline">{t.profile.legalTerms}</a>
+              <span>·</span>
+              <a href="/privacy" className="hover:underline">{t.profile.legalPrivacy}</a>
             </div>
           </div>
-        </BottomSheet>
-
+        </div>
       </div>
     </GeminiLayout>
   );

@@ -1,10 +1,11 @@
 'use client';
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { LoadingOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { AlertCircle } from 'lucide-react';
 import type { ChatMessage } from '../_lib/types/types';
 import AIMessage from './AIMessage';
 import UserMessage from './UserMessage';
+import { useStrings } from '@/app/_lib/utils/strings';
 
 interface ChatListProps {
   messages: ChatMessage[];
@@ -26,6 +27,7 @@ export default function ChatList({
   onRetry,
   onSpeak,
 }: ChatListProps) {
+  const t = useStrings();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const prevUserCountRef = useRef(0);
@@ -61,7 +63,7 @@ export default function ChatList({
       className="flex-1 overflow-y-auto p-4"
       role="log"
       aria-live="polite"
-      aria-label="Conversation messages"
+      aria-label={t.chat.messagesAria}
     >
       <div className="max-w-2xl mx-auto w-full space-y-5 pb-[380px]">
         {(() => {
@@ -103,9 +105,10 @@ export default function ChatList({
 
 function LoadingBubble() {
   return (
-    <div className="flex justify-start items-center gap-2 text-gray-400 dark:text-gray-500 py-3">
-      <LoadingOutlined style={{ fontSize: 16 }} spin />
-      <span className="text-sm font-medium">กำลังเตรียมคำตอบ...</span>
+    <div className="flex justify-start items-center gap-1 text-foreground/50 py-3">
+      <span className="w-2 h-2 rounded-full bg-foreground/50 loading-dot" />
+      <span className="w-2 h-2 rounded-full bg-foreground/50 loading-dot" style={{ animationDelay: '0.15s' }} />
+      <span className="w-2 h-2 rounded-full bg-foreground/50 loading-dot" style={{ animationDelay: '0.3s' }} />
     </div>
   );
 }
@@ -117,23 +120,21 @@ function ErrorBanner({
   error: string;
   onRetry: () => void;
 }) {
+  const t = useStrings();
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl border border-red-200 dark:border-red-950 bg-red-50/50 dark:bg-red-950/20 p-4 shadow-sm">
+      <div className="max-w-[85%] rounded-2xl border border-incorrect/20 bg-incorrect/5 p-4 shadow-soft-sm">
         <div className="flex items-start gap-2.5">
-          <ExclamationCircleOutlined
-            className="text-red-500 mt-0.5"
-            style={{ fontSize: 16 }}
-          />
+          <AlertCircle className="text-incorrect mt-0.5" size={16} />
           <div>
-            <p className="text-sm text-red-700 dark:text-red-300 font-semibold">{error}</p>
+            <p className="text-sm text-incorrect font-semibold">{error}</p>
             <button
               type="button"
               onClick={onRetry}
-              aria-label="Retry sending message"
-              className="mt-3 rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-[#202124] px-4 py-2 text-xs font-bold text-gray-800 dark:text-gray-200 shadow-sm transition-all duration-100 hover:bg-gray-50 cursor-pointer"
+              aria-label={t.chat.retryAria}
+              className="mt-3 rounded-xl border border-border-color bg-background px-4 py-2 text-xs font-bold text-foreground shadow-soft-sm hover:bg-card-bg/60 cursor-pointer transition-all duration-100"
             >
-              ลองใหม่อีกครั้ง
+              {t.chat.retry}
             </button>
           </div>
         </div>

@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { createPortal } from 'react-dom';
-import { tokenize, tokenizePhrases } from '@/app/_lib/utils/wordTokenizer';
+import { Plus, Info } from 'lucide-react';
+import { tokenize } from '@/app/_lib/utils/wordTokenizer';
 import { STATUS_COLORS, type WordStatus } from '@/app/_lib/utils/wordStatusDerivation';
 import { WordStatusContext } from '@/app/_components/WordStatusProvider';
 import type { WordStatusContextValue } from '@/app/_components/WordStatusProvider';
-import { useRouter } from 'next/navigation';
-import { DETAIL_WORD_STORAGE_KEY, type FeedWordRecord } from '@/app/_lib/types/wordTypes';
+import { type FeedWordRecord } from '@/app/_lib/types/wordTypes';
+import WordDetailPopup from '@/app/_components/WordDetailPopup';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -18,12 +19,8 @@ interface WordRendererProps {
   className?: string;
   /** Additional className applied to each word span */
   textClassName?: string;
-  /**
-   * Pre-grouped phrases. When provided, each phrase is rendered as a single
-   * clickable token (one dot group, learned as one unit) instead of splitting
-   * `text` word-by-word. Falls back to word-by-word tokenization when empty.
-   */
-  phrases?: string[];
+  /** Reveal words one-by-one with a staggered fade (used for AI chat replies) */
+  reveal?: boolean;
 }
 
 // ─── Theme detection hook ─────────────────────────────────────────────────────
@@ -132,7 +129,7 @@ function WordOverlay({
         role="dialog"
         aria-modal="true"
         aria-label={`Word actions: ${word}`}
-        className="fixed z-50 flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-800 px-2 py-2 shadow-lg bg-white dark:bg-[#1e1f20]"
+        className="fixed z-50 flex items-center gap-1.5 rounded-xl border border-border-color px-2 py-2 shadow-soft-md bg-background"
         style={{
           left: x,
           top: placeBelow ? bottom + 8 : top - 8,
@@ -149,9 +146,10 @@ function WordOverlay({
           type="button"
           onClick={handleAdd}
           disabled={isAdding}
-          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+          aria-label="Add"
+          className="flex items-center justify-center w-6 h-6 rounded-md bg-correct hover:opacity-90 text-white dark:text-gray-900 shadow-soft-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
         >
-          {isAdding ? '...' : 'Add'}
+          <Plus size={14} className={isAdding ? 'animate-spin' : ''} strokeWidth={2.5} />
         </button>
 
         {/* Open the word detail sheet */}
@@ -161,15 +159,17 @@ function WordOverlay({
             onDetail(word);
             handleClose();
           }}
-          className="px-3 py-1.5 rounded-lg border border-gray-250 dark:border-gray-750 bg-white dark:bg-[#1e1f20] hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-700 dark:text-gray-200 font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+          aria-label="รายละเอียด"
+          className="flex items-center justify-center w-6 h-6 rounded-md border border-border-color bg-card-bg hover:bg-primary-bg/30 text-foreground transition-all active:scale-95 cursor-pointer"
         >
-          รายละเอียด
+          <Info size={14} strokeWidth={2.5} />
         </button>
       </div>
     </>,
     document.body,
   );
 }
+
 
 // ─── Long passage threshold ───────────────────────────────────────────────────
 
@@ -184,22 +184,16 @@ const FALLBACK_CONTEXT: Pick<WordStatusContextValue, 'getStatus' | 'getEntry' | 
   addWord: async () => {},
 };
 
-export default function WordRenderer({ text, className, textClassName, phrases }: WordRendererProps) {
+export default function WordRenderer({ text, className, textClassName, reveal = false }: WordRendererProps) {
   const context = useContext(WordStatusContext);
   const { getStatus, getEntry, addWord } = context ?? FALLBACK_CONTEXT;
-  const router = useRouter();
   const isDark = useIsDarkMode();
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
+  const [detailWord, setDetailWord] = useState<FeedWordRecord | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(LONG_PASSAGE_THRESHOLD);
 
-  // Phrase mode: the AI grouped the text into meaningful chunks ("good day",
-  // "up to"), each learned/clicked as one unit. Otherwise split word-by-word.
-  const phraseMode = !!(phrases && phrases.length > 0);
-  const tokens = useMemo(
-    () => (phraseMode ? tokenizePhrases(phrases!) : tokenize(text)),
-    [text, phrases, phraseMode]
-  );
+  const tokens = useMemo(() => tokenize(text), [text]);
 
   // For long passages (>500 words), render visible tokens first, then load rest async
   const isLongPassage = tokens.length > LONG_PASSAGE_THRESHOLD;
@@ -213,7 +207,6 @@ export default function WordRenderer({ text, className, textClassName, phrases }
     }
 
     // Reset to threshold on text change
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(LONG_PASSAGE_THRESHOLD);
 
     // Process remaining tokens async using requestAnimationFrame
@@ -232,9 +225,10 @@ export default function WordRenderer({ text, className, textClassName, phrases }
 
   const handleWordTap = useCallback((word: string, el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
-    // Keep the popover within the viewport horizontally (~90px half-width).
+    // Center on the tapped word, keeping the popover within the viewport
+    // (~40px half-width for the compact icon buttons).
     const center = rect.left + rect.width / 2;
-    const x = Math.min(Math.max(center, 90), window.innerWidth - 90);
+    const x = Math.min(Math.max(center, 40), window.innerWidth - 40);
     setOverlay({ word, x, top: rect.top, bottom: rect.bottom });
   }, []);
 
@@ -242,11 +236,11 @@ export default function WordRenderer({ text, className, textClassName, phrases }
     setOverlay(null);
   }, []);
 
-  // Open the full word-detail page (same handoff as /words)
+  // Open the word-detail popup
   const handleShowDetail = useCallback(
     (word: string) => {
       const entry = getEntry(word);
-      const detailWord: FeedWordRecord = {
+      setDetailWord({
         id: entry?.id ?? word,
         language: 'english',
         generatedDate: '',
@@ -255,16 +249,9 @@ export default function WordRenderer({ text, className, textClassName, phrases }
         createdAt: Date.now(),
         partOfSpeech: entry?.partOfSpeech ?? undefined,
         word,
-        ipa: entry?.ipa ?? undefined,
-      };
-      try {
-        sessionStorage.setItem(DETAIL_WORD_STORAGE_KEY, JSON.stringify(detailWord));
-      } catch {
-        return;
-      }
-      router.push('/word-detail');
+      });
     },
-    [getEntry, router]
+    [getEntry]
   );
 
   const colorMode = isDark ? 'dark' : 'light';
@@ -312,12 +299,13 @@ export default function WordRenderer({ text, className, textClassName, phrases }
                 }}
                 onMouseEnter={() => setHoveredIndex(index)}
                 onMouseLeave={() => setHoveredIndex(null)}
-                className="cursor-pointer select-none transition-colors duration-150"
+                className={`cursor-pointer select-none transition-colors duration-150 inline-block mx-[1px] my-[5px]${reveal ? ' animate-word-reveal' : ''}`}
                 style={{
                   color,
                   backgroundColor: hoveredIndex === index ? `${color}4D` : `${color}26`,
                   borderRadius: '0.4em',
-                  padding: '0.02em 0.28em',
+                  padding: '0.05em 0.35em',
+                  ...(reveal ? { animationDelay: `${index * 55}ms` } : {}),
                 }}
               >
                 {token.word}
@@ -328,15 +316,13 @@ export default function WordRenderer({ text, className, textClassName, phrases }
                 <span aria-hidden="true">{token.trailingPunct}</span>
               )}
 
-              {/* Whitespace between words */}
-              {index < displayTokens.length - 1 && ' '}
             </span>
           );
         })}
 
         {/* Loading indicator for remaining tokens in long passages */}
         {isLongPassage && visibleCount < tokens.length && (
-          <span className="inline-block text-text-secondary text-xs ml-1" aria-label="Loading remaining words">
+          <span className="inline-block text-foreground/50 text-xs ml-1" aria-label="กำลังโหลดคำที่เหลือ">
             …
           </span>
         )}
@@ -354,6 +340,9 @@ export default function WordRenderer({ text, className, textClassName, phrases }
           onDetail={handleShowDetail}
         />
       )}
+
+      {/* Word Detail Popup */}
+      <WordDetailPopup word={detailWord} onClose={() => setDetailWord(null)} />
     </>
   );
 }

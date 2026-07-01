@@ -14,7 +14,6 @@ export interface WordRow {
   id: string;
   word?: string | null;
   thai?: string | null;
-  ipa?: string | null;
   part_of_speech?: string | null;
   word_progress?: WordProgressRow | WordProgressRow[] | null;
 }
@@ -47,7 +46,6 @@ export function rowToWordBankEntry(row: WordRow, wordKey: string): WordBankEntry
     id: row.id,
     word: wordKey,
     thai: row.thai || null,
-    ipa: row.ipa || null,
     partOfSpeech: row.part_of_speech || null,
     nextReviewAt: progress?.next_review_at
       ? new Date(progress.next_review_at)

@@ -1,14 +1,10 @@
 'use client';
 
-import {
-  SoundOutlined,
-  LikeOutlined,
-  DislikeOutlined,
-  CopyOutlined,
-  EllipsisOutlined,
-} from '@ant-design/icons';
+import { Volume2, ThumbsUp, ThumbsDown, Copy, MoreHorizontal } from 'lucide-react';
 import type { ChatMessage } from '../_lib/types/types';
 import WordRenderer from '@/app/_components/WordRenderer';
+import { useStrings } from '@/app/_lib/utils/strings';
+import { useShowTranslation } from '@/app/profile/_lib/hooks/useShowTranslation';
 
 export default function AIMessage({
   message,
@@ -17,30 +13,24 @@ export default function AIMessage({
   message: ChatMessage;
   onSpeak: (messageId: string, text?: string) => void;
 }) {
+  const t = useStrings();
+  const { showTranslation } = useShowTranslation();
   const sentences = message.sentences || [];
   const hasSentences = sentences.length > 0;
 
   return (
     <div className="flex justify-start items-start w-full">
-      <div className="animate-bubble-pop-in max-w-[85%] w-full transition-all duration-300">
-        <div className="text-gray-900 dark:text-gray-100">
+      <div className="animate-bubble-pop-in w-full transition-all duration-300">
+        <div className="text-foreground">
           {hasSentences ? (
             <div className="flex flex-col gap-4">
               {sentences.map((s, idx) => (
                 <div key={idx} className="flex flex-col">
-                  {idx > 0 && (
-                    <div className="border-t border-gray-200/50 dark:border-gray-800/40 my-3 w-full" />
-                  )}
-                  <p className="text-base font-medium leading-relaxed">
-                    <WordRenderer text={s.english || s.englishText || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
+                  <p className="text-base font-medium leading-loose">
+                    <WordRenderer text={s.english || s.englishText || ''} textClassName="text-base font-semibold text-foreground" reveal />
                   </p>
-                  {s.reading && (
-                    <p className="text-[15px] text-gray-600 dark:text-gray-300 font-medium leading-relaxed mt-1">
-                      {s.reading}
-                    </p>
-                  )}
-                  {s.translation && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                  {showTranslation && s.translation && (
+                    <p className="text-sm text-foreground/60 mt-1 leading-relaxed">
                       {s.translation}
                     </p>
                   )}
@@ -49,16 +39,11 @@ export default function AIMessage({
             </div>
           ) : (
             <div>
-              <p className="text-base font-medium leading-relaxed">
-                <WordRenderer text={message.english || message.englishText || ''} textClassName="text-base font-semibold text-gray-900 dark:text-white" />
+              <p className="text-base font-medium leading-loose">
+                <WordRenderer text={message.english || message.englishText || ''} textClassName="text-base font-semibold text-foreground" reveal />
               </p>
-              {message.reading && (
-                <p className="text-[15px] text-gray-600 dark:text-gray-300 font-medium leading-relaxed mt-1">
-                  {message.reading}
-                </p>
-              )}
-              {message.translation && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              {showTranslation && message.translation && (
+                <p className="text-sm text-foreground/60 mt-1 leading-relaxed">
                   {message.translation}
                 </p>
               )}
@@ -67,51 +52,51 @@ export default function AIMessage({
         </div>
 
         {/* Action buttons bar */}
-        <div className="flex justify-between items-center mt-3 text-gray-400 dark:text-gray-500 w-full max-w-md">
+        <div className="flex justify-between items-center mt-3 text-foreground/45 w-full max-w-md">
           <div className="flex items-center gap-2">
             <button
               type="button"
-              aria-label="Like response"
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label={t.chat.likeAria}
+              className="p-1.5 hover:bg-card-bg rounded-full transition-colors cursor-pointer text-foreground/60 hover:text-foreground"
             >
-              <LikeOutlined style={{ fontSize: 16 }} />
+              <ThumbsUp size={16} />
             </button>
             <button
               type="button"
-              aria-label="Dislike response"
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label={t.chat.dislikeAria}
+              className="p-1.5 hover:bg-card-bg rounded-full transition-colors cursor-pointer text-foreground/60 hover:text-foreground"
             >
-              <DislikeOutlined style={{ fontSize: 16 }} />
+              <ThumbsDown size={16} />
             </button>
             <button
               type="button"
               onClick={() => {
                 const textToCopy = hasSentences
-                  ? sentences.map(s => s.translation || s.reading).join('\n')
+                  ? sentences.map(s => s.translation).join('\n')
                   : message.translation || message.englishText;
                 navigator.clipboard.writeText(textToCopy);
               }}
-              aria-label="Copy text"
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label={t.chat.copyAria}
+              className="p-1.5 hover:bg-card-bg rounded-full transition-colors cursor-pointer text-foreground/60 hover:text-foreground"
             >
-              <CopyOutlined style={{ fontSize: 16 }} />
+              <Copy size={16} />
             </button>
             <button
               type="button"
-              aria-label="More options"
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label={t.chat.moreAria}
+              className="p-1.5 hover:bg-card-bg rounded-full transition-colors cursor-pointer text-foreground/60 hover:text-foreground"
             >
-              <EllipsisOutlined style={{ fontSize: 16 }} />
+              <MoreHorizontal size={16} />
             </button>
           </div>
 
           <button
             type="button"
             onClick={() => onSpeak(message.id)}
-            aria-label="Play pronunciation"
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            aria-label={t.chat.playAria}
+            className="p-1.5 hover:bg-card-bg rounded-full transition-colors cursor-pointer text-foreground/60 hover:text-foreground"
           >
-            <SoundOutlined style={{ fontSize: 18 }} />
+            <Volume2 size={18} />
           </button>
         </div>
       </div>

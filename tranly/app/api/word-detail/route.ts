@@ -228,54 +228,71 @@ export async function POST(
     max_tokens: 2048,
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  // ponytail: 2 attempts, no backoff — upstream is occasionally flaky, not
+  // worth a real retry/backoff library. Timeouts (AbortError) never retry,
+  // they'd already burn the API_TIMEOUT_MS budget against maxDuration=60.
+  const MAX_ATTEMPTS = 2;
+  let parsed: WordDetailResponse | null = null;
+  let totalTokens = 0;
 
   try {
-    const response = await fetch(KKU_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
-    });
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-    clearTimeout(timeoutId);
+      const response = await fetch(KKU_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[word-detail] KKU API error [${response.status}]:`, errorText);
-      return NextResponse.json({ error: 'AI API error' }, { status: 502 });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[word-detail] Attempt ${attempt} failed: KKU API error [${response.status}]:`, errorText);
+        if (attempt < MAX_ATTEMPTS) continue;
+        return NextResponse.json({ error: 'AI API error' }, { status: 502 });
+      }
+
+      const responseText = await response.text();
+      let content: string | undefined;
+
+      try {
+        const data = JSON.parse(responseText);
+        content = data?.choices?.[0]?.message?.content ?? data?.content;
+      } catch {
+        // fall through
+      }
+
+      if (!content || content.trim().length === 0) {
+        console.error(`[word-detail] Attempt ${attempt} failed: empty content from KKU API`);
+        if (attempt < MAX_ATTEMPTS) continue;
+        return NextResponse.json({ error: 'Empty response from AI' }, { status: 502 });
+      }
+
+      parsed = parseWordDetailContent(content);
+      if (!parsed) {
+        console.error(`[word-detail] Attempt ${attempt} failed: could not parse AI response:`, content);
+        if (attempt < MAX_ATTEMPTS) continue;
+        return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 502 });
+      }
+
+      try {
+        const data = JSON.parse(responseText);
+        totalTokens = data?.usage?.total_tokens ?? 0;
+      } catch { /* ignore */ }
+
+      break;
     }
 
-    const responseText = await response.text();
-    let content: string | undefined;
-
-    try {
-      const data = JSON.parse(responseText);
-      content = data?.choices?.[0]?.message?.content ?? data?.content;
-    } catch {
-      // fall through
-    }
-
-    if (!content || content.trim().length === 0) {
-      console.error('[word-detail] Empty content from KKU API');
-      return NextResponse.json({ error: 'Empty response from AI' }, { status: 502 });
-    }
-
-    const parsed = parseWordDetailContent(content);
     if (!parsed) {
-      console.error('[word-detail] Failed to parse AI response:', content);
       return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 502 });
     }
-
-    let totalTokens = 0;
-    try {
-      const data = JSON.parse(responseText);
-      totalTokens = data?.usage?.total_tokens ?? 0;
-    } catch { /* ignore */ }
 
     after(async () => {
       // Debit budget for cache-miss AI call
@@ -306,7 +323,6 @@ export async function POST(
 
     return NextResponse.json(parsed, { status: 200 });
   } catch (error: unknown) {
-    clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json({ error: 'Request timed out' }, { status: 504 });
     }

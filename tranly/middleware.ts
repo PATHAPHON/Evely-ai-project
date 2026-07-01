@@ -74,12 +74,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (isRootRoute) {
-    if (isLoggedIn) {
-      return NextResponse.redirect(new URL('/new', request.url));
-    } else {
-      return NextResponse.redirect(new URL('/auth?redirect=/new', request.url));
-    }
+  if (isRootRoute && isLoggedIn) {
+    return NextResponse.redirect(new URL('/new', request.url));
   }
 
   if (isAuthRoute) {

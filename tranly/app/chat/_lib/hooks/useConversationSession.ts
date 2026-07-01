@@ -5,6 +5,7 @@ import { randomId } from '@/app/_lib/utils/randomId';
 import { getCustomAIHeaders } from '@/app/_lib/utils/getCustomAIHeaders';
 import { markBudgetExhausted } from '@/app/_lib/hooks/useBudgetExhausted';
 import { translateBatchToThai } from '@/app/_lib/utils/translateToThai';
+import { STORAGE_KEY as SHOW_TRANSLATION_KEY } from '@/app/profile/_lib/hooks/useShowTranslation';
 import { useChatApi } from './useChatApi';
 import { useConversationHistory } from './useConversationHistory';
 import { baseMessage } from '../utils/baseMessage';
@@ -137,48 +138,63 @@ export function useConversationSession(isPremium = false): UseConversationSessio
           config.language,
         );
 
-        // The model now replies in English only; fill Thai translations on-device
-        // via Chrome's Translator API. When unsupported, translations stay empty
-        // and the UI simply shows no Thai line.
+        // The model replies in English only; fill Thai translations via the KKU
+        // batch translate call. On failure they stay empty and the UI simply
+        // shows no Thai line.
         const sentences = aiResponse.sentences ?? [];
         const suggestions = aiResponse.suggestions ?? [];
         const toTranslate = [
           ...sentences.map((s) => s.englishText),
           ...suggestions.map((s) => s.englishText),
         ];
-        const translated = await translateBatchToThai(toTranslate);
 
-        const translatedSentences = translated
-          ? sentences.map((s, i) => ({ ...s, translation: translated[i] ?? '' }))
-          : sentences;
-        const translatedSuggestions = translated
-          ? suggestions.map((s, i) => ({
-              ...s,
-              translation: translated[sentences.length + i] ?? '',
-            }))
-          : suggestions;
-
-        const aiMessage: ChatMessage = {
-          ...pendingMessage,
-          englishText: aiResponse.englishText,
-          translation: translatedSentences.map((s) => s.translation).join(' '),
-          english: aiResponse.english,
-          rawText: aiResponse.englishText,
-          timestamp: new Date().toISOString(),
-          status: 'sent',
-          suggestions: translatedSuggestions,
-          sentences: translatedSentences,
-          suggestionsLocked: aiResponse.suggestionsLocked,
+        const buildMessage = (translated: string[] | null): ChatMessage => {
+          const translatedSentences = translated
+            ? sentences.map((s, i) => ({ ...s, translation: translated[i] ?? '' }))
+            : sentences;
+          const translatedSuggestions = translated
+            ? suggestions.map((s, i) => ({
+                ...s,
+                translation: translated[sentences.length + i] ?? '',
+              }))
+            : suggestions;
+          return {
+            ...pendingMessage,
+            englishText: aiResponse.englishText,
+            translation: translatedSentences.map((s) => s.translation).join(' '),
+            english: aiResponse.english,
+            rawText: aiResponse.englishText,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+            suggestions: translatedSuggestions,
+            sentences: translatedSentences,
+            suggestionsLocked: aiResponse.suggestionsLocked,
+          };
         };
 
-        setMessages((prev) =>
-          prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)),
-        );
+        const sid = sessionIdRef.current!;
+        const showTranslation = localStorage.getItem(SHOW_TRANSLATION_KEY) !== 'false';
 
-        try {
-          await saveMessage(sessionIdRef.current!, aiMessage);
-        } catch {
-          // Keep in memory even if persistence fails.
+        if (showTranslation) {
+          const translated = await translateBatchToThai(toTranslate);
+          const aiMessage = buildMessage(translated);
+          setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)));
+          try {
+            await saveMessage(sid, aiMessage);
+          } catch {
+            // Keep in memory even if persistence fails.
+          }
+        } else {
+          // Render immediately without waiting; translate silently in background.
+          const aiMessage = buildMessage(null);
+          setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)));
+          saveMessage(sid, aiMessage).catch(() => {});
+          translateBatchToThai(toTranslate).then((translated) => {
+            if (!translated) return;
+            const patched = buildMessage(translated);
+            setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? patched : msg)));
+            saveMessage(sid, patched).catch(() => {});
+          });
         }
       } catch (err) {
         console.error('runAssistantReply failed:', err);

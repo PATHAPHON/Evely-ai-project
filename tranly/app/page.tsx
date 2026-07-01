@@ -1,83 +1,47 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, ConfigProvider, Card, Typography, Spin } from "antd";
-import { RocketOutlined, ThunderboltOutlined } from "@ant-design/icons";
-import useIllustrationTheme from "@/app/theme/useIllustrationTheme";
-import { useStrings } from "@/app/_lib/utils/strings";
 import { supabase } from "@/app/_lib/supabase/supabaseClient";
-
-const { Title, Paragraph } = Typography;
+import LandingHeader from "@/app/_components/landing/LandingHeader";
+import Hero from "@/app/_components/landing/Hero";
+import Features from "@/app/_components/landing/Features";
+import Pricing from "@/app/_components/landing/Pricing";
+import FinalCTA from "@/app/_components/landing/FinalCTA";
+import LandingFooter from "@/app/_components/landing/LandingFooter";
 
 export default function LandingPage() {
-  const configProps = useIllustrationTheme();
   const router = useRouter();
-  const t = useStrings();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const checkAuthAndRedirect = async () => {
+    const checkAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          router.push("/chat");
-        } else {
-          router.push("/auth");
+          router.replace("/new");
+          return;
         }
       } catch (err) {
         console.error("Failed to check auth on landing page:", err);
-        router.push("/auth");
       }
+      setCheckingAuth(false);
     };
-
-    // Automatically redirect to the correct screen after 1.5 seconds
-    const timer = setTimeout(() => {
-      checkAuthAndRedirect();
-    }, 1500);
-    return () => clearTimeout(timer);
+    checkAuth();
   }, [router]);
 
+  if (checkingAuth) {
+    return <div className="min-h-dvh bg-background" />;
+  }
+
   return (
-    <ConfigProvider {...configProps}>
-      <div className="flex flex-col items-center justify-center dot-grid-bg min-h-dvh py-16 px-6 font-sans">
-        <main className="w-full max-w-md transition-all duration-300">
-          
-          <Card 
-            title={
-              <div className="flex items-center gap-2 font-black uppercase text-sm">
-                <ThunderboltOutlined style={{ color: "#FFD93D" }} />
-                <span>{t.landing.launching}</span>
-              </div>
-            }
-            bordered={true}
-            className="text-center p-6"
-          >
-            <Title level={2} style={{ margin: "0 0 12px 0", fontWeight: 900 }}>
-              Tarn<span className="text-accent-green">ly</span>
-            </Title>
-
-            <Paragraph style={{ fontWeight: 600, color: "#2C2C2C" }}>
-              {t.landing.loadingApp}
-            </Paragraph>
-
-            <div className="py-6 flex items-center justify-center">
-              <Spin size="large" />
-            </div>
-
-            <Button 
-              type="primary" 
-              icon={<RocketOutlined />} 
-              size="large"
-              block
-              onClick={() => router.push("/chat")}
-              className="mt-4"
-            >
-              {t.landing.openApp}
-            </Button>
-          </Card>
-
-        </main>
-      </div>
-    </ConfigProvider>
+    <div className="min-h-dvh bg-background font-sans">
+      <LandingHeader />
+      <Hero />
+      <Features />
+      <Pricing />
+      <FinalCTA />
+      <LandingFooter />
+    </div>
   );
 }

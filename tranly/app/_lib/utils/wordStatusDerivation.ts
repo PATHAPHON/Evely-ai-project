@@ -21,7 +21,6 @@ export interface WordBankEntry {
   id: string;
   word: string;
   thai: string | null;
-  ipa: string | null;
   partOfSpeech: string | null;
   nextReviewAt: Date;
   lastReviewedAt: Date | null;

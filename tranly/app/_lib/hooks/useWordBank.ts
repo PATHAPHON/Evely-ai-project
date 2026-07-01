@@ -13,10 +13,22 @@ import {
   createInitialProgress,
 } from '@/app/_lib/utils/spacedRepetition';
 import { getCustomAIHeaders } from '@/app/_lib/utils/getCustomAIHeaders';
+import { translateBatchToThai } from '@/app/_lib/utils/translateToThai';
 import { isAuthExpiredError, rowToWordBankEntry } from '@/app/_lib/utils/wordBankRow';
 import { useToast } from '@/app/_components/Toast';
+import { th } from '@/app/_lib/utils/strings';
+
+/** A word bank entry flattened with its derived learning status. */
+export interface WordBankWord {
+  id: string;
+  word: string;
+  thai: string | null;
+  status: WordStatus;
+}
 
 export interface WordStatusContextValue {
+  /** All words in the bank, each with its currently derived status. */
+  words: WordBankWord[];
   getStatus: (word: string) => WordStatus;
   getEntry: (word: string) => WordBankEntry | null;
   addWord: (word: string) => Promise<void>;
@@ -34,7 +46,7 @@ export interface WordStatusContextValue {
 export function useWordBank(): WordStatusContextValue {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [, setVersion] = useState(0); // trigger re-renders on cache update
+  const [words, setWords] = useState<WordBankWord[]>([]);
 
   const wordBankRef = useRef<Map<string, WordBankEntry>>(new Map());
   const rejectedSetRef = useRef<Set<string>>(new Set());
@@ -42,9 +54,19 @@ export function useWordBank(): WordStatusContextValue {
   const router = useRouter();
   const { showToast } = useToast();
 
-  // Force re-render all consumers
+  // Rebuild the flattened snapshot (with derived status) and push to state.
+  // Called from mutations/effects only — reading refs here is allowed.
   const notifyUpdate = useCallback(() => {
-    setVersion((v) => v + 1);
+    const snapshot: WordBankWord[] = [];
+    wordBankRef.current.forEach((entry) => {
+      snapshot.push({
+        id: entry.id,
+        word: entry.word,
+        thai: entry.thai,
+        status: deriveWordStatus(entry.word, wordBankRef.current, rejectedSetRef.current),
+      });
+    });
+    setWords(snapshot);
   }, []);
 
   // ─── Load data from Supabase on mount ─────────────────────────────────────
@@ -77,7 +99,6 @@ export function useWordBank(): WordStatusContextValue {
             id,
             word,
             thai,
-            ipa,
             part_of_speech,
             word_progress (
               box,
@@ -95,16 +116,6 @@ export function useWordBank(): WordStatusContextValue {
           throw new Error(`Failed to load words: ${wordsError.message}`);
         }
 
-        // Fetch rejected words
-        const { data: rejectedData, error: rejectedError } = await supabase
-          .from('rejected_words')
-          .select('word_key')
-          .eq('user_id', userId);
-
-        if (rejectedError) {
-          throw new Error(`Failed to load rejected words: ${rejectedError.message}`);
-        }
-
         if (!mounted) return;
 
         // Build in-memory Map
@@ -114,16 +125,7 @@ export function useWordBank(): WordStatusContextValue {
           newWordBank.set(entry.word, entry);
         }
 
-        // Build rejected words set
-        const newRejectedSet = new Set<string>();
-        for (const row of rejectedData || []) {
-          if (row.word_key) {
-            newRejectedSet.add(row.word_key.toLowerCase());
-          }
-        }
-
         wordBankRef.current = newWordBank;
-        rejectedSetRef.current = newRejectedSet;
         setError(null);
         setIsLoading(false);
         notifyUpdate();
@@ -133,7 +135,7 @@ export function useWordBank(): WordStatusContextValue {
           setError(errorMsg);
           setIsLoading(false);
           // Show notification when word bank fails to load (Requirement 5.6)
-          showToast('Word status data is temporarily unavailable. All words shown as unknown.', 'warning', 5000);
+          showToast(th.errors.wordStatusUnavailable, 'warning', 5000);
         }
       }
     };
@@ -189,20 +191,22 @@ export function useWordBank(): WordStatusContextValue {
 
         const data = await res.json();
 
-        const thai = typeof data.thai === 'string' && data.thai ? data.thai : null;
-        const ipa = typeof data.ipa === 'string' && data.ipa ? data.ipa : null;
+        // Try on-device translation first, fall back to AI-generated Thai meaning if unsupported/empty
+        const [translated] = (await translateBatchToThai([originalWord])) ?? [];
+        const thai = (translated && translated.trim())
+          ? translated.trim()
+          : (typeof data.thai === 'string' && data.thai.trim() ? data.thai.trim() : null);
         const partOfSpeech =
           typeof data.partOfSpeech === 'string' && data.partOfSpeech
             ? data.partOfSpeech
             : null;
 
-        if (!thai && !ipa && !partOfSpeech) return;
+        if (!thai && !partOfSpeech) return;
 
         const { error: updateError } = await supabase
           .from('words')
           .update({
             ...(thai ? { thai, label: thai } : {}),
-            ...(ipa ? { ipa } : {}),
             ...(partOfSpeech ? { part_of_speech: partOfSpeech } : {}),
           })
           .eq('id', wordId)
@@ -215,7 +219,6 @@ export function useWordBank(): WordStatusContextValue {
           wordBankRef.current.set(normalizedWord, {
             ...entry,
             thai: thai ?? entry.thai,
-            ipa: ipa ?? entry.ipa,
             partOfSpeech: partOfSpeech ?? entry.partOfSpeech,
           });
           notifyUpdate();
@@ -268,7 +271,7 @@ export function useWordBank(): WordStatusContextValue {
             .from('words')
             .select(
               `
-              id, word, thai, ipa, part_of_speech,
+              id, word, thai, part_of_speech,
               word_progress (box, interval, ease_factor, repetitions, last_reviewed_at, next_review_at)
             `
             )
@@ -291,7 +294,7 @@ export function useWordBank(): WordStatusContextValue {
         }
 
         // Other Supabase insert failure — show 5-second error toast, retain previous status (Requirement 3.8)
-        showToast('Failed to add word. Please try again.', 'error', 5000);
+        showToast(th.errors.addWordFailed, 'error', 5000);
         throw new Error(`Failed to add word: ${insertError.message}`);
       }
 
@@ -309,8 +312,6 @@ export function useWordBank(): WordStatusContextValue {
           last_reviewed_at: initialProgress.lastReviewedAt.toISOString(),
           next_review_at: initialProgress.nextReviewAt.toISOString(),
           repetitions: 0,
-          streak: 0,
-          mastery_level: 0,
         });
 
       if (progressError) {
@@ -320,7 +321,7 @@ export function useWordBank(): WordStatusContextValue {
           handleAuthExpired();
           return;
         }
-        showToast('Failed to add word. Please try again.', 'error', 5000);
+        showToast(th.errors.addWordFailed, 'error', 5000);
         throw new Error(`Failed to create word progress: ${progressError.message}`);
       }
 
@@ -329,7 +330,6 @@ export function useWordBank(): WordStatusContextValue {
         id: wordId,
         word: normalizedWord,
         thai: null,
-        ipa: null,
         partOfSpeech: null,
         nextReviewAt: initialProgress.nextReviewAt,
         lastReviewedAt: initialProgress.lastReviewedAt,
@@ -392,7 +392,7 @@ export function useWordBank(): WordStatusContextValue {
           handleAuthExpired();
           return;
         }
-        showToast('Failed to remove word. Please try again.', 'error', 5000);
+        showToast(th.errors.removeWordFailed, 'error', 5000);
         throw new Error(
           `Failed to delete word progress: ${progressDeleteError.message}`
         );
@@ -410,7 +410,7 @@ export function useWordBank(): WordStatusContextValue {
           handleAuthExpired();
           return;
         }
-        showToast('Failed to remove word. Please try again.', 'error', 5000);
+        showToast(th.errors.removeWordFailed, 'error', 5000);
         throw new Error(`Failed to delete word: ${wordDeleteError.message}`);
       }
 
@@ -476,7 +476,7 @@ export function useWordBank(): WordStatusContextValue {
           handleAuthExpired();
           return;
         }
-        showToast('Failed to update review progress. Please try again.', 'error', 5000);
+        showToast(th.errors.reviewFailed, 'error', 5000);
         throw new Error(`Failed to update word progress: ${updateError.message}`);
       }
 
@@ -498,6 +498,7 @@ export function useWordBank(): WordStatusContextValue {
   );
 
   return {
+    words,
     getStatus,
     getEntry,
     addWord,

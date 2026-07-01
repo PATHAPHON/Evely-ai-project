@@ -4,8 +4,6 @@ import type { ChatSuccessResponse } from '@/app/chat/_lib/types/types';
 
 const validResponse: ChatSuccessResponse = {
   englishText: 'Hello',
-  reading: 'เฮลโล',
-  romanization: 'hello',
   translation: 'สวัสดี',
   english: 'Hello',
 };
@@ -15,8 +13,6 @@ const expectedResponse: ChatSuccessResponse = {
   sentences: [
     {
       englishText: 'Hello',
-      reading: 'เฮลโล',
-      romanization: 'hello',
       translation: 'สวัสดี',
       english: 'Hello',
     },
@@ -28,41 +24,6 @@ describe('parseChatResponse', () => {
     const content = JSON.stringify(validResponse);
     const result = parseChatResponse(content);
     expect(result).toEqual(expectedResponse);
-  });
-
-  it('parses englishPhrases when the AI supplies them', () => {
-    const content = JSON.stringify({
-      sentences: [
-        {
-          englishText: 'good day',
-          reading: 'กูด เดย์',
-          romanization: 'good day',
-          translation: 'วันที่ดี',
-          english: 'good day',
-          englishPhrases: ['good day'],
-        },
-      ],
-    });
-    const result = parseChatResponse(content);
-    expect(result.sentences?.[0].englishPhrases).toEqual(['good day']);
-  });
-
-  it('omits englishPhrases when absent or malformed but keeps the sentence valid', () => {
-    const content = JSON.stringify({
-      sentences: [
-        {
-          englishText: 'Hi',
-          reading: 'ฮาย',
-          romanization: 'hi',
-          translation: 'สวัสดี',
-          english: 'Hi',
-          englishPhrases: 'not-an-array',
-        },
-      ],
-    });
-    const result = parseChatResponse(content);
-    expect(result.sentences?.[0].english).toBe('Hi');
-    expect(result.sentences?.[0].englishPhrases).toBeUndefined();
   });
 
   it('parses JSON wrapped in markdown code fences', () => {
@@ -98,8 +59,6 @@ describe('parseChatResponse', () => {
   it('trims whitespace from field values', () => {
     const responseWithSpaces = {
       englishText: '  Hello  ',
-      reading: '  เฮลโล  ',
-      romanization: '  hello  ',
       translation: '  สวัสดี  ',
       english: '  Hello  ',
     };
@@ -122,14 +81,16 @@ describe('parseChatResponse', () => {
     );
   });
 
-  it('throws error when required fields are missing', () => {
-    const incomplete = { englishText: 'Hello', reading: 'เฮลโล' };
-    const content = JSON.stringify(incomplete);
-    expect(() => parseChatResponse(content)).toThrow('Invalid response format');
+  it('accepts an English-only response (translation filled later on-device)', () => {
+    // The model now replies in English only; Thai is added client-side via Chrome.
+    const englishOnly = { englishText: 'Hello' };
+    const result = parseChatResponse(JSON.stringify(englishOnly));
+    expect(result.englishText).toBe('Hello');
+    expect(result.sentences?.[0].englishText).toBe('Hello');
   });
 
-  it('throws error when fields are empty strings', () => {
-    const emptyField = { ...validResponse, translation: '' };
+  it('throws error when englishText is empty', () => {
+    const emptyField = { ...validResponse, englishText: '' };
     const content = JSON.stringify(emptyField);
     expect(() => parseChatResponse(content)).toThrow('Invalid response format');
   });
@@ -137,7 +98,7 @@ describe('parseChatResponse', () => {
   it('handles malformed JSON by extracting fields via regex', () => {
     // Simulate truncated JSON where fields are still extractable
     const content =
-      '{"englishText":"Hello","reading":"เฮลโล","romanization":"hello","translation":"สวัสดี","english":"Hello"';
+      '{"englishText":"Hello","romanization":"hello","translation":"สวัสดี","english":"Hello"';
     const result = parseChatResponse(content);
     expect(result).toEqual(expectedResponse);
   });
@@ -199,8 +160,6 @@ describe('parseChatResponse', () => {
   it('handles response with escaped characters in field values', () => {
     const responseWithEscapes: ChatSuccessResponse = {
       englishText: 'He said "Hello"',
-      reading: 'ฮี เซด "เฮลโล"',
-      romanization: 'he said hello',
       translation: 'เขาพูดว่า "สวัสดี"',
       english: 'He said "Hello"',
     };
@@ -209,8 +168,6 @@ describe('parseChatResponse', () => {
       sentences: [
         {
           englishText: 'He said "Hello"',
-          reading: 'ฮี เซด "เฮลโล"',
-          romanization: 'he said hello',
           translation: 'เขาพูดว่า "สวัสดี"',
           english: 'He said "Hello"',
         },
@@ -225,8 +182,6 @@ describe('parseChatResponse', () => {
   it('accepts legacy `korean` key as fallback for englishText', () => {
     const legacyResponse = {
       korean: 'Hello',
-      reading: 'เฮลโล',
-      romanization: 'hello',
       translation: 'สวัสดี',
       english: 'Hello',
     };
@@ -240,8 +195,6 @@ describe('parseChatResponse', () => {
       sentences: [
         {
           korean: 'Good morning',
-          reading: 'กูด มอร์นิ่ง',
-          romanization: 'good morning',
           translation: 'อรุณสวัสดิ์',
           english: 'Good morning',
         },
@@ -255,8 +208,6 @@ describe('parseChatResponse', () => {
     const mixed = {
       englishText: 'Hello',
       korean: 'old value',
-      reading: 'เฮลโล',
-      romanization: 'hello',
       translation: 'สวัสดี',
       english: 'Hello',
     };

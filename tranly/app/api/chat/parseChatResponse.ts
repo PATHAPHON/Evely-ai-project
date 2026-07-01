@@ -23,20 +23,6 @@ function extractSuggestions(value: unknown): ReplySuggestion[] | undefined {
 }
 
 /**
- * Extract a clean list of phrase chunks from a raw value. Returns undefined
- * when absent or malformed so the field is simply omitted (consumers then fall
- * back to word-by-word rendering).
- */
-function extractPhrases(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const phrases = value
-    .filter((p): p is string => typeof p === 'string')
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-  return phrases.length > 0 ? phrases : undefined;
-}
-
-/**
  * Attempt to parse a string as JSON. Returns null on failure.
  */
 function tryParseJson(s: string): unknown {
@@ -74,25 +60,12 @@ function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
       if (typeof s !== 'object' || s === null) return false;
       const sr = s as Record<string, unknown>;
       const text = sr.englishText ?? sr.korean;
-      return (
-        typeof text === 'string' && (text as string).trim().length > 0 &&
-        typeof sr.reading === 'string' && (sr.reading as string).trim().length > 0 &&
-        typeof sr.romanization === 'string' &&
-        typeof sr.translation === 'string' && (sr.translation as string).trim().length > 0
-      );
+      return typeof text === 'string' && (text as string).trim().length > 0;
     });
   }
 
   const text = record.englishText ?? record.korean;
-  return (
-    typeof text === 'string' &&
-    (text as string).trim().length > 0 &&
-    typeof record.reading === 'string' &&
-    record.reading.trim().length > 0 &&
-    typeof record.romanization === 'string' &&
-    typeof record.translation === 'string' &&
-    record.translation.trim().length > 0
-  );
+  return typeof text === 'string' && (text as string).trim().length > 0;
 }
 
 /**
@@ -113,13 +86,9 @@ function extractChatResponse(
         const rawEt = rec.englishText ?? rec.korean;
         sentences.push({
           englishText: typeof rawEt === 'string' ? rawEt.trim() : '',
-          reading: typeof rec.reading === 'string' ? rec.reading.trim() : '',
-          romanization:
-            typeof rec.romanization === 'string' ? rec.romanization.trim() : '',
           translation:
             typeof rec.translation === 'string' ? rec.translation.trim() : '',
           english: typeof rec.english === 'string' ? rec.english.trim() : '',
-          englishPhrases: extractPhrases(rec.englishPhrases),
         });
       }
     }
@@ -128,23 +97,17 @@ function extractChatResponse(
   // Accept both new key (englishText) and legacy key (korean) for backward-compat
   const rawEt = obj.englishText ?? obj.korean;
   const englishText = typeof rawEt === 'string' ? rawEt.trim() : '';
-  const reading = typeof obj.reading === 'string' ? obj.reading.trim() : '';
-  const romanization =
-    typeof obj.romanization === 'string' ? obj.romanization.trim() : '';
   const translation =
     typeof obj.translation === 'string' ? obj.translation.trim() : '';
   const english = typeof obj.english === 'string' ? obj.english.trim() : '';
 
   if (!sentences && englishText.length > 0) {
-    sentences = [{ englishText, reading, romanization, translation, english }];
+    sentences = [{ englishText, translation, english }];
   }
 
   const response: ChatSuccessResponse = {
     sentences,
     englishText: englishText || (sentences ? sentences.map((s) => s.englishText).join(' ') : ''),
-    reading: reading || (sentences ? sentences.map((s) => s.reading).join(' ') : ''),
-    romanization:
-      romanization || (sentences ? sentences.map((s) => s.romanization).join(' ') : ''),
     translation:
       translation || (sentences ? sentences.map((s) => s.translation).join(' ') : ''),
     english: english || (sentences ? sentences.map((s) => s.english).join(' ') : ''),
@@ -171,16 +134,12 @@ function extractChatResponse(
 function extractChatResponseFromString(src: string): ChatSuccessResponse | null {
   // Try new key first, fall back to legacy key
   const englishText = extractStringField(src, 'englishText') || extractStringField(src, 'korean');
-  const reading = extractStringField(src, 'reading');
-  const romanization = extractStringField(src, 'romanization');
   const translation = extractStringField(src, 'translation');
   const english = extractStringField(src, 'english');
 
   const response: ChatSuccessResponse = {
-    sentences: englishText ? [{ englishText, reading, romanization, translation, english }] : undefined,
+    sentences: englishText ? [{ englishText, translation, english }] : undefined,
     englishText,
-    reading,
-    romanization,
     translation,
     english,
   };
@@ -253,6 +212,6 @@ export function parseChatResponse(content: string): ChatSuccessResponse {
   if (regexResult) return regexResult;
 
   throw new Error(
-    'Invalid response format: missing required fields (englishText, reading, romanization, translation)'
+    'Invalid response format: missing required field (englishText)'
   );
 }

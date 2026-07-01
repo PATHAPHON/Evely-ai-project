@@ -2,28 +2,45 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
 
-const GOOGLE_TTS_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize';
+const OPENROUTER_TTS_URL = 'https://openrouter.ai/api/v1/audio/speech';
 const API_TIMEOUT_MS = 15_000;
 const MAX_TEXT_LENGTH = 500;
 const CACHE_MAX_ENTRIES = 500;
-const DEFAULT_VOICE = 'en-US-Standard-A';
+const DEFAULT_VOICE = 'af_heart';
 
 const VOICE_WHITELIST: ReadonlySet<string> = new Set([
-  'en-US-Standard-A',
-  'en-US-Standard-B',
-  'en-US-Standard-C',
-  'en-US-Standard-D',
-  'en-US-Chirp3-HD-Achernar',
-  'en-US-Chirp3-HD-Charon',
-  'en-US-Chirp3-HD-Aoede',
-  'en-US-Chirp3-HD-Kore',
+  // Kokoro-82M English Voices
+  // American English
+  'af_heart',
+  'af_alloy',
+  'af_aoede',
+  'af_bella',
+  'af_jessica',
+  'af_kore',
+  'af_nicole',
+  'af_nova',
+  'af_river',
+  'af_sarah',
+  'af_sky',
+  'am_adam',
+  'am_echo',
+  'am_eric',
+  'am_fenrir',
+  'am_liam',
+  'am_michael',
+  'am_onyx',
+  'am_puck',
+  'am_santa',
+  // British English
+  'bf_alice',
+  'bf_emma',
+  'bf_isabella',
+  'bf_lily',
+  'bm_daniel',
+  'bm_fable',
+  'bm_george',
+  'bm_lewis',
 ]);
-
-// Google voice names start with their BCP-47 language code, e.g. "en-US-Standard-A".
-function languageCodeFromVoice(voice: string): string {
-  const match = /^([a-z]{2}-[A-Z]{2})/.exec(voice);
-  return match ? match[1] : 'en-US';
-}
 
 // Module-scope FIFO cache shared across requests in the same Node instance.
 // Map preserves insertion order so we evict the oldest entry on overflow.
@@ -45,7 +62,7 @@ function resolveVoice(requested: unknown): string {
   if (typeof requested === 'string' && VOICE_WHITELIST.has(requested)) {
     return requested;
   }
-  const fromEnv = process.env.GOOGLE_TTS_VOICE;
+  const fromEnv = process.env.OPENROUTER_TTS_VOICE;
   if (fromEnv && VOICE_WHITELIST.has(fromEnv)) {
     return fromEnv;
   }
@@ -100,7 +117,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const apiKey = process.env.GOOGLE_TTS_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { error: 'tts_unavailable', message: 'TTS not configured.' },
@@ -120,15 +137,19 @@ export async function POST(request: NextRequest) {
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
-    const googleResponse = await fetch(
-      `${GOOGLE_TTS_URL}?key=${encodeURIComponent(apiKey)}`,
+    const openRouterResponse = await fetch(
+      OPENROUTER_TTS_URL,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          input: { text },
-          voice: { languageCode: languageCodeFromVoice(voice), name: voice },
-          audioConfig: { audioEncoding: 'MP3', speakingRate: 0.95 },
+          model: 'hexgrad/kokoro-82m',
+          input: text,
+          voice: voice,
+          response_format: 'mp3',
         }),
         signal: controller.signal,
       },
@@ -136,25 +157,17 @@ export async function POST(request: NextRequest) {
 
     clearTimeout(timeoutId);
 
-    if (!googleResponse.ok) {
-      const errorBody = await googleResponse.text();
-      console.error(`Google TTS error [${googleResponse.status}]:`, errorBody);
+    if (!openRouterResponse.ok) {
+      const errorBody = await openRouterResponse.text();
+      console.error(`OpenRouter TTS error [${openRouterResponse.status}]:`, errorBody);
       return NextResponse.json(
         { error: 'tts_failed', message: 'Upstream TTS request failed.' },
         { status: 502 },
       );
     }
 
-    const data = (await googleResponse.json()) as { audioContent?: string };
-    if (!data.audioContent) {
-      console.error('Google TTS missing audioContent in response');
-      return NextResponse.json(
-        { error: 'tts_failed', message: 'Upstream TTS returned no audio.' },
-        { status: 502 },
-      );
-    }
-
-    const buffer = Buffer.from(data.audioContent, 'base64');
+    const audioArrayBuffer = await openRouterResponse.arrayBuffer();
+    const buffer = Buffer.from(audioArrayBuffer);
     audioCache.set(key, buffer);
     evictIfNeeded();
 
