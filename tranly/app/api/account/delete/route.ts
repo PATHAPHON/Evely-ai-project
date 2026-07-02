@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
 
 export async function DELETE(): Promise<NextResponse> {
@@ -19,6 +20,27 @@ export async function DELETE(): Promise<NextResponse> {
   });
 
   try {
+    // Cancel any Stripe subscription before wiping the profile row that
+    // points at it — otherwise a deleted premium account keeps getting billed.
+    // Best-effort: a Stripe hiccup here must not block account deletion.
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (secretKey && secretKey !== 'sk_test_mock') {
+      try {
+        const { data: profile } = await admin
+          .from('profiles')
+          .select('stripe_customer_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.stripe_customer_id) {
+          const stripe = new Stripe(secretKey);
+          await stripe.customers.del(profile.stripe_customer_id);
+        }
+      } catch (stripeError) {
+        console.error('Failed to cancel Stripe subscription during account deletion:', stripeError);
+      }
+    }
+
     // Delete user data before removing auth record
     await Promise.all([
       admin.from('words').delete().eq('user_id', user.id),
