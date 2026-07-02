@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { markBudgetExhausted } from '@/app/_lib/hooks/useBudgetExhausted';
 
 export interface StartListeningOptions {
   /** Called once the transcription session ends, with the final transcript and error. */
@@ -53,6 +54,16 @@ function pickMimeType(): { mimeType: string; format: string } {
   return { mimeType: '', format: 'wav' };
 }
 
+/** /api/stt errors are either a plain string or `{type, message}` (auth/budget gates). */
+function extractErrorMessage(errResult: unknown, fallback: string): string {
+  const err = (errResult as { error?: unknown } | null)?.error;
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && typeof (err as { message?: unknown }).message === 'string') {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+}
+
 /** POST a recorded blob to /api/stt and map the response into a transcript or an error message. */
 async function transcribeBlob(blob: Blob, format: string): Promise<{ text: string } | { error: string }> {
   try {
@@ -70,9 +81,13 @@ async function transcribeBlob(blob: Blob, format: string): Promise<{ text: strin
         return { error: 'ยอดเงินคงเหลือในบัญชี OpenRouter ของคุณไม่เพียงพอ (402 Payment Required)' };
       }
       if (res.status === 401) {
-        return { error: 'ไม่ได้กำหนด OpenRouter API Key หรือการตั้งค่าสิทธิ์ไม่ถูกต้อง (401 Unauthorized)' };
+        return { error: extractErrorMessage(errResult, 'กรุณาเข้าสู่ระบบใหม่') };
       }
-      return { error: errResult.error || `การถอดเสียงล้มเหลว: ${res.statusText}` };
+      if (res.status === 429) {
+        markBudgetExhausted();
+        return { error: extractErrorMessage(errResult, 'งบ AI วันนี้หมดแล้ว') };
+      }
+      return { error: extractErrorMessage(errResult, `การถอดเสียงล้มเหลว: ${res.statusText}`) };
     }
 
     const dataResult = await res.json();

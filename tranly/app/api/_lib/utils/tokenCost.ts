@@ -7,6 +7,11 @@ export const TOKEN_COST_MICROBAHT = {
   kku: 1,        // grammar + word-detail routes — VERIFY with KKU pricing
 } as const;
 
+// ponytail: flat per-call estimate, not metered — whisper-large-v3 via
+// OpenRouter bills per audio minute, not per token, and clips here are short
+// (<=~10s). VERIFY against actual OpenRouter audio pricing.
+export const STT_COST_MICROBAHT = 500;
+
 export const DAILY_BUDGET_MICROBAHT = {
   free: 20_000,    // 0.02 THB
   premium: 50_000, // 0.05 THB
