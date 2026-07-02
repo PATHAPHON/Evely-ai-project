@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { subscriptionStatusToProfile } from './subscriptionStatus';
 
 /**
  * Service-role Supabase client. Stripe calls this endpoint without auth cookies,
@@ -81,6 +82,22 @@ export async function POST(request: Request) {
       await supabase
         .from('profiles')
         .update({ subscription_status: 'free' })
+        .eq('stripe_customer_id', subscription.customer);
+    } else if (event.type === 'customer.subscription.updated') {
+      // Covers renewals, upgrades/downgrades, and payment failures
+      // (past_due) — checkout.session.completed only fires once, so without
+      // this handler none of those later transitions reach the profile.
+      const subscription = event.data.object as Stripe.Subscription;
+      const ts = (subscription as unknown as { current_period_end?: number })
+        .current_period_end;
+      const periodEnd = ts ? new Date(ts * 1000).toISOString() : null;
+
+      await supabase
+        .from('profiles')
+        .update({
+          subscription_status: subscriptionStatusToProfile(subscription.status),
+          subscription_current_period_end: periodEnd,
+        })
         .eq('stripe_customer_id', subscription.customer);
     }
   } catch (err) {
