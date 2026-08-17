@@ -73,7 +73,10 @@ export function useAuthForm() {
         password,
       });
 
-      if (signUpErr) throw signUpErr;
+      if (signUpErr) {
+        console.error('[signup] raw error:', signUpErr);
+        throw signUpErr;
+      }
 
       if (signUpData.session) {
         setSuccess(t.auth.successLogin);
