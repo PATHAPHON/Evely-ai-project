@@ -6,18 +6,45 @@
  * punctuation from the word while preserving it for visual reconstruction.
  */
 
-/** Token produced by the tokenizer */
-export interface WordToken {
-  /** The clean word text (no punctuation) */
-  word: string;
-  /** Original text including attached punctuation */
-  original: string;
-  /** Punctuation before the word */
-  leadingPunct: string;
-  /** Punctuation after the word */
-  trailingPunct: string;
-  /** Whether this token is English (clickable) */
-  isEnglish: boolean;
+/**
+ * A single token with its clickability and display behavior.
+ * Word-specific rules (English detection, punctuation stripping) live
+ * together with the token data.
+ */
+export class WordToken {
+  readonly word: string;
+  readonly original: string;
+  readonly leadingPunct: string;
+  readonly trailingPunct: string;
+  readonly isEnglish: boolean;
+
+  constructor(t: {
+    word: string;
+    original: string;
+    leadingPunct: string;
+    trailingPunct: string;
+  }) {
+    this.word = t.word;
+    this.original = t.original;
+    this.leadingPunct = t.leadingPunct;
+    this.trailingPunct = t.trailingPunct;
+    this.isEnglish = isEnglishWord(t.word);
+  }
+
+  /** Whether this token is an English word the user can tap/learn. */
+  isClickable(): boolean {
+    return this.isEnglish && this.word.length > 0;
+  }
+
+  /** The text to display (preserves original punctuation). */
+  displayText(): string {
+    return this.original;
+  }
+
+  /** Rebuild the original text from punctuation + word + punctuation. */
+  reconstruct(): string {
+    return this.leadingPunct + this.word + this.trailingPunct;
+  }
 }
 
 /**
@@ -89,26 +116,25 @@ export function tokenize(text: string): WordToken[] {
 
     // Handle edge case: token is entirely punctuation
     if (word === '' && (leadingPunct || trailingPunct)) {
-      tokens.push({
-        word: '',
-        original: raw,
-        leadingPunct: raw,
-        trailingPunct: '',
-        isEnglish: false,
-      });
+      tokens.push(
+        new WordToken({
+          word: '',
+          original: raw,
+          leadingPunct: raw,
+          trailingPunct: '',
+        })
+      );
       continue;
     }
 
-    // Determine if this is an English word
-    const english = isEnglishWord(word);
-
-    tokens.push({
-      word,
-      original: raw,
-      leadingPunct,
-      trailingPunct,
-      isEnglish: english,
-    });
+    tokens.push(
+      new WordToken({
+        word,
+        original: raw,
+        leadingPunct,
+        trailingPunct,
+      })
+    );
   }
 
   return tokens;

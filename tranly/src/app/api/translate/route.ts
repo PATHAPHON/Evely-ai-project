@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRequestUser, unauthorizedResponse, debitBudget } from '@/app/api/_lib/utils/requireUser';
-import { kkuTranslateWithUsage } from '@/app/api/_lib/utils/kkuTranslate';
+import { KkuTranslator } from '@/app/api/_lib/utils/kkuTranslate';
 import { TOKEN_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 
 // ponytail: LLM call can take up to ~15s; without this the serverless gateway
@@ -46,7 +46,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return errorResponse('invalid_input', 'Missing or invalid texts field.', 400);
   }
 
-  const result = await kkuTranslateWithUsage(texts as string[]);
+  const result = await new KkuTranslator(process.env.KKU_API_KEY ?? '').translateWithUsage(
+    texts as string[]
+  );
   if (!result) {
     return errorResponse('api_error', 'Translation failed. Please try again.', 502);
   }

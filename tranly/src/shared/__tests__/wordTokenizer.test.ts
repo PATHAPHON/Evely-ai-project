@@ -113,7 +113,8 @@ describe('wordTokenizer', () => {
       // Each token's original should match the non-whitespace parts
       for (let i = 0; i < tokens.length; i++) {
         expect(tokens[i].original).toBe(nonWhitespaceParts[i]);
-        expect(tokens[i].leadingPunct + tokens[i].word + tokens[i].trailingPunct).toBe(tokens[i].original);
+        expect(tokens[i].reconstruct()).toBe(tokens[i].original);
+        expect(tokens[i].displayText()).toBe(tokens[i].original);
       }
     });
   });
@@ -122,6 +123,13 @@ describe('wordTokenizer', () => {
     it('marks English words as isEnglish: true', () => {
       const tokens = tokenize('hello world');
       expect(tokens.every(t => t.isEnglish)).toBe(true);
+    });
+
+    it('isClickable() is true only for non-empty English words', () => {
+      const tokens = tokenize('hello. สวัสดี');
+      expect(tokens[0].isClickable()).toBe(true);
+      expect(tokens[1].isClickable()).toBe(false);
+      expect(tokens[1].isEnglish).toBe(false);
     });
 
     it('marks Thai text as isEnglish: false', () => {

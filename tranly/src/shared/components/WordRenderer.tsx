@@ -143,7 +143,7 @@ export default function WordRenderer({ text, className, textClassName, reveal = 
     <>
       <span className={className} style={{ display: 'inline' }}>
         {displayTokens.map((token, index) => {
-          if (!token.isEnglish) {
+          if (!token.isClickable()) {
             // Non-English token: render as plain non-interactive text
             return (
               <span key={index} className={textClassName}>

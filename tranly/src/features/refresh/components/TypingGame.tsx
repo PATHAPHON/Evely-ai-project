@@ -2,28 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import type { GameProps } from '../gameTypes';
-import { typingQuality } from '../quality';
+import { TypingRound } from '../gameTypes';
 import { useGameExit } from '../useGameExit';
 
 type AnswerState = 'idle' | 'correct' | 'wrong';
 
-export default function TypingGame({ word, thai, onDone }: GameProps) {
+export default function TypingGame(props: GameProps) {
+  const { word, thai } = props;
   const [input, setInput] = useState('');
   const [answerState, setAnswerState] = useState<AnswerState>('idle');
   const [quality, setQuality] = useState(0);
-  const { isExiting, finish } = useGameExit(onDone);
+  const { isExiting, round } = useGameExit(
+    (roundProps, onExitStart) => new TypingRound(roundProps, onExitStart),
+    props,
+  );
 
   // Auto-advance after a correct answer's green glow.
   useEffect(() => {
     if (answerState !== 'correct') return;
-    const t = setTimeout(() => finish(quality), 300);
+    const t = setTimeout(() => round.finish(quality), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answerState]);
 
   function check() {
     if (!input.trim() || answerState !== 'idle') return;
-    const q = typingQuality(input, word);
+    const q = round.score(input, word);
     setQuality(q);
     setAnswerState(q >= 3 ? 'correct' : 'wrong');
   }
@@ -91,7 +95,7 @@ export default function TypingGame({ word, thai, onDone }: GameProps) {
               ❌ คำตอบที่ถูก: <span className="font-bold">{word}</span>
             </p>
             <button
-              onClick={() => finish(quality)}
+              onClick={() => round.finish(quality)}
               className="w-full py-4 rounded-2xl bg-primary hover:bg-primary-hover text-white dark:text-gray-900 font-bold text-lg active:scale-95 transition-transform cursor-pointer shadow-soft-sm"
             >
               ถัดไป

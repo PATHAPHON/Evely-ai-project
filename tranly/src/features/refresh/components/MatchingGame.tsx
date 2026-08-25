@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import type { GameProps } from '../gameTypes';
-import { pickDistractors } from '../gameTypes';
-import { matchingQuality } from '../quality';
+import { MatchingRound, pickDistractors } from '../gameTypes';
 import { shuffle } from '../utils/shuffle';
+import { useGameExit } from '../useGameExit';
 
 interface Pair {
   word: string;
@@ -57,6 +57,11 @@ function GameButton({
 }
 
 export default function MatchingGame({ word, thai, wordBank, onDone }: GameProps) {
+  const { round } = useGameExit(
+    (props, onExitStart) => new MatchingRound(props, onExitStart),
+    { word, thai, wordBank, onDone },
+  );
+
   // Build the pair set once: target + up to 4 distractors (min 2 pairs total).
   const pairs = useMemo<Pair[]>(() => {
     const distractors = pickDistractors(wordBank, word, 4);
@@ -151,7 +156,7 @@ export default function MatchingGame({ word, thai, wordBank, onDone }: GameProps
 
       {allMatched && (
         <button
-          onClick={() => onDone(matchingQuality(targetMistakes))}
+          onClick={() => onDone(round.score(targetMistakes))}
           className="mt-6 w-full py-4 rounded-2xl bg-primary hover:bg-primary-hover text-white dark:text-gray-900 font-bold text-lg active:scale-95 transition-all shadow-soft-sm cursor-pointer"
         >
           ถัดไป

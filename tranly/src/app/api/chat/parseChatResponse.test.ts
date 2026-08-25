@@ -178,40 +178,4 @@ describe('parseChatResponse', () => {
     expect(result).toEqual(expectedResponseWithEscapes);
   });
 
-  // Backward-compat: AI model may still respond with legacy key `korean`
-  it('accepts legacy `korean` key as fallback for englishText', () => {
-    const legacyResponse = {
-      korean: 'Hello',
-      translation: 'สวัสดี',
-      english: 'Hello',
-    };
-    const result = parseChatResponse(JSON.stringify(legacyResponse));
-    expect(result.englishText).toBe('Hello');
-    expect(result.sentences?.[0].englishText).toBe('Hello');
-  });
-
-  it('accepts legacy `korean` key in sentences as fallback', () => {
-    const legacyWithSentences = {
-      sentences: [
-        {
-          korean: 'Good morning',
-          translation: 'อรุณสวัสดิ์',
-          english: 'Good morning',
-        },
-      ],
-    };
-    const result = parseChatResponse(JSON.stringify(legacyWithSentences));
-    expect(result.sentences?.[0].englishText).toBe('Good morning');
-  });
-
-  it('prefers englishText over korean when both present', () => {
-    const mixed = {
-      englishText: 'Hello',
-      korean: 'old value',
-      translation: 'สวัสดี',
-      english: 'Hello',
-    };
-    const result = parseChatResponse(JSON.stringify(mixed));
-    expect(result.englishText).toBe('Hello');
-  });
 });

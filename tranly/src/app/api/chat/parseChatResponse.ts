@@ -1,17 +1,22 @@
 import type { ChatSuccessResponse, ReplySuggestion } from '@/shared/types/chatTypes';
 
 /**
- * Extract a clean list of reply suggestions from a raw value. Returns undefined
- * when there are none, so the field is simply omitted.
+ * Response parsing is split into a chain of strategy classes, each trying one
+ * parsing technique on the raw model output. The orchestrator `parseChatResponse`
+ * runs the chain in order and returns the first success.
  */
+
+// ─── Shared extraction helpers (module-private) ────────────────────────────
+
+/** Extract a clean list of reply suggestions from a raw value. Returns undefined
+ * when there are none, so the field is simply omitted. */
 function extractSuggestions(value: unknown): ReplySuggestion[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const suggestions: ReplySuggestion[] = [];
   for (const raw of value) {
     if (typeof raw !== 'object' || raw === null) continue;
     const rec = raw as Record<string, unknown>;
-    // Accept both new key (englishText) and legacy key (korean) for backward-compat
-    const rawText = rec.englishText ?? rec.korean;
+    const rawText = rec.englishText;
     const englishText = typeof rawText === 'string' ? rawText.trim() : '';
     const translation =
       typeof rec.translation === 'string' ? rec.translation.trim() : '';
@@ -22,9 +27,7 @@ function extractSuggestions(value: unknown): ReplySuggestion[] | undefined {
   return suggestions.length > 0 ? suggestions.slice(0, 4) : undefined;
 }
 
-/**
- * Attempt to parse a string as JSON. Returns null on failure.
- */
+/** Attempt to parse a string as JSON. Returns null on failure. */
 function tryParseJson(s: string): unknown {
   try {
     return JSON.parse(s);
@@ -33,10 +36,8 @@ function tryParseJson(s: string): unknown {
   }
 }
 
-/**
- * Extract a string field value from a JSON-like string using regex.
- * Handles escaped quotes within values.
- */
+/** Extract a string field value from a JSON-like string using regex.
+ * Handles escaped quotes within values. */
 function extractStringField(src: string, key: string): string {
   const re = new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`, 'i');
   const m = src.match(re);
@@ -48,9 +49,7 @@ function extractStringField(src: string, key: string): string {
   }
 }
 
-/**
- * Validate that an object has all required ChatSuccessResponse fields as non-empty strings.
- */
+/** Validate that an object has all required ChatSuccessResponse fields as non-empty strings. */
 function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
   if (typeof obj !== 'object' || obj === null) return false;
   const record = obj as Record<string, unknown>;
@@ -59,18 +58,16 @@ function isValidChatResponse(obj: unknown): obj is ChatSuccessResponse {
     return record.sentences.every((s) => {
       if (typeof s !== 'object' || s === null) return false;
       const sr = s as Record<string, unknown>;
-      const text = sr.englishText ?? sr.korean;
+      const text = sr.englishText;
       return typeof text === 'string' && (text as string).trim().length > 0;
     });
   }
 
-  const text = record.englishText ?? record.korean;
+  const text = record.englishText;
   return typeof text === 'string' && (text as string).trim().length > 0;
 }
 
-/**
- * Try to extract a ChatSuccessResponse from a raw object by trimming string fields.
- */
+/** Try to extract a ChatSuccessResponse from a raw object by trimming string fields. */
 function extractChatResponse(
   obj: Record<string, unknown>
 ): ChatSuccessResponse | null {
@@ -82,8 +79,7 @@ function extractChatResponse(
     for (const s of rawSentences) {
       if (typeof s === 'object' && s !== null) {
         const rec = s as Record<string, unknown>;
-        // Accept both new key (englishText) and legacy key (korean) for backward-compat
-        const rawEt = rec.englishText ?? rec.korean;
+        const rawEt = rec.englishText;
         sentences.push({
           englishText: typeof rawEt === 'string' ? rawEt.trim() : '',
           translation:
@@ -94,8 +90,7 @@ function extractChatResponse(
     }
   }
 
-  // Accept both new key (englishText) and legacy key (korean) for backward-compat
-  const rawEt = obj.englishText ?? obj.korean;
+  const rawEt = obj.englishText;
   const englishText = typeof rawEt === 'string' ? rawEt.trim() : '';
   const translation =
     typeof obj.translation === 'string' ? obj.translation.trim() : '';
@@ -127,13 +122,10 @@ function extractChatResponse(
   return isValidChatResponse(response) ? response : null;
 }
 
-/**
- * Try to extract a ChatSuccessResponse from a raw string using regex field extraction.
- * Used as a fallback when JSON parsing fails.
- */
+/** Try to extract a ChatSuccessResponse from a raw string using regex field extraction.
+ * Used as a fallback when JSON parsing fails. */
 function extractChatResponseFromString(src: string): ChatSuccessResponse | null {
-  // Try new key first, fall back to legacy key
-  const englishText = extractStringField(src, 'englishText') || extractStringField(src, 'korean');
+  const englishText = extractStringField(src, 'englishText');
   const translation = extractStringField(src, 'translation');
   const english = extractStringField(src, 'english');
 
@@ -145,6 +137,105 @@ function extractChatResponseFromString(src: string): ChatSuccessResponse | null 
   };
   return isValidChatResponse(response) ? response : null;
 }
+
+// ─── Parser strategies ─────────────────────────────────────────────────────
+
+/** A single strategy for turning raw model output into a parsed response. */
+export abstract class ResponseParser {
+  abstract parse(content: string): ChatSuccessResponse | null;
+}
+
+/**
+ * Tries every ```...``` code block (thinking models emit multiple blocks).
+ * For each block: parse as JSON first, then fall back to regex extraction.
+ */
+export class FencedBlockParser extends ResponseParser {
+  parse(content: string): ChatSuccessResponse | null {
+    const fenceRe = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+    let fenceMatch: RegExpExecArray | null;
+    while ((fenceMatch = fenceRe.exec(content)) !== null) {
+      const block = fenceMatch[1].trim();
+      const parsed = tryParseJson(block);
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        const result = extractChatResponse(parsed as Record<string, unknown>);
+        if (result) return result;
+      }
+      const regexResult = extractChatResponseFromString(block);
+      if (regexResult) return regexResult;
+    }
+    return null;
+  }
+}
+
+/**
+ * Handles double-encoded JSON (backslash-escaped quotes). When detected,
+ * unescapes the content, then runs the flat-JSON, object-scan, and regex
+ * strategies against the unescaped text.
+ */
+export class DoubleEncodedParser extends ResponseParser {
+  parse(content: string): ChatSuccessResponse | null {
+    if (/\\"/.test(content) && !/[^\\]"/.test(content.slice(0, 50))) {
+      try {
+        const unescaped = JSON.parse(`"${content.replace(/\n/g, '\\n')}"`);
+        if (typeof unescaped === 'string') {
+          const candidate = unescaped.trim();
+          const flat = new FlatJsonParser().parse(candidate);
+          if (flat) return flat;
+          const scanned = new ObjectScanParser().parse(candidate);
+          if (scanned) return scanned;
+          return extractChatResponseFromString(candidate);
+        }
+      } catch {
+        // fall through to the rest of the chain
+      }
+    }
+    return null;
+  }
+}
+
+/** Tries parsing the whole content as a single JSON object. */
+export class FlatJsonParser extends ResponseParser {
+  parse(content: string): ChatSuccessResponse | null {
+    const parsed = tryParseJson(content);
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      return extractChatResponse(parsed as Record<string, unknown>);
+    }
+    return null;
+  }
+}
+
+/** Finds all {...} objects in the content and tries each. */
+export class ObjectScanParser extends ResponseParser {
+  parse(content: string): ChatSuccessResponse | null {
+    const objectRe = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/g;
+    let objectMatch: RegExpExecArray | null;
+    while ((objectMatch = objectRe.exec(content)) !== null) {
+      const objParsed = tryParseJson(objectMatch[0]);
+      if (typeof objParsed === 'object' && objParsed !== null && !Array.isArray(objParsed)) {
+        const result = extractChatResponse(objParsed as Record<string, unknown>);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+}
+
+/** Last resort: extracts fields via regex from the entire content. */
+export class RegexParser extends ResponseParser {
+  parse(content: string): ChatSuccessResponse | null {
+    return extractChatResponseFromString(content);
+  }
+}
+
+// ─── Chain orchestration ───────────────────────────────────────────────────
+
+const PARSER_CHAIN: ResponseParser[] = [
+  new FencedBlockParser(),
+  new DoubleEncodedParser(),
+  new FlatJsonParser(),
+  new ObjectScanParser(),
+  new RegexParser(),
+];
 
 /**
  * Parse the KKU API response content string and extract a ChatSuccessResponse object.
@@ -164,52 +255,10 @@ export function parseChatResponse(content: string): ChatSuccessResponse {
 
   const trimmed = content.trim();
 
-  // Try every ```...``` code block (thinking models emit multiple blocks)
-  const fenceRe = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
-  let fenceMatch: RegExpExecArray | null;
-  while ((fenceMatch = fenceRe.exec(trimmed)) !== null) {
-    const block = fenceMatch[1].trim();
-    const parsed = tryParseJson(block);
-    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-      const result = extractChatResponse(parsed as Record<string, unknown>);
-      if (result) return result;
-    }
-    const regexResult = extractChatResponseFromString(block);
-    if (regexResult) return regexResult;
-  }
-
-  // Handle double-encoded JSON (backslash-escaped quotes)
-  let candidate = trimmed;
-  if (/\\"/.test(candidate) && !/[^\\]"/.test(candidate.slice(0, 50))) {
-    try {
-      const unescaped = JSON.parse(`"${candidate.replace(/\n/g, '\\n')}"`);
-      if (typeof unescaped === 'string') candidate = unescaped.trim();
-    } catch {
-      // fall through
-    }
-  }
-
-  // Try parsing the whole content as JSON
-  const parsed = tryParseJson(candidate);
-  if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-    const result = extractChatResponse(parsed as Record<string, unknown>);
+  for (const parser of PARSER_CHAIN) {
+    const result = parser.parse(trimmed);
     if (result) return result;
   }
-
-  // Find all {...} objects in the content and try each
-  const objectRe = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/g;
-  let objectMatch: RegExpExecArray | null;
-  while ((objectMatch = objectRe.exec(candidate)) !== null) {
-    const objParsed = tryParseJson(objectMatch[0]);
-    if (typeof objParsed === 'object' && objParsed !== null && !Array.isArray(objParsed)) {
-      const result = extractChatResponse(objParsed as Record<string, unknown>);
-      if (result) return result;
-    }
-  }
-
-  // Last resort: extract fields via regex from the entire content
-  const regexResult = extractChatResponseFromString(candidate);
-  if (regexResult) return regexResult;
 
   throw new Error(
     'Invalid response format: missing required field (englishText)'

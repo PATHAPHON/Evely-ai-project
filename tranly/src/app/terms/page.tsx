@@ -6,32 +6,32 @@ export default function TermsPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 text-foreground">
       <h1 className="mb-2 text-2xl font-extrabold">ข้อกำหนดการใช้บริการ</h1>
-      <p className="mb-6 text-sm text-text-secondary">
-        ปรับปรุงล่าสุด: [วันที่]
+      <p className="mb-6 text-sm text-foreground/60">
+        ปรับปรุงล่าสุด: 25 สิงหาคม 2569
       </p>
 
-      <div className="flex flex-col gap-6 text-[15px] leading-relaxed text-text-primary">
+      <div className="flex flex-col gap-6 text-[15px] leading-relaxed text-foreground/90">
         <section>
-          <h2 className="mb-2 text-lg font-bold">1. การยอมรับข้อกำหนด</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">1. การยอมรับข้อกำหนด</h2>
           <p>
-            การเข้าใช้งานแอปพลิเคชัน จีจีจบล่ะ (&ldquo;บริการ&rdquo;) ถือว่าคุณยอมรับและตกลง
-            ปฏิบัติตามข้อกำหนดการใช้บริการนี้ หากคุณไม่ยอมรับข้อกำหนด กรุณาหยุดใช้บริการ
+            การเข้าใช้งานแอปพลิเคชัน GeeGeeJobLa (จีจีจบล่ะ) (&ldquo;บริการ&rdquo;) ถือว่าคุณยอมรับและตกลง
+            ปฏิบัติตามข้อกำหนดการใช้บริการนี้ หากคุณไม่ยอมรับข้อกำหนด กรุณายุติการใช้งานระบบ
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-bold">2. การใช้งานบริการ</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">2. การใช้งานบริการ</h2>
           <p>
-            คุณตกลงใช้บริการเพื่อวัตถุประสงค์ในการเรียนรู้ภาษาเท่านั้น และจะไม่ใช้บริการ
-            ในทางที่ผิดกฎหมาย ละเมิดสิทธิ์ผู้อื่น หรือรบกวนการทำงานของระบบ
+            คุณตกลงใช้บริการเพื่อวัตถุประสงค์ในการฝึกฝนและเรียนรู้ภาษาอังกฤษเท่านั้น และจะไม่นำระบบไปใช้
+            ในทางที่ผิดกฎหมาย ละเมิดสิทธิ์ผู้อื่น หรือพยายามรบกวนการทำงานของระบบเซิร์ฟเวอร์
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-bold">3. การเก็บข้อมูล</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">3. นโยบายคุ้มครองข้อมูลส่วนบุคคล</h2>
           <p>
             เราเก็บรวบรวมและประมวลผลข้อมูลส่วนบุคคลของคุณตามที่ระบุไว้ใน{" "}
-            <a href="/privacy" className="text-blue-600 underline dark:text-blue-400">
+            <a href="/privacy" className="text-primary underline font-medium">
               นโยบายความเป็นส่วนตัว
             </a>{" "}
             ซึ่งสอดคล้องกับพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)
@@ -39,39 +39,37 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-bold">4. ความรับผิดชอบ</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">4. ข้อจำกัดความรับผิดชอบ (AI-Generated Content)</h2>
           <p>
-            บริการนี้ให้บริการตามสภาพ (&ldquo;as is&rdquo;) เราไม่รับประกันความถูกต้อง
-            สมบูรณ์ หรือความเหมาะสมของเนื้อหาที่สร้างโดย AI และไม่รับผิดชอบต่อความเสียหาย
-            ใด ๆ ที่เกิดจากการใช้บริการ
+            คำตอบ ข้อความ การแปล และคำแนะนำทางไวยากรณ์ถูกสร้างขึ้นโดยแบบจำลองภาษาขนาดใหญ่ (LLM) แม้เราจะพัฒนาให้มีความแม่นยำสูง
+            แต่ผู้ใช้ควรใช้วิจารณญาณในการนำไปอ้างอิงเชิงวิชาการหรือเอกสารทางการ
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-bold">5. การชำระเงินและการยกเลิก</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">5. การสมัครสมาชิก Premium และการเรียกเก็บเงิน</h2>
           <p>
-            สำหรับบริการแบบ Premium คุณสามารถยกเลิกการสมัครสมาชิกได้ทุกเมื่อผ่านหน้าจัดการ
-            การเรียกเก็บเงิน การยกเลิกจะมีผลเมื่อสิ้นสุดรอบการเรียกเก็บเงินปัจจุบัน โดยไม่มี
-            การคืนเงินสำหรับรอบที่ใช้งานไปแล้ว
+            สำหรับบริการแบบ Premium (เพิ่มงบประมาณรายวัน, คำแนะนำประโยคตอบกลับ, และการตรวจไวยากรณ์) คุณสามารถยกเลิกการสมัครสมาชิกได้ทุกเมื่อผ่านหน้าโปรไฟล์
+            การยกเลิกจะมีผลเมื่อสิ้นสุดรอบบิลปัจจุบัน โดยไม่มีการเรียกเก็บเงินย้อนหลัง
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-bold">6. การเปลี่ยนแปลงข้อกำหนด</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">6. การเปลี่ยนแปลงข้อกำหนด</h2>
           <p>
-            เราอาจปรับปรุงข้อกำหนดนี้เป็นครั้งคราว การใช้บริการต่อหลังการเปลี่ยนแปลงถือว่า
+            เราอาจปรับปรุงข้อกำหนดนี้เป็นครั้งคราว การใช้บริการต่อเนื่องหลังการเปลี่ยนแปลงถือว่า
             คุณยอมรับข้อกำหนดฉบับใหม่
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-bold">7. ติดต่อเรา</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">7. ช่องทางติดต่อ</h2>
           <p>
-            ผู้ให้บริการ: [ชื่อ]
+            โครงการ GeeGeeJobLa (จีจีจบล่ะ)
             <br />
-            ที่อยู่: [ที่อยู่]
+            คณะวิศวกรรมศาสตร์และเทคโนโลยีสารสนเทศ
             <br />
-            ติดต่อ: [อีเมล/เบอร์ติดต่อ]
+            อีเมล: support@geegeejobla.app
           </p>
         </section>
       </div>

@@ -8,10 +8,7 @@ import {
   type WordStatus,
   type WordBankEntry,
 } from '@/shared/utils/wordStatusDerivation';
-import {
-  recalculateProgress,
-  createInitialProgress,
-} from '@/shared/utils/spacedRepetition';
+import { WordProgress } from '@/shared/utils/spacedRepetition';
 import { translateBatchToThai } from '@/shared/utils/translateToThai';
 import { isAuthExpiredError, rowToWordBankEntry } from '@/shared/utils/wordBankRow';
 import { useToast } from '@/shared/components/Toast';
@@ -269,7 +266,7 @@ export function useWordBank(): WordStatusContextValue {
         return; // Word already in bank, no-op
       }
 
-      const initialProgress = createInitialProgress();
+      const initialProgress = WordProgress.createInitial();
 
       // Insert into words table
       const { data: insertedWord, error: insertError } = await supabase
@@ -320,7 +317,7 @@ export function useWordBank(): WordStatusContextValue {
           box: initialProgress.box,
           interval: initialProgress.interval,
           ease_factor: initialProgress.easeFactor,
-          last_reviewed_at: initialProgress.lastReviewedAt.toISOString(),
+          last_reviewed_at: initialProgress.lastReviewedAt!.toISOString(),
           next_review_at: initialProgress.nextReviewAt.toISOString(),
           repetitions: 0,
         });
@@ -338,12 +335,7 @@ export function useWordBank(): WordStatusContextValue {
         word: normalizedWord,
         thai: null,
         partOfSpeech: null,
-        nextReviewAt: initialProgress.nextReviewAt,
-        lastReviewedAt: initialProgress.lastReviewedAt,
-        box: initialProgress.box,
-        interval: initialProgress.interval,
-        easeFactor: initialProgress.easeFactor,
-        repetitions: initialProgress.repetitions,
+        ...initialProgress,
       };
       wordBankRef.current.set(normalizedWord, entry);
 
@@ -444,15 +436,14 @@ export function useWordBank(): WordStatusContextValue {
       const { key: wordKey, entry: currentEntry } = found;
 
       // Recalculate progress using SM-2 algorithm
-      const newProgress = recalculateProgress(
-        {
-          box: currentEntry.box,
-          interval: currentEntry.interval,
-          easeFactor: currentEntry.easeFactor,
-          repetitions: currentEntry.repetitions,
-        },
-        quality
-      );
+      const newProgress = new WordProgress(
+        currentEntry.box,
+        currentEntry.interval,
+        currentEntry.easeFactor,
+        currentEntry.repetitions,
+        currentEntry.nextReviewAt,
+        currentEntry.lastReviewedAt,
+      ).review(quality);
 
       const now = new Date();
 
@@ -479,11 +470,7 @@ export function useWordBank(): WordStatusContextValue {
       // Update local cache
       const updatedEntry: WordBankEntry = {
         ...currentEntry,
-        box: newProgress.box,
-        interval: newProgress.interval,
-        easeFactor: newProgress.easeFactor,
-        repetitions: newProgress.repetitions,
-        nextReviewAt: newProgress.nextReviewAt,
+        ...newProgress,
         lastReviewedAt: now,
       };
       wordBankRef.current.set(wordKey, updatedEntry);

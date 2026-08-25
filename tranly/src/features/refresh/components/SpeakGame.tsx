@@ -5,7 +5,7 @@ import { Mic, Volume2 } from 'lucide-react';
 import { useTTS } from '@/shared/hooks/useTTS';
 import { useSTT } from '@/shared/hooks/useSTT';
 import type { GameProps } from '../gameTypes';
-import { speakQuality } from '../quality';
+import { SpeakRound } from '../gameTypes';
 import { useToast } from '@/shared/components/Toast';
 import { useGameExit } from '../useGameExit';
 import VoicePermissionModal, { PermissionModalStatus } from './VoicePermissionModal';
@@ -34,14 +34,18 @@ function Waveform({ level }: { level: number }) {
   );
 }
 
-export default function SpeakGame({ word, thai, onDone }: GameProps) {
+export default function SpeakGame(props: GameProps) {
   const { speak } = useTTS('en-US');
   const { startListening, isListening, level, isTranscribing, isSupported } = useSTT();
   const { showToast } = useToast();
+  const { word, thai } = props;
 
   const [state, setState] = useState<SpeakState>('idle');
   const [attempts, setAttempts] = useState(0);
-  const { isExiting, finish } = useGameExit(onDone);
+  const { isExiting, round } = useGameExit(
+    (roundProps, onExitStart) => new SpeakRound(roundProps, onExitStart),
+    props,
+  );
 
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionModalStatus, setPermissionModalStatus] = useState<PermissionModalStatus>('unrequested');
@@ -112,7 +116,7 @@ export default function SpeakGame({ word, thai, onDone }: GameProps) {
   // Auto-advance after a correct answer.
   useEffect(() => {
     if (state !== 'correct') return;
-    const t = setTimeout(() => finish(speakQuality(attempts, true)), 600);
+    const t = setTimeout(() => round.finish(round.score(attempts, true)), 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -173,7 +177,7 @@ export default function SpeakGame({ word, thai, onDone }: GameProps) {
 
       {state === 'wrong2' && !isExiting && (
         <button
-          onClick={() => finish(speakQuality(attempts, false))}
+          onClick={() => round.finish(round.score(attempts, false))}
           className="w-full max-w-xs py-4 rounded-2xl bg-primary hover:bg-primary-hover text-white dark:text-gray-900 font-bold text-lg active:scale-95 transition-transform cursor-pointer shadow-soft-sm"
         >
           ถัดไป
@@ -181,7 +185,7 @@ export default function SpeakGame({ word, thai, onDone }: GameProps) {
       )}
 
       {(state === 'idle') && !isListening && !isTranscribing && !isExiting && (
-        <button onClick={() => finish(speakQuality(0, false))} className="mt-6 text-foreground/50 hover:text-foreground text-sm transition-colors cursor-pointer">
+        <button onClick={() => round.finish(round.score(0, false))} className="mt-6 text-foreground/50 hover:text-foreground text-sm transition-colors cursor-pointer">
           ตอนนี้ไม่สะดวกพูด
         </button>
       )}

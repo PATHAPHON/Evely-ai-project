@@ -49,9 +49,6 @@ export async function middleware(request: NextRequest) {
     '/recents',
     '/profile',
     '/refresh',
-    '/tutor',
-    '/topik',
-    '/backoffice',
   ];
 
   const isProtectedRoute = PROTECTED_PREFIXES.some(prefix => 

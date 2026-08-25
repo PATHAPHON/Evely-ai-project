@@ -1,5 +1,5 @@
 // Minimal Service Worker for PWA installation and caching capabilities
-const CACHE_NAME = 'tarnly-korean-v1';
+const CACHE_NAME = 'geegeejobla-v1';
 const ASSETS = [
   '/chat',
   '/icon-192.png',
