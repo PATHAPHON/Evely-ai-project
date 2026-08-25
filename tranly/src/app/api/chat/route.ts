@@ -23,7 +23,9 @@ import type {
 export const maxDuration = 60;
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = 'meta-llama/llama-3.1-8b-instruct';
+const DEFAULT_OPENROUTER_MODEL = 'meta-llama/llama-3.1-8b-instruct';
+const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
+const KKU_MODEL = 'deepseek-v4-flash';
 const API_TIMEOUT_MS = 30_000;
 
 const ERROR_MESSAGES: Record<ChatErrorType, string> = {
@@ -117,9 +119,6 @@ export async function POST(
     ? DAILY_BUDGET_MICROBAHT.premium
     : DAILY_BUDGET_MICROBAHT.free;
 
-  // ponytail: check-then-debit not atomic — parallel requests can exceed budget.
-  //   Acceptable now (rate/budget are tiny, µ฿). Real fix: consume_budget(limit,cost)
-  //   RPC that checks+increments in one transaction, called upfront.
   const hasBudget = await checkBudget(limit);
   if (!hasBudget) return budgetExhaustedResponse();
 
@@ -137,8 +136,10 @@ export async function POST(
 
   const { messages, language } = input;
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const kkuKey = process.env.KKU_API_KEY;
+
+  if (!openRouterKey && !kkuKey) {
     return errorResponse('api_error', 401);
   }
 
@@ -177,64 +178,99 @@ export async function POST(
     ? contextWithSystem
     : [{ role: 'user' as const, content: systemPrompt + '\n\nStart the conversation.' }];
 
-  const requestBody = {
-    model: DEFAULT_MODEL,
-    messages: apiMessages,
-    max_tokens: 2048,
-    stream: false,
-  };
+  let textContent: string | null = null;
+  let totalTokens = 500;
+  let providerUsed: 'openrouter' | 'kku' = 'openrouter';
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  // 1. Try OpenRouter if API key is provided
+  if (openRouterKey) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  let upstreamResponse: Response;
-  try {
-    upstreamResponse = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
-    });
-  } catch (error: unknown) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      return errorResponse('timeout', 504);
+    try {
+      const openRouterRes = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openRouterKey}`,
+        },
+        body: JSON.stringify({
+          model: DEFAULT_OPENROUTER_MODEL,
+          messages: apiMessages,
+          max_tokens: 2048,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+
+      if (openRouterRes.ok) {
+        const result = await openRouterRes.json();
+        const content = result?.choices?.[0]?.message?.content;
+        if (typeof content === 'string' && content.trim().length > 0) {
+          textContent = content;
+          totalTokens = result?.usage?.total_tokens ?? 500;
+          providerUsed = 'openrouter';
+        }
+      } else {
+        console.warn(`OpenRouter returned status ${openRouterRes.status}, attempting KKU fallback...`);
+      }
+    } catch (err) {
+      console.warn('OpenRouter request failed, attempting KKU fallback...', err);
+    } finally {
+      clearTimeout(timeoutId);
     }
-    if (error instanceof TypeError) {
-      return errorResponse('network_error', 502);
-    }
-    console.error('Chat API unexpected error:', error);
-    return errorResponse('api_error', 502);
-  } finally {
-    clearTimeout(timeoutId);
   }
 
-  if (!upstreamResponse.ok) {
-    const errorBody = await upstreamResponse.text();
-    console.error(`OpenRouter API error [${upstreamResponse.status}]:`, errorBody);
-    if (upstreamResponse.status === 429) {
-      // Upstream (OpenRouter) rate-limit, not our budget gate — 429 is
-      // reserved for budgetExhaustedResponse so the client only treats a
-      // real budget exhaustion as an all-day lock.
-      return errorResponse('upstream_busy', 503);
+  // 2. Fallback to KKU DeepSeek if OpenRouter did not return valid content
+  if (!textContent && kkuKey) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    try {
+      const kkuRes = await fetch(KKU_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${kkuKey}`,
+        },
+        body: JSON.stringify({
+          model: KKU_MODEL,
+          messages: apiMessages,
+          max_tokens: 2048,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+
+      if (kkuRes.ok) {
+        const result = await kkuRes.json();
+        const content = result?.choices?.[0]?.message?.content;
+        if (typeof content === 'string' && content.trim().length > 0) {
+          textContent = content;
+          totalTokens = result?.usage?.total_tokens ?? 250;
+          providerUsed = 'kku';
+        }
+      } else {
+        console.error(`KKU DeepSeek error [${kkuRes.status}]:`, await kkuRes.text());
+      }
+    } catch (err) {
+      console.error('KKU DeepSeek request failed:', err);
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return errorResponse('api_error', 502);
   }
 
-  const result = await upstreamResponse.json();
-  const textContent = result?.choices?.[0]?.message?.content;
-  if (typeof textContent !== 'string') {
+  if (!textContent) {
     return errorResponse('api_error', 502);
   }
-
-  const totalTokens = result?.usage?.total_tokens ?? 500;
 
   // Debit budget after response is parsed
+  const debitCost = providerUsed === 'openrouter'
+    ? totalTokens * TOKEN_COST_MICROBAHT.openrouter
+    : totalTokens * TOKEN_COST_MICROBAHT.kku;
+
   after(async () => {
-    await debitBudget(totalTokens * TOKEN_COST_MICROBAHT.openrouter);
+    await debitBudget(debitCost);
   });
 
   return new Response(textContent, {
