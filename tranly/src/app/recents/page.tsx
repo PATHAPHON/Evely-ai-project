@@ -7,6 +7,7 @@ import { Search, Trash2, Pencil } from 'lucide-react';
 import AppShell from '@/shared/components/AppShell';
 import { useConversationHistory } from '@/shared/hooks/useConversationHistory';
 import { useStrings } from '@/shared/utils/strings';
+import { useToast } from '@/shared/components/Toast';
 import { relativeTimeTh } from '@/features/recents/utils/relativeTime';
 
 type SortMode = 0 | 1 | 2 | 3; // newest, oldest, A→Z, Z→A
@@ -15,6 +16,7 @@ const SORT_LABELS = ["ใหม่สุด", "เก่าสุด", "A → Z"
 export default function RecentsPage() {
   const router = useRouter();
   const t = useStrings();
+  const { showToast } = useToast();
   const { sessions, loadSessions, deleteSession } = useConversationHistory();
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>(0);
@@ -149,9 +151,14 @@ export default function RecentsPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      void deleteSession(s.id);
+                      try {
+                        await deleteSession(s.id);
+                      } catch (err) {
+                        console.error('Failed to delete chat session:', err);
+                        showToast('ไม่สามารถลบประวัติการสนทนาได้ กรุณาลองใหม่อีกครั้ง', 'error');
+                      }
                     }}
                     className="opacity-0 group-hover:opacity-100 text-foreground/40 hover:text-incorrect p-2 rounded-full transition-all cursor-pointer flex-shrink-0"
                     aria-label={t.recents.deleteChatAria}

@@ -62,15 +62,19 @@ function EditProfilePageContent() {
     setIsDeleting(true);
     try {
       const res = await fetch("/api/account/delete", { method: "DELETE" });
-      if (!res.ok) throw new Error("delete failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "delete failed");
+      }
       await supabase.auth.signOut();
       router.push("/auth");
-    } catch {
+    } catch (err) {
       setIsDeleting(false);
       setShowDeleteConfirm(false);
       setDeleteInput("");
+      showToast(err instanceof Error && err.message !== "delete failed" ? err.message : "ไม่สามารถลบบัญชีได้ กรุณาลองใหม่อีกครั้ง");
     }
-  }, [router]);
+  }, [router, showToast]);
 
   return (
     <AppShell

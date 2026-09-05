@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/shared/supabase/supabaseClient";
 import { useTTS } from "@/shared/hooks/useTTS";
+import { markBudgetExhausted } from "@/shared/hooks/useBudgetExhausted";
 import type { FeedWordRecord } from "@/shared/types/wordTypes";
 import type { WordDetailResponse } from "@/app/api/word-detail/route";
 
@@ -48,8 +49,20 @@ export default function WordDetailPopup({ word, onClose, onUpdate }: WordDetailP
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "เกิดข้อผิดพลาด" }));
-        throw new Error((err as { error?: string }).error || "เกิดข้อผิดพลาด");
+        if (res.status === 429) {
+          markBudgetExhausted();
+          throw new Error("งบ AI วันนี้หมดแล้ว กรุณาลองใหม่พรุ่งนี้");
+        }
+        const err = await res.json().catch(() => ({}));
+        let errMsg = "เกิดข้อผิดพลาด กรุณาลองใหม่";
+        if (typeof err === "object" && err !== null) {
+          if (typeof (err as { error?: unknown }).error === "string") {
+            errMsg = (err as { error: string }).error;
+          } else if (typeof (err as { error?: { message?: string } }).error?.message === "string") {
+            errMsg = (err as { error: { message: string } }).error.message;
+          }
+        }
+        throw new Error(errMsg);
       }
       const detailData = (await res.json()) as WordDetailResponse;
       setDetail(detailData);

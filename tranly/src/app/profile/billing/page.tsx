@@ -3,6 +3,7 @@
 import { useState, useCallback, Suspense } from "react";
 import { useStrings } from "@/shared/utils/strings";
 import { useUserProfile } from "@/shared/hooks/useUserProfile";
+import { useToast } from "@/shared/components/Toast";
 import AppShell from "@/shared/components/AppShell";
 
 /* ── Plan feature lists (hard-coded; no string keys exist yet) ─── */
@@ -22,6 +23,7 @@ const PREMIUM_FEATURES = [
 /* ── Inner content (rendered inside Suspense) ────────────────── */
 function BillingPageContent() {
   const t = useStrings();
+  const { showToast } = useToast();
   const { isPremium, periodEnd } = useUserProfile();
   const [loading, setLoading] = useState(false);
 
@@ -33,18 +35,20 @@ function BillingPageContent() {
         ? "/api/stripe/portal"
         : "/api/stripe/create-checkout-session";
       const res = await fetch(endpoint, { method: "POST" });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
         window.location.href = data.url;
         return;
       }
       console.error("Billing error:", data.error);
+      showToast(typeof data.error === 'string' ? data.error : 'ไม่สามารถดำเนินการเรื่องการชำระเงินได้ในขณะนี้', 'error');
     } catch (err) {
       console.error("Billing request failed:", err);
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง', 'error');
     } finally {
       setLoading(false);
     }
-  }, [isPremium]);
+  }, [isPremium, showToast]);
 
   const expiryText = periodEnd
     ? new Date(periodEnd).toLocaleDateString("th-TH", {

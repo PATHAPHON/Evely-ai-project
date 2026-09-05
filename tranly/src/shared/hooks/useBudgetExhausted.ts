@@ -20,18 +20,40 @@ function readUntil(): number | null {
   return ms;
 }
 
+const listeners = new Set<() => void>();
+
+function notifyListeners() {
+  listeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // ignore
+    }
+  });
+}
+
 export function markBudgetExhausted(): void {
   if (typeof window === 'undefined') return;
   const value = nextThaiMidnight().toISOString();
   localStorage.setItem(STORAGE_KEY, value);
-  window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: value }));
+  notifyListeners();
+  try {
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: value }));
+  } catch {
+    // ignore if StorageEvent fails to construct
+  }
 }
 
 export function clearBudgetExhausted(): void {
   if (typeof window === 'undefined') return;
   if (localStorage.getItem(STORAGE_KEY) === null) return;
   localStorage.removeItem(STORAGE_KEY);
-  window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null }));
+  notifyListeners();
+  try {
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null }));
+  } catch {
+    // ignore if StorageEvent fails to construct
+  }
 }
 
 export function useBudgetExhausted(): { exhausted: boolean } {
@@ -42,11 +64,15 @@ export function useBudgetExhausted(): { exhausted: boolean } {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
+    listeners.add(refresh);
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) refresh();
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    return () => {
+      listeners.delete(refresh);
+      window.removeEventListener('storage', onStorage);
+    };
   }, [refresh]);
 
   // Auto-clear เมื่อถึงเวลา reset

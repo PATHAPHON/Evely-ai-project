@@ -13,21 +13,46 @@ export interface GameProps {
   wordBank: WordBank;
   /** Called once the round is scored with an SM-2 quality (0-5). */
   onDone: (quality: number) => void;
+  /** Words in current session (to avoid showing a queue target as distractor). */
+  excludeWords?: Set<string>;
 }
 
 /**
  * Picks up to `count` distractor entries from the word bank, excluding the
- * target word. Returns whatever is available (may be fewer than requested).
+ * target word. Deduplicates by thai and optionally excludes words already
+ * in the current session queue to avoid seeing the same word as target and
+ * distractor in one 5-10 word session.
  */
 export function pickDistractors(
   wordBank: WordBank,
   targetWord: string,
-  count: number
+  count: number,
+  opts?: { excludeWords?: Set<string>; excludeThais?: Set<string> }
 ): { word: string; thai: string }[] {
   const target = targetWord.toLowerCase().trim();
-  const pool = wordBank.filter(
-    (w) => w.word.toLowerCase().trim() !== target && w.thai && w.thai.trim()
-  );
+  const targetThai = wordBank.find((w) => w.word.toLowerCase().trim() === target)?.thai?.toLowerCase().trim();
+  const excludeWords = opts?.excludeWords;
+  const excludeThais = opts?.excludeThais;
+
+  // Filter out target, words in current session, and words without thai
+  const filtered = wordBank.filter((w) => {
+    const wk = w.word.toLowerCase().trim();
+    const tk = w.thai?.toLowerCase().trim();
+    if (wk === target) return false;
+    if (excludeWords?.has(wk)) return false;
+    if (!w.thai || !w.thai.trim()) return false;
+    if (targetThai && tk === targetThai) return false;
+    if (excludeThais?.has(tk ?? '')) return false;
+    return true;
+  });
+
+  // Deduplicate by thai (two English words sharing same Thai would otherwise duplicate buttons)
+  const byThai = new Map<string, (typeof filtered)[number]>();
+  for (const e of filtered) {
+    const tk = e.thai!.toLowerCase().trim();
+    if (!byThai.has(tk)) byThai.set(tk, e);
+  }
+  const pool = [...byThai.values()];
   shuffle(pool);
   return pool.slice(0, Math.max(0, count)).map((w) => ({
     word: w.word,

@@ -2,36 +2,41 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/shared/supabase/supabaseClient";
+import { DAILY_BUDGET_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
+import { markBudgetExhausted, clearBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
+import { safeLocalStorage } from '@/shared/utils/safeStorage';
 
 const KEY_PREFIX = 'tranly:';
 const LEGACY_PREFIX = 'tarnly:';
 
 const DEFAULT_NAME = "Learner";
 
+export function getBangkokTodayDateString(): string {
+  const bkk = new Date(Date.now() + 7 * 3600 * 1000);
+  return bkk.toISOString().slice(0, 10);
+}
+
 function getStoredItem(key: string): string | null {
-  if (typeof window === 'undefined') return null;
-  const primary = localStorage.getItem(KEY_PREFIX + key);
+  const primary = safeLocalStorage.getItem(KEY_PREFIX + key);
   if (primary !== null) return primary;
-  const legacy = localStorage.getItem(LEGACY_PREFIX + key);
+  const legacy = safeLocalStorage.getItem(LEGACY_PREFIX + key);
   if (legacy !== null) {
     // Migrate legacy key
-    localStorage.setItem(KEY_PREFIX + key, legacy);
-    localStorage.removeItem(LEGACY_PREFIX + key);
+    safeLocalStorage.setItem(KEY_PREFIX + key, legacy);
+    safeLocalStorage.removeItem(LEGACY_PREFIX + key);
     return legacy;
   }
   return null;
 }
 
 function setStoredItem(key: string, value: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY_PREFIX + key, value);
-  localStorage.removeItem(LEGACY_PREFIX + key);
+  safeLocalStorage.setItem(KEY_PREFIX + key, value);
+  safeLocalStorage.removeItem(LEGACY_PREFIX + key);
 }
 
 function removeStoredItem(key: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(KEY_PREFIX + key);
-  localStorage.removeItem(LEGACY_PREFIX + key);
+  safeLocalStorage.removeItem(KEY_PREFIX + key);
+  safeLocalStorage.removeItem(LEGACY_PREFIX + key);
 }
 
 export interface ProfileFields {
@@ -47,6 +52,9 @@ export interface UseUserProfileReturn extends ProfileFields {
   subscriptionStatus: 'free' | 'active';
   periodEnd: string | null;
   energySpent: number;
+  isBudgetExhausted: boolean;
+  dailyBudgetLimit: number;
+  refetchProfile: () => Promise<void>;
 }
 
 export function useUserProfile(): UseUserProfileReturn {
@@ -85,9 +93,21 @@ export function useUserProfile(): UseUserProfileReturn {
       if (data) {
         setDisplayNameState(data.display_name || DEFAULT_NAME);
         setHandle(data.handle || "");
-        setSubscriptionStatus(data.subscription_status === 'active' ? 'active' : 'free');
+        const isSubActive = data.subscription_status === 'active';
+        setSubscriptionStatus(isSubActive ? 'active' : 'free');
         setPeriodEnd(data.subscription_current_period_end ?? null);
-        setEnergySpent(data.daily_spend_microbaht ?? 0);
+
+        const todayBkk = getBangkokTodayDateString();
+        const isOldReset = !data.daily_spend_reset_at || data.daily_spend_reset_at < todayBkk;
+        const currentSpend = isOldReset ? 0 : (data.daily_spend_microbaht ?? 0);
+        setEnergySpent(currentSpend);
+
+        const limit = isSubActive ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+        if (currentSpend >= limit) {
+          markBudgetExhausted();
+        } else if (isOldReset) {
+          clearBudgetExhausted();
+        }
 
         // Sync back to local storage
         setStoredItem('display-name', data.display_name || DEFAULT_NAME);
@@ -193,7 +213,18 @@ export function useUserProfile(): UseUserProfileReturn {
     [userId, setDisplayName]
   );
 
+  const refetchProfile = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (uid) {
+      setUserId(uid);
+      await loadProfileFromDB(uid);
+    }
+  }, [loadProfileFromDB]);
+
   const avatarInitial = displayName.length > 0 ? displayName[0] : "L";
+  const dailyBudgetLimit = subscriptionStatus === 'active' ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+  const isBudgetExhausted = energySpent >= dailyBudgetLimit;
 
   return {
     displayName,
@@ -205,5 +236,8 @@ export function useUserProfile(): UseUserProfileReturn {
     subscriptionStatus,
     periodEnd,
     energySpent,
+    isBudgetExhausted,
+    dailyBudgetLimit,
+    refetchProfile,
   };
 }

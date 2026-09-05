@@ -1,11 +1,16 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import AppShell from '@/shared/components/AppShell';
-import { Headphones, BookOpen, Mic } from 'lucide-react';
+import { Headphones, BookOpen, Mic, Sparkles } from 'lucide-react';
 
 interface Props {
   onStart: () => void;
   disabled?: boolean;
+  withThai?: number;
+  minRequired?: number;
+  isLoading?: boolean;
+  isBudgetExhausted?: boolean;
 }
 
 const MODES = [
@@ -14,7 +19,20 @@ const MODES = [
   { icon: <Mic size={20} stroke="url(#refresh-grad)" />,        label: 'พูด', desc: 'ฝึกออกเสียงประโยคตามธรรมชาติที่แนะนำและตรวจผลโดย AI' },
 ];
 
-export default function RefreshMenu({ onStart, disabled = false }: Props) {
+export default function RefreshMenu({
+  onStart,
+  disabled = false,
+  withThai = 0,
+  minRequired = 40,
+  isLoading = false,
+  isBudgetExhausted = false,
+}: Props) {
+  const router = useRouter();
+  const hasGate = typeof withThai === 'number' && typeof minRequired === 'number';
+  const locked = hasGate && withThai < minRequired && !isLoading;
+  const remaining = hasGate ? Math.max(0, minRequired - withThai) : 0;
+  const progress = hasGate ? Math.min(100, (withThai / minRequired) * 100) : 0;
+
   return (
     <AppShell title="ทบทวน">
       {/* Hidden SVG Gradient Definition for Refresh Icons */}
@@ -33,13 +51,40 @@ export default function RefreshMenu({ onStart, disabled = false }: Props) {
         <div className="rounded-3xl bg-gradient-to-br from-primary to-primary-hover p-6 shadow-soft-md">
           <p className="text-white/80 dark:text-gray-900/80 text-sm mb-1">คำที่ต้องทบทวนวันนี้</p>
           <p className="text-white dark:text-gray-900 font-bold text-xl mb-4">ฝึกคำศัพท์ที่ยังไม่แม่น</p>
+          {hasGate && !isLoading && (
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-white/80 dark:text-gray-900/70 mb-1.5">
+                <span>คำที่ถึงกำหนดทบทวน</span>
+                <span>{withThai}/{minRequired} คำ</span>
+              </div>
+              <div className="h-2 rounded-full bg-white/20 dark:bg-gray-900/10 overflow-hidden">
+                <div className="h-full bg-white dark:bg-gray-900 transition-all" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )}
           <button
             onClick={onStart}
             disabled={disabled}
             className="w-full py-4 rounded-2xl bg-white dark:bg-gray-900 text-primary dark:text-primary font-bold text-base active:scale-95 transition-transform disabled:opacity-50 cursor-pointer shadow-soft-sm"
           >
-            {disabled ? 'กำลังโหลด…' : 'เริ่มเลย'}
+            {isLoading ? 'กำลังโหลด…' : locked ? `รอทบทวนอีก ${remaining} คำ` : 'เริ่มเลย'}
           </button>
+          {isBudgetExhausted && !locked && !isLoading && (
+            <div className="mt-3.5 flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/15 dark:bg-gray-900/15 backdrop-blur-xs text-white dark:text-gray-900 text-xs font-medium border border-white/20 dark:border-gray-900/10">
+              <Sparkles size={16} className="shrink-0 text-white/90 dark:text-gray-900/90" />
+              <span>งบ AI วันนี้เต็มแล้ว — ระบบปรับเป็นแบบฝึกหัดจับคู่และพิมพ์ให้อัตโนมัติ</span>
+            </div>
+          )}
+          {locked && (
+            <div className="mt-3 text-center">
+              <button
+                onClick={() => router.push('/new')}
+                className="text-white dark:text-gray-900 text-sm font-semibold underline underline-offset-2 cursor-pointer"
+              >
+                ไปสะสมคำที่แชต →
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Mode list */}

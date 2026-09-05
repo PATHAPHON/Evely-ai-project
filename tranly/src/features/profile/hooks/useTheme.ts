@@ -1,15 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { safeLocalStorage } from '@/shared/utils/safeStorage';
 
 export type Theme = 'light' | 'dark';
 
-const STORAGE_KEY = 'tarnly:theme';
+export const STORAGE_KEY = 'tarnly:theme';
 const DEFAULT_THEME: Theme = 'light';
 
 function getStoredTheme(): Theme {
-  if (typeof window === 'undefined') return DEFAULT_THEME;
-  const stored = localStorage.getItem(STORAGE_KEY);
+  const stored = safeLocalStorage.getItem(STORAGE_KEY);
   if (stored === 'light' || stored === 'dark') return stored;
   return DEFAULT_THEME;
 }
@@ -35,14 +35,14 @@ export function useTheme() {
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem(STORAGE_KEY, newTheme);
+    safeLocalStorage.setItem(STORAGE_KEY, newTheme);
     applyThemeClass(newTheme);
   }, []);
 
   const toggleTheme = useCallback(() => {
     setThemeState((prev) => {
       const next: Theme = prev === 'light' ? 'dark' : 'light';
-      localStorage.setItem(STORAGE_KEY, next);
+      safeLocalStorage.setItem(STORAGE_KEY, next);
       applyThemeClass(next);
       return next;
     });

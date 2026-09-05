@@ -56,15 +56,15 @@ function GameButton({
   );
 }
 
-export default function MatchingGame({ word, thai, wordBank, onDone }: GameProps) {
+export default function MatchingGame({ word, thai, wordBank, onDone, excludeWords }: GameProps) {
   const { round } = useGameExit(
     (props, onExitStart) => new MatchingRound(props, onExitStart),
-    { word, thai, wordBank, onDone },
+    { word, thai, wordBank, onDone, excludeWords },
   );
 
   // Build the pair set once: target + up to 4 distractors (min 2 pairs total).
   const pairs = useMemo<Pair[]>(() => {
-    const distractors = pickDistractors(wordBank, word, 4);
+    const distractors = pickDistractors(wordBank, word, 4, { excludeWords });
     const built: Pair[] = [{ word, thai, isTarget: true }];
     for (const d of distractors) {
       built.push({ word: d.word, thai: d.thai, isTarget: false });
@@ -73,7 +73,7 @@ export default function MatchingGame({ word, thai, wordBank, onDone }: GameProps
     // the single pair (engine guarantees at least the target). Shuffle order.
     const order = shuffleIndices(built.length);
     return order.map((i) => built[i]);
-  }, [word, thai, wordBank]);
+  }, [word, thai, wordBank, excludeWords]);
 
   const wordOrder = useMemo(() => shuffleIndices(pairs.length), [pairs.length]);
 

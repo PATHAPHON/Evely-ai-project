@@ -3,7 +3,7 @@ import { getRequestUser, unauthorizedResponse, debitBudget } from '@/app/api/_li
 import { KkuTranslator } from '@/app/api/_lib/utils/kkuTranslate';
 import { TOKEN_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 
-// ponytail: LLM call can take up to ~15s; without this the serverless gateway
+// ponytail: LLM call can take up to ~30s; without this the serverless gateway
 // can 504 before kkuTranslate's own timeout fires.
 export const maxDuration = 60;
 
@@ -46,10 +46,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return errorResponse('invalid_input', 'Missing or invalid texts field.', 400);
   }
 
-  const result = await new KkuTranslator(process.env.KKU_API_KEY ?? '').translateWithUsage(
-    texts as string[]
-  );
+  const apiKey = process.env.KKU_API_KEY;
+  if (!apiKey) {
+    console.error('[translate] Missing KKU_API_KEY');
+    return errorResponse('api_error', 'Translation service not configured.', 500);
+  }
+
+  // Retry once on transient 5xx / parse failure — KKU is occasionally flaky.
+  // Timeouts (AbortError) and 429 are not retried; they already burn the budget.
+  let result: Awaited<ReturnType<KkuTranslator['translateWithUsage']>> = null;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      result = await new KkuTranslator(apiKey).translateWithUsage(texts as string[]);
+      if (result) break;
+      // Null without exception = parse/5xx — retry once
+      if (attempt < 2) {
+        console.warn(`[translate] Attempt ${attempt} returned null, retrying...`);
+        continue;
+      }
+    } catch (e) {
+      lastError = e;
+      if (e instanceof Error && e.name === 'AbortError') {
+        console.error('[translate] Upstream timeout');
+        return errorResponse('timeout', 'Translation timed out. Please try again.', 504);
+      }
+      if (e instanceof Error && (e as Error & { status?: number }).status === 429) {
+        return errorResponse('rate_limit', 'Too many requests. Please wait.', 429);
+      }
+      console.error('[translate] Unexpected error:', e);
+      if (attempt < 2) continue;
+      return errorResponse('api_error', 'Translation failed. Please try again.', 502);
+    }
+  }
+
   if (!result) {
+    if (lastError) {
+      console.error('[translate] All attempts failed, last error:', lastError);
+    } else {
+      console.error('[translate] All attempts returned null (upstream 5xx or parse failure)');
+    }
     return errorResponse('api_error', 'Translation failed. Please try again.', 502);
   }
 

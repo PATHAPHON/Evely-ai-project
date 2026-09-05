@@ -53,6 +53,7 @@ export interface WordStatusContextValue {
   addWord: (word: string) => Promise<void>;
   removeWord: (wordId: string) => Promise<void>;
   reviewWord: (wordId: string, quality: number) => Promise<void>;
+  markAsForgotten: (word: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -480,6 +481,55 @@ export function useWordBank(): WordStatusContextValue {
     [notifyUpdate, findEntryById, handleAuthExpired, raiseMutationError]
   );
 
+  // ─── markAsForgotten ────────────────────────────────────────────────────────
+
+  const markAsForgotten = useCallback(
+    async (word: string): Promise<void> => {
+      const userId = userIdRef.current;
+      if (!userId) {
+        handleAuthExpired();
+        return;
+      }
+
+      const normalizedWord = word.toLowerCase().trim();
+      const entry = wordBankRef.current.get(normalizedWord);
+      if (!entry) return;
+
+      const now = new Date();
+
+      // Reset progress to day 1 and set next_review_at to now so it's due immediately
+      const { error: updateError } = await supabase
+        .from('word_progress')
+        .update({
+          box: 1,
+          interval: 1,
+          repetitions: 0,
+          next_review_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        })
+        .eq('word_id', entry.id)
+        .eq('user_id', userId);
+
+      if (updateError) {
+        raiseMutationError(updateError, th.errors.reviewFailed, 'Failed to update word progress');
+        return;
+      }
+
+      // Update local cache
+      const updatedEntry: WordBankEntry = {
+        ...entry,
+        box: 1,
+        interval: 1,
+        repetitions: 0,
+        nextReviewAt: now,
+      };
+      wordBankRef.current.set(normalizedWord, updatedEntry);
+
+      notifyUpdate();
+    },
+    [notifyUpdate, handleAuthExpired, raiseMutationError]
+  );
+
   return {
     words,
     getStatus,
@@ -487,6 +537,7 @@ export function useWordBank(): WordStatusContextValue {
     addWord,
     removeWord,
     reviewWord,
+    markAsForgotten,
     isLoading,
     error,
   };

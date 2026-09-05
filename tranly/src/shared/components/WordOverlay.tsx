@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Info } from 'lucide-react';
+import { Plus, Info, RotateCcw } from 'lucide-react';
+import type { WordStatus } from '@/shared/utils/wordStatusDerivation';
 
 /** Not enough room above the tapped word → flip the popover below it. */
 const FLIP_ABOVE_THRESHOLD_PX = 96;
@@ -20,23 +21,27 @@ export interface OverlayState {
 
 export function WordOverlay({
   word,
+  status = 'unknown',
   x,
   top,
   bottom,
   onClose,
   onAdd,
+  onForget,
   onDetail,
 }: {
   word: string;
+  status?: WordStatus;
   x: number;
   top: number;
   bottom: number;
   onClose: () => void;
   onAdd: (word: string) => Promise<void>;
+  onForget?: (word: string) => Promise<void>;
   onDetail: (word: string) => void;
 }) {
   const placeBelow = top < FLIP_ABOVE_THRESHOLD_PX;
-  const [isAdding, setIsAdding] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -59,12 +64,23 @@ export function WordOverlay({
   }, [handleClose]);
 
   const handleAdd = async () => {
-    setIsAdding(true);
+    setIsProcessing(true);
     try {
       await onAdd(word);
       handleClose();
     } catch {
-      setIsAdding(false);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleForget = async () => {
+    if (!onForget) return;
+    setIsProcessing(true);
+    try {
+      await onForget(word);
+      handleClose();
+    } catch {
+      setIsProcessing(false);
     }
   };
 
@@ -99,15 +115,31 @@ export function WordOverlay({
             'opacity 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={isAdding}
-          aria-label="Add"
-          className="flex items-center justify-center w-6 h-6 rounded-md bg-correct hover:opacity-90 text-white dark:text-gray-900 shadow-soft-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
-        >
-          <Plus size={14} className={isAdding ? 'animate-spin' : ''} strokeWidth={2.5} />
-        </button>
+        {/* Unknown status: show green add button */}
+        {status === 'unknown' && (
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={isProcessing}
+            aria-label="Add"
+            className="flex items-center justify-center w-6 h-6 rounded-md bg-correct hover:opacity-90 text-white dark:text-gray-900 shadow-soft-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <Plus size={14} className={isProcessing ? 'animate-spin' : ''} strokeWidth={2.5} />
+          </button>
+        )}
+
+        {/* Known status: show yellow review/forgotten button */}
+        {status === 'known' && (
+          <button
+            type="button"
+            onClick={handleForget}
+            disabled={isProcessing}
+            aria-label="ลืม / ทบทวน"
+            className="flex items-center justify-center w-6 h-6 rounded-md bg-[#ca8a04] dark:bg-[#facc15] hover:opacity-90 text-white dark:text-gray-900 shadow-soft-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <RotateCcw size={13} className={isProcessing ? 'animate-spin' : ''} strokeWidth={2.5} />
+          </button>
+        )}
 
         {/* Open the word detail sheet */}
         <button

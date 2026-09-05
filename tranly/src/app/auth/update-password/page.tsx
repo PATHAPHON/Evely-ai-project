@@ -23,14 +23,24 @@ export default function UpdatePasswordPage() {
     setIsLoading(true);
     setError(null);
 
-    const { error: err } = await supabase.auth.updateUser({ password });
-    setIsLoading(false);
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password });
+      setIsLoading(false);
 
-    if (err) {
+      if (err) {
+        const msg = err.message?.toLowerCase() || '';
+        if (msg.includes('session') || msg.includes('auth') || msg.includes('expired') || msg.includes('recovery')) {
+          setError('ลิงก์รีเซ็ตรหัสผ่านหมดอายุหรือไม่ถูกต้อง กรุณาขอลิงก์ใหม่อีกครั้ง');
+        } else {
+          setError(err.message || t.auth.errorGeneric);
+        }
+      } else {
+        setDone(true);
+        setTimeout(() => router.push('/new'), 1500);
+      }
+    } catch {
+      setIsLoading(false);
       setError(t.auth.errorGeneric);
-    } else {
-      setDone(true);
-      setTimeout(() => router.push('/new'), 1500);
     }
   }
 

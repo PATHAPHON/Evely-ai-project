@@ -60,15 +60,16 @@ const REVEAL_STAGGER_MS = 55;
 // ─── WordRenderer Component ───────────────────────────────────────────────────
 
 // Fallback for rendering without a WordStatusProvider (e.g., in unit tests)
-const FALLBACK_CONTEXT: Pick<WordStatusContextValue, 'getStatus' | 'getEntry' | 'addWord'> = {
+const FALLBACK_CONTEXT: Pick<WordStatusContextValue, 'getStatus' | 'getEntry' | 'addWord' | 'markAsForgotten'> = {
   getStatus: () => 'unknown' as WordStatus,
   getEntry: () => null,
   addWord: async () => {},
+  markAsForgotten: async () => {},
 };
 
 export default function WordRenderer({ text, className, textClassName, reveal = false }: WordRendererProps) {
   const context = useContext(WordStatusContext);
-  const { getStatus, getEntry, addWord } = context ?? FALLBACK_CONTEXT;
+  const { getStatus, getEntry, addWord, markAsForgotten } = context ?? FALLBACK_CONTEXT;
   const isDark = useIsDarkMode();
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
   const [detailWord, setDetailWord] = useState<FeedWordRecord | null>(null);
@@ -214,11 +215,13 @@ export default function WordRenderer({ text, className, textClassName, reveal = 
       {overlay && (
         <WordOverlay
           word={overlay.word}
+          status={getStatus(overlay.word)}
           x={overlay.x}
           top={overlay.top}
           bottom={overlay.bottom}
           onClose={handleCloseOverlay}
           onAdd={addWord}
+          onForget={markAsForgotten}
           onDetail={handleShowDetail}
         />
       )}

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { supabase } from '@/shared/supabase/supabaseClient';
+import { safeLocalStorage } from '@/shared/utils/safeStorage';
 import type { TargetLanguage } from '../types/wordTypes';
 
 export interface ActiveLanguageContextValue {
@@ -34,22 +35,20 @@ function isValidLanguage(value: unknown): value is TargetLanguage {
 }
 
 function getStoredLanguage(): string | null {
-  if (typeof window === 'undefined') return null;
-  const primary = localStorage.getItem(STORAGE_KEY);
+  const primary = safeLocalStorage.getItem(STORAGE_KEY);
   if (primary !== null) return primary;
-  const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+  const legacy = safeLocalStorage.getItem(LEGACY_STORAGE_KEY);
   if (legacy !== null) {
-    localStorage.setItem(STORAGE_KEY, legacy);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    safeLocalStorage.setItem(STORAGE_KEY, legacy);
+    safeLocalStorage.removeItem(LEGACY_STORAGE_KEY);
     return legacy;
   }
   return null;
 }
 
 function setStoredLanguage(value: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, value);
-  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  safeLocalStorage.setItem(STORAGE_KEY, value);
+  safeLocalStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 export const ActiveLanguageContext = createContext<ActiveLanguageContextValue | null>(null);

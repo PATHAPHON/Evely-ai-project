@@ -40,8 +40,9 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   const [voiceMode, setVoiceMode] = useState(false);
 
   const { activeLanguage } = useActiveLanguage();
-  const { displayName, isPremium } = useUserProfile();
-  const { exhausted: budgetExhausted } = useBudgetExhausted();
+  const { displayName, isPremium, isBudgetExhausted } = useUserProfile();
+  const { exhausted: localBudgetExhausted } = useBudgetExhausted();
+  const budgetExhausted = localBudgetExhausted || isBudgetExhausted;
   const {
     messages: sessionMessages,
     sendMessage: sendSessionMessage,

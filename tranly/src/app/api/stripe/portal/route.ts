@@ -44,13 +44,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: '/profile?portal=mock' });
   }
 
-  const stripe = new Stripe(secretKey);
-  const origin = new URL(request.url).origin;
+  try {
+    const stripe = new Stripe(secretKey);
+    const origin = new URL(request.url).origin;
 
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: stripeCustomerId,
-    return_url: `${origin}/profile`,
-  });
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: stripeCustomerId,
+      return_url: `${origin}/profile/billing`,
+    });
 
-  return NextResponse.json({ url: portalSession.url });
+    return NextResponse.json({ url: portalSession.url });
+  } catch (err) {
+    console.error('Failed to create Stripe billing portal session:', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to open billing portal' },
+      { status: 500 }
+    );
+  }
 }

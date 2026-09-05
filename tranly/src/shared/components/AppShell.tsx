@@ -9,11 +9,8 @@ import {
   Pencil,
   MessageCircle,
   PlayCircle,
-  AlertTriangle,
 } from 'lucide-react';
 import { useUserProfile } from '@/shared/hooks/useUserProfile';
-import { useBudgetExhausted, clearBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
-import { DAILY_BUDGET_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 import { useConversationHistory } from '@/shared/hooks/useConversationHistory';
 import { useStrings } from '@/shared/utils/strings';
 import { supabase } from '@/shared/supabase/supabaseClient';
@@ -214,51 +211,6 @@ function DrawerContent({ setDrawerOpen, onNewChat }: DrawerContentProps) {
   );
 }
 
-function BudgetExhaustedBanner() {
-  const { exhausted } = useBudgetExhausted();
-  const { isPremium, energySpent } = useUserProfile();
-  const router = useRouter();
-
-  // ponytail: localStorage flag คือ cache เพื่อแจ้งทันทีตอนเจอ 429
-  // ถ้า usage จริงจาก server ยังไม่เต็ม แปลว่า flag ค้าง → ล้างทิ้ง ไม่ต้องโชว์
-  const limit = isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
-  const reallyExhausted = exhausted && energySpent >= limit;
-  useEffect(() => {
-    if (exhausted && !reallyExhausted) clearBudgetExhausted();
-  }, [exhausted, reallyExhausted]);
-
-  if (!reallyExhausted) return null;
-
-  return (
-    <div className="px-4 pb-2 z-20">
-      <div className="mx-auto max-w-2xl rounded-2xl border border-incorrect/25 bg-incorrect/5 p-4 shadow-soft-sm">
-        <div className="flex items-start gap-2.5">
-          <AlertTriangle className="text-incorrect mt-0.5 shrink-0" size={18} />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-incorrect">งบ AI วันนี้หมดแล้ว</p>
-            <p className="mt-0.5 text-xs text-foreground/60">งบจะรีเซ็ตเที่ยงคืนนี้</p>
-
-            {/* หลอด 100% */}
-            <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-border-color">
-              <div className="h-full w-full rounded-full bg-incorrect" />
-            </div>
-
-            {!isPremium && (
-              <button
-                type="button"
-                onClick={() => router.push('/profile')}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-bg px-3.5 py-1.5 text-xs font-bold text-primary hover:bg-primary-bg/80 cursor-pointer"
-              >
-                อัปเกรด Premium เพื่อใช้งานต่อ
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function AppShell({
   children,
   title,
@@ -315,9 +267,6 @@ export default function AppShell({
 
         {rightElement ? rightElement : <div className="w-10 h-10" />}
       </header>
-
-      {/* Budget-exhausted banner (shows on every page using this layout) */}
-      <BudgetExhaustedBanner />
 
       {/* Main content body */}
       <main className="flex-1 overflow-y-auto relative flex flex-col min-h-0">

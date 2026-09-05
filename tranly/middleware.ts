@@ -36,9 +36,15 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh session if expired - required for Server Components and middleware session checks.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch (authError) {
+    console.error('Middleware: auth verification error:', authError);
+  }
 
   const pathname = request.nextUrl.pathname;
 

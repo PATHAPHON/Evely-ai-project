@@ -24,22 +24,31 @@ async function getServerClient(): Promise<SupabaseClient | null> {
  * Reads subscription_status from profiles table.
  */
 export async function getRequestUser(): Promise<{ id: string; isPremium: boolean } | null> {
-  const supabase = await getServerClient();
-  if (!supabase) return null;
+  try {
+    const supabase = await getServerClient();
+    if (!supabase) return null;
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('subscription_status')
-    .eq('id', user.id)
-    .single();
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_status')
+      .eq('id', user.id)
+      .single();
 
-  return {
-    id: user.id,
-    isPremium: profile?.subscription_status === 'active',
-  };
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.warn('getRequestUser: profile lookup warning:', profileError);
+    }
+
+    return {
+      id: user.id,
+      isPremium: profile?.subscription_status === 'active',
+    };
+  } catch (err) {
+    console.error('getRequestUser unexpected error:', err);
+    return null;
+  }
 }
 
 /**
@@ -47,17 +56,22 @@ export async function getRequestUser(): Promise<{ id: string; isPremium: boolean
  * Resets daily spend when the date has changed.
  */
 export async function checkBudget(limitMicrobaht: number): Promise<boolean> {
-  const supabase = await getServerClient();
-  if (!supabase) return false;
+  try {
+    const supabase = await getServerClient();
+    if (!supabase) return false;
 
-  const { data, error } = await supabase.rpc('check_budget', {
-    p_limit_microbaht: limitMicrobaht,
-  });
-  if (error) {
-    console.error('check_budget failed:', error);
-    return false; // fail-closed: block if DB error
+    const { data, error } = await supabase.rpc('check_budget', {
+      p_limit_microbaht: limitMicrobaht,
+    });
+    if (error) {
+      console.error('check_budget failed:', error);
+      return false; // fail-closed: block if DB error
+    }
+    return Boolean(data);
+  } catch (err) {
+    console.error('checkBudget unexpected error:', err);
+    return false;
   }
-  return data as boolean;
 }
 
 /**
@@ -65,13 +79,17 @@ export async function checkBudget(limitMicrobaht: number): Promise<boolean> {
  * Fails silently — overspend by one request is acceptable.
  */
 export async function debitBudget(costMicrobaht: number): Promise<void> {
-  const supabase = await getServerClient();
-  if (!supabase) return;
+  try {
+    const supabase = await getServerClient();
+    if (!supabase) return;
 
-  const { error } = await supabase.rpc('debit_budget', {
-    p_cost_microbaht: costMicrobaht,
-  });
-  if (error) console.error('debit_budget failed:', error);
+    const { error } = await supabase.rpc('debit_budget', {
+      p_cost_microbaht: costMicrobaht,
+    });
+    if (error) console.error('debit_budget failed:', error);
+  } catch (err) {
+    console.error('debitBudget unexpected error:', err);
+  }
 }
 
 export function unauthorizedResponse() {

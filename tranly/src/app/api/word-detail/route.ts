@@ -249,52 +249,62 @@ export async function POST(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-      const response = await fetch(KKU_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[word-detail] Attempt ${attempt} failed: KKU API error [${response.status}]:`, errorText);
-        if (attempt < MAX_ATTEMPTS) continue;
-        return NextResponse.json({ error: 'AI API error' }, { status: 502 });
-      }
-
-      const responseText = await response.text();
-      let content: string | undefined;
-      let attemptTokens = 0;
-
       try {
-        const data = JSON.parse(responseText);
-        content = data?.choices?.[0]?.message?.content ?? data?.content;
-        attemptTokens = data?.usage?.total_tokens ?? 0;
-      } catch {
-        // fall through
-      }
+        const response = await fetch(KKU_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
 
-      if (!content || content.trim().length === 0) {
-        console.error(`[word-detail] Attempt ${attempt} failed: empty content from KKU API`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[word-detail] Attempt ${attempt} failed: KKU API error [${response.status}]:`, errorText);
+          if (attempt < MAX_ATTEMPTS) continue;
+          return NextResponse.json({ error: 'AI API error' }, { status: 502 });
+        }
+
+        const responseText = await response.text();
+        let content: string | undefined;
+        let attemptTokens = 0;
+
+        try {
+          const data = JSON.parse(responseText);
+          content = data?.choices?.[0]?.message?.content ?? data?.content;
+          attemptTokens = data?.usage?.total_tokens ?? 0;
+        } catch {
+          // fall through
+        }
+
+        if (!content || content.trim().length === 0) {
+          console.error(`[word-detail] Attempt ${attempt} failed: empty content from KKU API`);
+          if (attempt < MAX_ATTEMPTS) continue;
+          return NextResponse.json({ error: 'Empty response from AI' }, { status: 502 });
+        }
+
+        parsed = parseWordDetailContent(content);
+        if (!parsed) {
+          console.error(`[word-detail] Attempt ${attempt} failed: could not parse AI response:`, content);
+          if (attempt < MAX_ATTEMPTS) continue;
+          return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 502 });
+        }
+
+        totalTokens = attemptTokens;
+        break;
+      } catch (fetchErr: unknown) {
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+          console.error(`[word-detail] Attempt ${attempt} timed out`);
+          return NextResponse.json({ error: 'Request timed out' }, { status: 504 });
+        }
+        console.error(`[word-detail] Attempt ${attempt} fetch error:`, fetchErr);
         if (attempt < MAX_ATTEMPTS) continue;
-        return NextResponse.json({ error: 'Empty response from AI' }, { status: 502 });
+        return NextResponse.json({ error: 'Network error' }, { status: 502 });
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      parsed = parseWordDetailContent(content);
-      if (!parsed) {
-        console.error(`[word-detail] Attempt ${attempt} failed: could not parse AI response:`, content);
-        if (attempt < MAX_ATTEMPTS) continue;
-        return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 502 });
-      }
-
-      totalTokens = attemptTokens;
-      break;
     }
 
     if (!parsed) {

@@ -7,6 +7,7 @@ import { useWordStorage, type WordRecord } from "@/shared/hooks/useWordStorage";
 import { useTTS } from "@/shared/hooks/useTTS";
 import type { FeedWordRecord } from "@/shared/types/wordTypes";
 import { useActiveLanguage } from "@/shared/contexts/ActiveLanguageContext";
+import { safeLocalStorage } from "@/shared/utils/safeStorage";
 import AppShell from "@/shared/components/AppShell";
 import WordDetailPopup from "@/shared/components/WordDetailPopup";
 
@@ -169,9 +170,7 @@ export default function WordsPage() {
     setWords(next);
 
     const cacheKey = wordsCacheKey(activeLanguage);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(cacheKey, JSON.stringify(next));
-    }
+    safeLocalStorage.setItem(cacheKey, JSON.stringify(next));
 
     setSelected((prev) => {
       if (!prev || prev.id !== updated.id) return prev;
@@ -188,7 +187,7 @@ export default function WordsPage() {
     let cancelled = false;
     const cacheKey = wordsCacheKey(activeLanguage);
 
-    const cachedDataStr = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
+    const cachedDataStr = safeLocalStorage.getItem(cacheKey);
     if (cachedDataStr) {
       try {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -204,9 +203,7 @@ export default function WordsPage() {
         if (!cancelled) {
           const newStringified = JSON.stringify(list);
           if (cachedDataStr !== newStringified) {
-            if (typeof window !== "undefined") {
-              localStorage.setItem(cacheKey, newStringified);
-            }
+            safeLocalStorage.setItem(cacheKey, newStringified);
             setWords(list);
           } else {
             setWords((current) => (current === null ? list : current));

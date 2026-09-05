@@ -31,24 +31,32 @@ export async function POST(request: Request) {
 
   // ponytail: mock mode — swap for real Stripe call when sk_test_mock replaced
   if (secretKey === 'sk_test_mock') {
-    return NextResponse.json({ url: '/profile?checkout=success&mock=1' });
+    return NextResponse.json({ url: '/profile/usage?checkout=success&mock=1' });
   }
 
-  const stripe = new Stripe(secretKey);
-  const origin = new URL(request.url).origin;
+  try {
+    const stripe = new Stripe(secretKey);
+    const origin = new URL(request.url).origin;
 
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    line_items: [{ price: priceId, quantity: 1 }],
-    customer_email: user.email,
-    metadata: { supabase_user_id: user.id },
-    // Also stash on the subscription itself so subscription.updated/deleted
-    // events can match a profile even if they arrive before this checkout
-    // session's own webhook (Stripe doesn't guarantee delivery order).
-    subscription_data: { metadata: { supabase_user_id: user.id } },
-    success_url: `${origin}/profile?checkout=success`,
-    cancel_url: `${origin}/profile`,
-  });
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      customer_email: user.email,
+      metadata: { supabase_user_id: user.id },
+      // Also stash on the subscription itself so subscription.updated/deleted
+      // events can match a profile even if they arrive before this checkout
+      // session's own webhook (Stripe doesn't guarantee delivery order).
+      subscription_data: { metadata: { supabase_user_id: user.id } },
+      success_url: `${origin}/profile/usage?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/profile/usage`,
+    });
 
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    console.error('Failed to create Stripe checkout session:', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to create checkout session' },
+      { status: 500 }
+    );
+  }
 }
