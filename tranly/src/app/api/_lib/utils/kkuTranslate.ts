@@ -1,5 +1,5 @@
 const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
-const TIMEOUT_MS = 30_000;
+const TIMEOUT_MS = 15_000;
 
 export interface TranslateResult {
   translations: string[];

@@ -52,6 +52,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return errorResponse('api_error', 'Translation service not configured.', 500);
   }
 
+async function translateWithDeepL(texts: string[], apiKey: string): Promise<string[] | null> {
+  const isFree = apiKey.endsWith(':fx');
+  const endpoint = isFree
+    ? 'https://api-free.deepl.com/v2/translate'
+    : 'https://api.deepl.com/v2/translate';
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `DeepL-Auth-Key ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: texts,
+        target_lang: 'TH',
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as { translations?: { text: string }[] };
+    return data.translations?.map((t) => t.text) ?? null;
+  } catch {
+    return null;
+  }
+}
+
   // Retry once on transient 5xx / parse failure — KKU is occasionally flaky.
   // Timeouts (AbortError) and 429 are not retried; they already burn the budget.
   let result: Awaited<ReturnType<KkuTranslator['translateWithUsage']>> = null;
@@ -67,20 +94,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     } catch (e) {
       lastError = e;
-      if (e instanceof Error && e.name === 'AbortError') {
-        console.error('[translate] Upstream timeout');
-        return errorResponse('timeout', 'Translation timed out. Please try again.', 504);
-      }
       if (e instanceof Error && (e as Error & { status?: number }).status === 429) {
         return errorResponse('rate_limit', 'Too many requests. Please wait.', 429);
       }
-      console.error('[translate] Unexpected error:', e);
-      if (attempt < 2) continue;
-      return errorResponse('api_error', 'Translation failed. Please try again.', 502);
+      console.error(`[translate] Attempt ${attempt} error:`, e);
+      if (attempt < 2 && !(e instanceof Error && e.name === 'AbortError')) continue;
+      break;
+    }
+  }
+
+  // Fallback to DeepL if KKU failed or timed out
+  const deeplKey = process.env.DEEPL_API_KEY;
+  if (!result && deeplKey) {
+    console.log('[translate] KKU unavailable or timed out; falling back to DeepL...');
+    const deepLTranslations = await translateWithDeepL(texts as string[], deeplKey);
+    if (deepLTranslations && deepLTranslations.length === texts.length) {
+      return NextResponse.json({ translations: deepLTranslations }, { status: 200 });
     }
   }
 
   if (!result) {
+    if (lastError && lastError instanceof Error && lastError.name === 'AbortError') {
+      console.error('[translate] All attempts timed out');
+      return errorResponse('timeout', 'Translation timed out. Please try again.', 504);
+    }
     if (lastError) {
       console.error('[translate] All attempts failed, last error:', lastError);
     } else {
