@@ -316,6 +316,7 @@ export async function POST(
       const tokens = totalTokens > 0 ? totalTokens : 300;
       await debitBudget(tokens * TOKEN_COST_MICROBAHT.kku);
       try {
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         const { error: saveErr } = await supabaseServer
           .from('ai_word_detail_cache')
           .upsert({
@@ -326,6 +327,7 @@ export async function POST(
             part_of_speech: partOfSpeech || null,
             model: modelName,
             response_json: parsed,
+            expires_at: expiresAt,
           }, { onConflict: 'cache_key' });
 
         if (saveErr) {

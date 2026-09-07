@@ -43,3 +43,5 @@ next-env.d.ts
 
 certificates
 /graphify-out/
+tmp/
+output/
