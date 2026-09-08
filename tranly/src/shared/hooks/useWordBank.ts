@@ -9,7 +9,6 @@ import {
   type WordBankEntry,
 } from '@/shared/utils/wordStatusDerivation';
 import { WordProgress } from '@/shared/utils/spacedRepetition';
-import { translateBatchToThai } from '@/shared/utils/translateToThai';
 import { isAuthExpiredError, rowToWordBankEntry } from '@/shared/utils/wordBankRow';
 import { useToast } from '@/shared/components/Toast';
 import { th } from '@/shared/utils/strings';
@@ -210,11 +209,8 @@ export function useWordBank(): WordStatusContextValue {
 
         const data = await res.json();
 
-        // Try on-device translation first, fall back to AI-generated Thai meaning if unsupported/empty
-        const [translated] = (await translateBatchToThai([originalWord])) ?? [];
-        const thai = (translated && translated.trim())
-          ? translated.trim()
-          : (typeof data.thai === 'string' && data.thai.trim() ? data.thai.trim() : null);
+        const thai =
+          typeof data.thai === 'string' && data.thai.trim() ? data.thai.trim() : null;
         const partOfSpeech =
           typeof data.partOfSpeech === 'string' && data.partOfSpeech
             ? data.partOfSpeech

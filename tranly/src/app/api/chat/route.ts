@@ -49,11 +49,11 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
   const lang = LANG_PROMPT[language];
 
   const suggestionsSection = isPremium
-    ? `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction).\n\n`
+    ? `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next along with natural Thai translations — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction).\n\n`
     : '';
 
   const suggestionsSchema = isPremium
-    ? `  "suggestions": [\n    { "englishText": "<a reply the user could send, in ${lang.script}>" }\n  ]\n`
+    ? `  "suggestions": [\n    {\n      "englishText": "<a reply the user could send, in ${lang.script}>",\n      "translation": "<natural Thai translation of this reply>"\n    }\n  ]\n`
     : `  "suggestions": []\n`;
 
   return (
@@ -67,7 +67,8 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
     `{\n` +
     `  "sentences": [\n` +
     `    {\n` +
-    `      "englishText": "<sentence in ${lang.script}>"\n` +
+    `      "englishText": "<sentence in ${lang.script}>",\n` +
+    `      "translation": "<natural Thai translation of this sentence>"\n` +
     `    }\n` +
     `  ],\n` +
     suggestionsSchema +
@@ -76,8 +77,9 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
     `- "sentences" is an array of sentence objects, splitting your reply into natural, shorter sentences.\n` +
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
     `- The "englishText" field in each sentence always holds the ${lang.label} text\n` +
-    `- "suggestions" are replies for the USER to choose from (in ${lang.label}), NOT your reply\n` +
-    `- Reply ONLY in ${lang.label}. Do NOT add Thai, translations, or any text before or after the JSON`
+    `- The "translation" field in each sentence always holds the natural Thai translation (conversational Thai suited for chat) of that sentence\n` +
+    `- "suggestions" are replies for the USER to choose from, where "englishText" is in ${lang.label} and "translation" is the Thai translation, NOT your reply\n` +
+    `- Do NOT add any markdown formatting, code fences, or text before or after the JSON`
   );
 }
 

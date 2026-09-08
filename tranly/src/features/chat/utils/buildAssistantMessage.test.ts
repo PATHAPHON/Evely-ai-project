@@ -53,4 +53,27 @@ describe('buildAssistantMessage', () => {
     expect(msg.sentences?.map((s) => s.translation)).toEqual(['สวัสดี', '']);
     expect(msg.suggestions?.map((s) => s.translation)).toEqual(['', '']);
   });
+
+  it('uses translations directly from aiResponse when translated is omitted', () => {
+    const responseWithTranslations: ChatSuccessResponse = {
+      englishText: 'Hello there. How are you?',
+      english: 'Hello there. How are you?',
+      translation: 'สวัสดี สบายดีไหม',
+      sentences: [
+        { englishText: 'Hello there.', translation: 'สวัสดี', english: 'Hello there.' },
+        { englishText: 'How are you?', translation: 'สบายดีไหม', english: 'How are you?' },
+      ],
+      suggestions: [
+        { englishText: "I'm fine.", translation: 'ฉันสบายดี' },
+        { englishText: 'Not bad.', translation: 'ก็ไม่เลว' },
+      ],
+      suggestionsLocked: false,
+    };
+
+    const msg = buildAssistantMessage(pending, responseWithTranslations);
+    expect(msg.translation).toBe('สวัสดี สบายดีไหม');
+    expect(msg.sentences?.map((s) => s.translation)).toEqual(['สวัสดี', 'สบายดีไหม']);
+    expect(msg.suggestions?.map((s) => s.translation)).toEqual(['ฉันสบายดี', 'ก็ไม่เลว']);
+    expect(msg.suggestionsLocked).toBe(false);
+  });
 });

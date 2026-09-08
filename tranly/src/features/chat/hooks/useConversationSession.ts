@@ -3,8 +3,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { randomId } from '@/shared/utils/randomId';
 import { markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
-import { translateBatchToThai } from '@/shared/utils/translateToThai';
-import { readShowTranslation } from '@/shared/hooks/useShowTranslation';
 import { useChatApi } from './useChatApi';
 import { useConversationHistory } from '@/shared/hooks/useConversationHistory';
 import { baseMessage } from '../utils/baseMessage';
@@ -138,38 +136,15 @@ export function useConversationSession(isPremium = false): UseConversationSessio
           config.language,
         );
 
-        // The model replies in English only; fill Thai translations via the
-        // batch translate call. On failure they stay empty and the UI simply
-        // shows no Thai line.
-        const sentences = aiResponse.sentences ?? [];
-        const suggestions = aiResponse.suggestions ?? [];
-        const toTranslate = [
-          ...sentences.map((s) => s.englishText),
-          ...suggestions.map((s) => s.englishText),
-        ];
-
+        // The model now replies with both target language and Thai translations
+        // in a single pass, eliminating the secondary translate call.
         const sid = sessionIdRef.current!;
-
-        if (readShowTranslation()) {
-          const translated = await translateBatchToThai(toTranslate);
-          const aiMessage = buildAssistantMessage(pendingMessage, aiResponse, translated);
-          setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)));
-          try {
-            await saveMessage(sid, aiMessage);
-          } catch {
-            // Keep in memory even if persistence fails.
-          }
-        } else {
-          // Render immediately without waiting; translate silently in background.
-          const aiMessage = buildAssistantMessage(pendingMessage, aiResponse, null);
-          setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)));
-          saveMessage(sid, aiMessage).catch(() => {});
-          translateBatchToThai(toTranslate).then((translated) => {
-            if (!translated) return;
-            const patched = buildAssistantMessage(pendingMessage, aiResponse, translated);
-            setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? patched : msg)));
-            saveMessage(sid, patched).catch(() => {});
-          });
+        const aiMessage = buildAssistantMessage(pendingMessage, aiResponse);
+        setMessages((prev) => prev.map((msg) => (msg.id === pendingMessage.id ? aiMessage : msg)));
+        try {
+          await saveMessage(sid, aiMessage);
+        } catch {
+          // Keep in memory even if persistence fails.
         }
       } catch (err) {
         console.error('runAssistantReply failed:', err);
