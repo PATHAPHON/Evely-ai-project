@@ -5,7 +5,7 @@ import { useWordBank } from '@/shared/hooks/useWordBank';
 import { useBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import RefreshMenu from '@/features/refresh/components/RefreshMenu';
 
-const WORDS_PER_MODE = 5;
+import type { RefreshMode } from '@/features/refresh/components/RefreshMenu';
 
 export default function RefreshPage() {
   const router = useRouter();
@@ -22,20 +22,14 @@ export default function RefreshPage() {
   }
   const yellowCount = yellowMap.size;
 
-  const modeCount = isBudgetExhausted ? 2 : 3;
-  const minRequired = modeCount * WORDS_PER_MODE;
-  const canPlay = yellowCount >= minRequired;
-
-  function start() {
-    router.push('/refresh/play');
+  function handleStartMode(mode: RefreshMode) {
+    router.push(`/refresh/play?mode=${mode}`);
   }
 
   return (
     <RefreshMenu
-      onStart={start}
-      disabled={isLoading || !canPlay}
+      onStartMode={handleStartMode}
       withThai={yellowCount}
-      minRequired={minRequired}
       isLoading={isLoading}
       isBudgetExhausted={isBudgetExhausted}
     />

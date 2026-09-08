@@ -15,6 +15,8 @@ export interface GameProps {
   onDone: (quality: number) => void;
   /** Words in current session (to avoid showing a queue target as distractor). */
   excludeWords?: Set<string>;
+  /** Optional AI-generated 3D illustration URL for the target word. */
+  imageUrl?: string | null;
 }
 
 /**

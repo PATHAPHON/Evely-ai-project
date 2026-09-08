@@ -8,7 +8,7 @@ import { useGameExit } from '../useGameExit';
 type AnswerState = 'idle' | 'correct' | 'wrong';
 
 export default function TypingGame(props: GameProps) {
-  const { word, thai } = props;
+  const { word, thai, imageUrl } = props;
   const [input, setInput] = useState('');
   const [answerState, setAnswerState] = useState<AnswerState>('idle');
   const [quality, setQuality] = useState(0);
@@ -47,13 +47,28 @@ export default function TypingGame(props: GameProps) {
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="relative mt-6 mb-8 w-full" style={{ height: 300 }}>
+      <div className="relative mt-4 mb-6 w-full" style={{ height: 300 }}>
         <div className="absolute inset-x-3 rounded-3xl bg-card-bg/60 border border-border-color/40" style={{ top: 8, bottom: -8 }} />
         <div className="absolute inset-x-1 rounded-3xl bg-card-bg/85 border border-border-color/60" style={{ top: 4, bottom: -4 }} />
         <div
-          className={`${cardAnim} absolute inset-x-0 top-0 bottom-0 rounded-3xl bg-card-bg border flex items-center justify-center transition-colors duration-300 ${cardBorder}`}
+          className={`${cardAnim} absolute inset-x-0 top-0 bottom-0 rounded-3xl bg-card-bg border flex items-center justify-center overflow-hidden transition-colors duration-300 ${cardBorder}`}
         >
-          <span className="text-3xl font-bold text-foreground">{thai}</span>
+          {imageUrl ? (
+            <div className="flex flex-col items-center justify-center p-3 w-full h-full select-none">
+              <img
+                src={imageUrl}
+                alt={thai || "illustration"}
+                className="max-h-[175px] max-w-[175px] object-contain rounded-2xl"
+              />
+              {thai && (
+                <span className="text-2xl font-bold text-foreground mt-2 text-center tracking-wide">
+                  {thai}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-3xl font-bold text-foreground">{thai}</span>
+          )}
         </div>
       </div>
 
@@ -91,9 +106,16 @@ export default function TypingGame(props: GameProps) {
         )}
         {answerState === 'wrong' && !isExiting && (
           <div>
-            <p className="text-center mb-3 font-semibold text-incorrect">
-              ❌ คำตอบที่ถูก: <span className="font-bold">{word}</span>
-            </p>
+            <div className="text-center mb-3">
+              <p className="font-semibold text-incorrect text-base">
+                ❌ คำตอบที่ถูก: <span className="font-bold">{word}</span>
+              </p>
+              {thai && (
+                <p className="text-foreground/60 text-sm mt-0.5">
+                  ความหมาย: {thai}
+                </p>
+              )}
+            </div>
             <button
               onClick={() => round.finish(quality)}
               className="w-full py-4 rounded-2xl bg-primary hover:bg-primary-hover text-white dark:text-gray-900 font-bold text-lg active:scale-95 transition-transform cursor-pointer shadow-soft-sm"

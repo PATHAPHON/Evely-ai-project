@@ -8,9 +8,18 @@ interface Props {
   improved: number;
   isPractice: boolean;
   isPremium?: boolean;
+  onPlayAgain?: () => void;
+  onBackToMenu?: () => void;
 }
 
-export default function SummaryScreen({ total, improved, isPractice, isPremium = false }: Props) {
+export default function SummaryScreen({
+  total,
+  improved,
+  isPractice,
+  isPremium = false,
+  onPlayAgain,
+  onBackToMenu,
+}: Props) {
   const router = useRouter();
 
   const isEmpty = total === 0;
@@ -42,16 +51,30 @@ export default function SummaryScreen({ total, improved, isPractice, isPremium =
             ไปสะสมคำที่แชต →
           </button>
         ) : (
-          <button
-            onClick={() => router.push('/refresh')}
-            className="w-full py-4 rounded-2xl bg-primary hover:bg-primary-hover text-white dark:text-gray-900 font-bold text-lg active:scale-95 transition-all shadow-soft-sm cursor-pointer"
-          >
-            เล่นอีกรอบ
-          </button>
+          <>
+            <button
+              onClick={() => {
+                if (onPlayAgain) onPlayAgain();
+                else router.push('/refresh');
+              }}
+              className="w-full py-4 rounded-2xl bg-primary hover:bg-primary-hover text-white dark:text-gray-900 font-bold text-lg active:scale-95 transition-all shadow-soft-sm cursor-pointer"
+            >
+              เล่นอีกรอบ
+            </button>
+            <button
+              onClick={() => {
+                if (onBackToMenu) onBackToMenu();
+                else router.push('/refresh');
+              }}
+              className="w-full py-4 rounded-2xl bg-card-bg border border-border-color text-foreground font-semibold active:scale-95 transition-all cursor-pointer"
+            >
+              กลับเมนูทบทวน
+            </button>
+          </>
         )}
         <button
           onClick={() => router.push('/')}
-          className="w-full py-4 rounded-2xl bg-card-bg border border-border-color text-foreground font-semibold active:scale-95 transition-all cursor-pointer"
+          className="w-full py-3.5 rounded-2xl text-foreground/70 hover:text-foreground font-medium text-sm transition-all cursor-pointer"
         >
           กลับหน้าหลัก
         </button>

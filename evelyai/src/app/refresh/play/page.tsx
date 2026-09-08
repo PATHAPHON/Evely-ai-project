@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useWordBank } from '@/shared/hooks/useWordBank';
 import { useUserProfile } from '@/shared/hooks/useUserProfile';
 import { useBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import GameShell from '@/features/refresh/components/GameShell';
-import MatchingGame from '@/features/refresh/components/MatchingGame';
+import MatchingGame, { MatchingResult } from '@/features/refresh/components/MatchingGame';
 import TypingGame from '@/features/refresh/components/TypingGame';
 import SpeakGame from '@/features/refresh/components/SpeakGame';
 import SummaryScreen from '@/features/refresh/components/SummaryScreen';
@@ -21,6 +21,7 @@ interface QueueItem {
   word: string;
   thai: string;
   game: GameKind;
+  imageUrl?: string;
 }
 
 const WORDS_PER_MODE = 5;
@@ -31,8 +32,12 @@ const TITLES: Record<GameKind, string> = {
   speak: 'บอกคำภาษาอังกฤษ',
 };
 
-export default function RefreshPlayPage() {
+function RefreshPlayContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawMode = searchParams.get('mode');
+  const targetMode: GameKind = rawMode === 'typing' || rawMode === 'speak' ? rawMode : 'matching';
+
   const { words, reviewWord, isLoading } = useWordBank();
   const { isPremium } = useUserProfile();
   const { exhausted: isBudgetExhausted } = useBudgetExhausted();
@@ -46,6 +51,12 @@ export default function RefreshPlayPage() {
 
   useEffect(() => {
     if (isLoading || phase !== 'loading') return;
+
+    // Check if mode is speak but budget is exhausted
+    if (targetMode === 'speak' && isBudgetExhausted) {
+      router.replace('/refresh');
+      return;
+    }
 
     const hasThai = (w: typeof words[number]) => !!w.thai && !!w.thai.trim();
 
@@ -63,15 +74,10 @@ export default function RefreshPlayPage() {
 
     const yellow = dedupShuffle(words.filter((w) => w.status === 'needs_review' && hasThai(w)));
 
-    const availableModes: GameKind[] = isBudgetExhausted
-      ? ['matching', 'typing']
-      : ['matching', 'typing', 'speak'];
+    const minRequired = targetMode === 'matching' ? 3 : WORDS_PER_MODE;
 
-    const requiredTotal = availableModes.length * WORDS_PER_MODE;
-
-    // Gate: require at least requiredTotal (15 or 10) yellow words to play
-    if (yellow.length < requiredTotal) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    // Gate: require minimum words to play (3 for matching, 5 for typing/speak)
+    if (yellow.length < minRequired) {
       setQueue([]);
       setInitialTotal(0);
       setIsPractice(false);
@@ -81,24 +87,87 @@ export default function RefreshPlayPage() {
       return;
     }
 
-    // Pick exactly requiredTotal yellow words
-    const selected = yellow.slice(0, requiredTotal);
-    shuffle(selected);
+    // Matching mode: 3 words per round, up to 6 words (max 2 rounds)
+    if (targetMode === 'matching') {
+      const takeCount = yellow.length >= 6 ? 6 : 3;
+      const selected = yellow.slice(0, takeCount);
+      shuffle(selected);
 
-    // Group mode by mode: exactly 5 words per mode, sequential progression
-    const items: QueueItem[] = availableModes.flatMap((mode, modeIndex) => {
-      const modeWords = selected.slice(
-        modeIndex * WORDS_PER_MODE,
-        (modeIndex + 1) * WORDS_PER_MODE
-      );
-      return modeWords.map((w) => ({
-        id: `${w.id}-${mode}`,
+      const items: QueueItem[] = selected.map((w) => ({
+        id: `${w.id}-${targetMode}`,
         wordId: w.id,
         word: w.word,
         thai: w.thai as string,
-        game: mode,
+        game: targetMode,
       }));
-    });
+
+      setQueue(items);
+      setInitialTotal(items.length);
+      setIsPractice(false);
+      setIndex(0);
+      setImproved(0);
+      setPhase('playing');
+      return;
+    }
+
+    const requiredTotal = WORDS_PER_MODE;
+    const selected = yellow.slice(0, requiredTotal);
+    shuffle(selected);
+
+    if (targetMode === 'typing') {
+      const wordsToFetch = selected.map((w) => ({ word: w.word, thai: w.thai }));
+      fetch('/api/word-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ words: wordsToFetch }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const images: Record<string, string> = data?.images || {};
+          const items: QueueItem[] = selected.map((w) => {
+            const k = w.word.toLowerCase().trim();
+            return {
+              id: `${w.id}-${targetMode}`,
+              wordId: w.id,
+              word: w.word,
+              thai: w.thai as string,
+              game: targetMode,
+              imageUrl: images[k],
+            };
+          });
+          setQueue(items);
+          setInitialTotal(items.length);
+          setIsPractice(false);
+          setIndex(0);
+          setImproved(0);
+          setPhase('playing');
+        })
+        .catch((err) => {
+          console.warn('Failed to prefetch word images, falling back to text:', err);
+          const items: QueueItem[] = selected.map((w) => ({
+            id: `${w.id}-${targetMode}`,
+            wordId: w.id,
+            word: w.word,
+            thai: w.thai as string,
+            game: targetMode,
+          }));
+          setQueue(items);
+          setInitialTotal(items.length);
+          setIsPractice(false);
+          setIndex(0);
+          setImproved(0);
+          setPhase('playing');
+        });
+      return;
+    }
+
+    const items: QueueItem[] = selected.map((w) => ({
+      id: `${w.id}-${targetMode}`,
+      wordId: w.id,
+      word: w.word,
+      thai: w.thai as string,
+      game: targetMode,
+    }));
 
     setQueue(items);
     setInitialTotal(items.length);
@@ -106,7 +175,15 @@ export default function RefreshPlayPage() {
     setIndex(0);
     setImproved(0);
     setPhase('playing');
-  }, [isLoading, words, phase, isBudgetExhausted]);
+  }, [isLoading, words, phase, isBudgetExhausted, targetMode, router]);
+
+  function handlePlayAgain() {
+    setIndex(0);
+    setImproved(0);
+    setQueue([]);
+    setInitialTotal(0);
+    setPhase('loading');
+  }
 
   function handleFallbackToTyping() {
     setQueue((prevQueue) =>
@@ -117,6 +194,28 @@ export default function RefreshPlayPage() {
         return q;
       })
     );
+  }
+
+  async function handleMatchingRoundDone(results: MatchingResult[]) {
+    if (!isPractice) {
+      for (const res of results) {
+        try {
+          await reviewWord(res.wordId, res.quality);
+        } catch (err) {
+          console.error('Failed to record word review in database:', err);
+        }
+      }
+    }
+
+    const improvedCount = results.filter((r) => r.quality >= 3).length;
+    setImproved((m) => m + improvedCount);
+
+    const nextIdx = index + 3;
+    if (nextIdx >= queue.length) {
+      setPhase('summary');
+    } else {
+      setIndex(nextIdx);
+    }
   }
 
   async function handleDone(quality: number) {
@@ -203,12 +302,37 @@ export default function RefreshPlayPage() {
         improved={improved}
         isPractice={isPractice}
         isPremium={isPremium}
+        onPlayAgain={handlePlayAgain}
+        onBackToMenu={() => router.push('/refresh')}
       />
     );
   }
 
   const item = queue[index];
   if (!item) return null;
+
+  if (item.game === 'matching') {
+    const roundItems = queue.slice(index, index + 3);
+    const roundNumber = Math.floor(index / 3) + 1;
+    const totalRounds = Math.ceil(queue.length / 3);
+    const progress = totalRounds > 0 ? (roundNumber - 1) / totalRounds : 0;
+
+    return (
+      <GameShell
+        progress={progress}
+        onClose={() => router.push('/refresh')}
+        title={TITLES.matching}
+      >
+        <MatchingGame
+          key={`matching-round-${roundNumber}`}
+          items={roundItems}
+          roundNumber={roundNumber}
+          totalRounds={totalRounds}
+          onRoundComplete={handleMatchingRoundDone}
+        />
+      </GameShell>
+    );
+  }
 
   const excludeWords = new Set(queue.map((q) => q.word.toLowerCase().trim()));
 
@@ -218,6 +342,7 @@ export default function RefreshPlayPage() {
     wordBank: words,
     onDone: handleDone,
     excludeWords,
+    imageUrl: item.imageUrl,
   };
 
   return (
@@ -226,7 +351,6 @@ export default function RefreshPlayPage() {
       onClose={() => router.push('/refresh')}
       title={TITLES[item.game]}
     >
-      {item.game === 'matching' && <MatchingGame key={item.id + '-' + item.game} {...props} />}
       {item.game === 'typing' && <TypingGame key={item.id + '-' + item.game} {...props} />}
       {item.game === 'speak' && (
         <SpeakGame
@@ -237,5 +361,22 @@ export default function RefreshPlayPage() {
         />
       )}
     </GameShell>
+  );
+}
+
+export default function RefreshPlayPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-dvh flex flex-col items-center justify-center bg-background text-foreground">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="text-sm text-foreground/60 font-medium">กำลังเตรียมคำถาม...</span>
+          </div>
+        </div>
+      }
+    >
+      <RefreshPlayContent />
+    </Suspense>
   );
 }
