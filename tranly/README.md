@@ -19,15 +19,13 @@
 - **ประเภท:** ปริญญานิพนธ์ / Senior Project & Capstone Coursework
 - **สถาบัน:** มหาวิทยาลัยขอนแก่น (Khon Kaen University)
 - **คณะ / ภาควิชา:** วิทยาลัยการคอมพิวเตอร์ / ภาควิชาวิทยาการคอมพิวเตอร์และเทคโนโลยีสารสนเทศ
-- **สนับสนุนเทคโนโลยี AI:** KKU AI Platform (`gen.ai.kku.ac.th`)
 
 ---
 
 ## 🌟 นวัตกรรมและจุดเด่นของระบบ (Key Innovations)
 
-1. **Dual-LLM Intelligent Routing:**
-   - **OpenRouter (Llama 3.1 8B):** สวมบทบาทคู่สนทนาภาษาอังกฤษที่เป็นธรรมชาติ คอยตั้งคำถามปลายเปิดเพื่อกระตุ้นให้ผู้เรียนฝึกตอบอย่างต่อเนื่อง
-   - **KKU AI Platform (DeepSeek V4 Flash):** รับผิดชอบงานที่มีความแม่นยำสูง ได้แก่ การแปลบริบทภาษาอังกฤษเป็นไทย, การสร้างการ์ดคำศัพท์อย่างละเอียด (Word Detail), และการตรวจแก้ไวยากรณ์ (Grammar Correction) พร้อมคำอธิบายภาษาไทย
+1. **Intelligent LLM Engine (OpenRouter):**
+   - **Google: Gemini 3.1 Flash Lite:** ขับเคลื่อนการสนทนาภาษาอังกฤษที่เป็นธรรมชาติ พร้อมทั้งรองรับการแปลบริบทภาษาอังกฤษเป็นไทย, การสร้างการ์ดคำศัพท์อย่างละเอียด (Word Detail), และการตรวจแก้ไวยากรณ์ (Grammar Correction) พร้อมคำอธิบายภาษาไทย ด้วยความเร็วสูงและต้นทุนคุ้มค่า
 2. **One-Tap Word Capture & Permanent Shared Cache:**
    - แตะคำศัพท์ภาษาอังกฤษคำใดก็ได้ในบทสนทนาเพื่อเปิดการ์ดความหมาย (คำแปล, นิยาม, ชนิดคำ, Tense, ตัวอย่างการใช้)
    - มีระบบ **SHA-256 Prompt Versioned Cache** เก็บผลลัพธ์คำศัพท์ลงตาราง `ai_word_detail_cache` ถาวร ช่วยให้คำศัพท์ซ้ำแสดงผลได้ทันที (Zero Latency) และลดค่าใช้จ่าย Token ได้กว่า 80%
@@ -53,18 +51,17 @@ flowchart TD
     
     subgraph NextServer ["Next.js 16 App Router (Node.js/Edge)"]
         Middleware["Proxy Middleware (Auth & Open-Redirect Guard)"]
-        ChatRoute["POST /api/chat (Llama 3.1)"]
-        GrammarRoute["POST /api/grammar (DeepSeek V4)"]
-        WordRoute["POST /api/word-detail (Cache + DeepSeek)"]
-        TransRoute["POST /api/translate (DeepSeek V4)"]
+        ChatRoute["POST /api/chat (Gemini 3.1 Flash Lite)"]
+        GrammarRoute["POST /api/grammar (Gemini 3.1 Flash Lite)"]
+        WordRoute["POST /api/word-detail (Cache + Gemini 3.1 Flash Lite)"]
+        TransRoute["POST /api/translate (Gemini 3.1 Flash Lite)"]
         TTSRoute["POST /api/tts (Kokoro Audio)"]
         StripeRoute["POST /api/stripe/webhook"]
         BudgetEngine["Budget Engine (check/debit µ฿)"]
     end
     
     subgraph ExternalServices ["External AI & Cloud Services"]
-        OpenRouter["OpenRouter API\n(Llama 3.1 8B, Kokoro TTS, Whisper STT)"]
-        KKU["KKU AI Platform\n(DeepSeek V4 Flash)"]
+        OpenRouter["OpenRouter API\n(Google Gemini 3.1 Flash Lite, Kokoro TTS, Whisper STT)"]
         StripeAPI["Stripe API & Webhook"]
         SupabaseDB[("Supabase PostgreSQL\n- Profiles & Word Bank\n- SM-2 Progress & Cache\n- RLS Security Policies")]
     end
@@ -75,9 +72,9 @@ flowchart TD
     BudgetEngine --> SupabaseDB
     ChatRoute --> OpenRouter
     TTSRoute --> OpenRouter
-    GrammarRoute --> KKU
-    WordRoute --> KKU
-    TransRoute --> KKU
+    GrammarRoute --> OpenRouter
+    WordRoute --> OpenRouter
+    TransRoute --> OpenRouter
     StripeRoute --> StripeAPI
     NextServer --> SupabaseDB
 ```
@@ -94,7 +91,7 @@ flowchart TD
 | **Icons & Animation** | [Lucide React](https://lucide.dev/), [Motion](https://motion.dev/) |
 | **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL 15+, Row Level Security, RPC Functions) |
 | **Payment Gateway** | [Stripe](https://stripe.com/) (Subscription Checkout, Customer Portal, Idempotent Webhook) |
-| **AI LLM Routing** | OpenRouter (Meta Llama 3.1 8B), KKU AI Platform (DeepSeek V4 Flash) |
+| **AI LLM Routing** | OpenRouter (Google: Gemini 3.1 Flash Lite) |
 | **Speech Processing** | Kokoro-82M (TTS) via OpenRouter, Whisper Large v3 (STT) |
 | **Testing Suite** | [Vitest 4.1.7](https://vitest.dev/) (Unit, Component, and Logic Testing - 181+ tests) |
 
@@ -105,7 +102,7 @@ flowchart TD
 ### 1. ความต้องการขั้นต่ำ (Prerequisites)
 - [Node.js](https://nodejs.org/) เวอร์ชัน 20.x หรือใหม่กว่า
 - บัญชี [Supabase](https://supabase.com/) (หรือ Local Supabase CLI)
-- บัญชี [OpenRouter](https://openrouter.ai/) และ [KKU AI Platform](https://gen.ai.kku.ac.th/)
+- บัญชี [OpenRouter](https://openrouter.ai/)
 
 ### 2. การติดตั้ง Dependencies
 ```bash

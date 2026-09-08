@@ -238,7 +238,7 @@ const PARSER_CHAIN: ResponseParser[] = [
 ];
 
 /**
- * Parse the KKU API response content string and extract a ChatSuccessResponse object.
+ * Parse the LLM API response content string and extract a ChatSuccessResponse object.
  *
  * Handles:
  * - Markdown code fences (```json ... ```)

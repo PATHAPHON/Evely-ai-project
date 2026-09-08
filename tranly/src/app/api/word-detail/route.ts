@@ -16,11 +16,11 @@ import { supabaseServer } from '@/shared/supabase/supabaseServer';
 // at its default cap (10s on Vercel hobby) before our own timeout fires.
 export const maxDuration = 60;
 
-const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
-const DEFAULT_MODEL = 'deepseek-v4-flash';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_MODEL = 'google/gemini-3.1-flash-lite';
 const API_TIMEOUT_MS = 30_000;
 
-// DeepSeek replies directly: `definition` is Thai; `usage` is one English example
+// The model replies directly: `definition` is Thai; `usage` is one English example
 // sentence using the word; `tense`/`partOfSpeech` are short English labels.
 export interface WordDetailResponse {
   thai: string;          // short Thai translation of the word
@@ -224,7 +224,7 @@ export async function POST(
   const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
   if (!(await checkBudget(limit))) return budgetExhaustedResponse();
 
-  const apiKey = process.env.KKU_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
   }
@@ -235,11 +235,12 @@ export async function POST(
     model: modelName,
     messages: [{ role: 'user' as const, content: prompt }],
     max_tokens: 2048,
+    include_reasoning: false,
+    reasoning: { effort: 'minimal' },
   };
 
-  // ponytail: 2 attempts, no backoff — upstream is occasionally flaky, not
-  // worth a real retry/backoff library. Timeouts (AbortError) never retry,
-  // they'd already burn the API_TIMEOUT_MS budget against maxDuration=60.
+  // 2 attempts, no backoff — upstream is occasionally flaky.
+  // Timeouts (AbortError) never retry, they'd already burn the API_TIMEOUT_MS budget against maxDuration=60.
   const MAX_ATTEMPTS = 2;
   let parsed: WordDetailResponse | null = null;
   let totalTokens = 0;
@@ -250,7 +251,7 @@ export async function POST(
       const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
       try {
-        const response = await fetch(KKU_API_URL, {
+        const response = await fetch(OPENROUTER_API_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -262,7 +263,7 @@ export async function POST(
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`[word-detail] Attempt ${attempt} failed: KKU API error [${response.status}]:`, errorText);
+          console.error(`[word-detail] Attempt ${attempt} failed: OpenRouter API error [${response.status}]:`, errorText);
           if (attempt < MAX_ATTEMPTS) continue;
           return NextResponse.json({ error: 'AI API error' }, { status: 502 });
         }
@@ -280,7 +281,7 @@ export async function POST(
         }
 
         if (!content || content.trim().length === 0) {
-          console.error(`[word-detail] Attempt ${attempt} failed: empty content from KKU API`);
+          console.error(`[word-detail] Attempt ${attempt} failed: empty content from OpenRouter API`);
           if (attempt < MAX_ATTEMPTS) continue;
           return NextResponse.json({ error: 'Empty response from AI' }, { status: 502 });
         }
@@ -314,7 +315,7 @@ export async function POST(
     after(async () => {
       // Debit budget for cache-miss AI call
       const tokens = totalTokens > 0 ? totalTokens : 300;
-      await debitBudget(tokens * TOKEN_COST_MICROBAHT.kku);
+      await debitBudget(tokens * TOKEN_COST_MICROBAHT.openrouter);
       try {
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         const { error: saveErr } = await supabaseServer

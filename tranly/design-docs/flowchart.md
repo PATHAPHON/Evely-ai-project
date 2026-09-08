@@ -7,7 +7,7 @@ flowchart TD
     Start([User sends message]) --> AddUser[Add user bubble, status pending]
     AddUser --> SaveRow[Lazy-create conversations row<br/>first message = title]
     SaveRow --> Premium{Premium?}
-    Premium -->|Yes| Grammar[POST /api/grammar KKU<br/>correct + translate]
+    Premium -->|Yes| Grammar[POST /api/grammar OpenRouter<br/>correct + translate]
     Premium -->|No| Skip[Skip grammar]
     Grammar --> Chat
     Skip --> Chat[POST /api/chat OpenRouter]

@@ -35,12 +35,12 @@ Tarnly is a mobile-first web app (Next.js 16 PWA) that helps Thai speakers learn
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | FR-1 | Authenticate via Supabase Auth; auto-create a `profiles` row on first load; protect `/words /chat /new /recents /profile /refresh` via middleware | Must |
-| FR-2 | `POST /api/chat` (OpenRouter Llama): reply as JSON `sentences` in target language; premium gets `suggestions` | Must |
+| FR-2 | `POST /api/chat` (OpenRouter Gemini): reply as JSON `sentences` in target language; premium gets `suggestions` | Must |
 | FR-3 | Enforce daily budget via `check_budget` RPC before each LLM call; debit actual token cost after via `debit_budget` in `after()` | Must |
 | FR-4 | Lock suggestions for free tier (`X-Suggestions-Locked` header); return 429 + budget banner when budget exhausted | Must |
-| FR-5 | `POST /api/grammar` (KKU DeepSeek, premium-only): correct/translate the user's message, return `grammarCorrect`/`grammarNotes` | Should |
-| FR-6 | `POST /api/word-detail` (KKU DeepSeek): serve from permanent `ai_word_detail_cache` (SHA-256 key incl. prompt version) or generate + cache | Must |
-| FR-7 | `POST /api/translate` (KKU DeepSeek): batch English→Thai, index-aligned | Should |
+| FR-5 | `POST /api/grammar` (OpenRouter Gemini, premium-only): correct/translate the user's message, return `grammarCorrect`/`grammarNotes` | Should |
+| FR-6 | `POST /api/word-detail` (OpenRouter Gemini): serve from permanent `ai_word_detail_cache` (SHA-256 key incl. prompt version) or generate + cache | Must |
+| FR-7 | `POST /api/translate` (OpenRouter Gemini): batch English→Thai, index-aligned | Should |
 | FR-8 | `POST /api/tts` (OpenRouter Kokoro): synthesize speech, voice-whitelisted, in-memory FIFO cache (500 entries) | Should |
 | FR-9 | `POST /api/stt` (OpenRouter Whisper): transcribe recorded audio to text | Could |
 | FR-10 | Word bank: add/remove words, derive status, store SM-2 progress in `word_progress`; review updates progress | Must |
@@ -53,7 +53,7 @@ Tarnly is a mobile-first web app (Next.js 16 PWA) that helps Thai speakers learn
 | ID | Category | Requirement |
 |----|----------|-------------|
 | NFR-1 | Performance | LLM routes `maxDuration = 60s`; per-call abort 15–30s; chat context capped to last 20 messages (`MAX_CONTEXT_MESSAGES`) |
-| NFR-2 | Cost control | Daily budget fail-closed (block on DB error); word-detail DB cache permanent; TTS in-memory cache; reasoning disabled on KKU calls |
+| NFR-2 | Cost control | Daily budget fail-closed (block on DB error); word-detail DB cache permanent; TTS in-memory cache; reasoning disabled on LLM calls |
 | NFR-3 | Security | RLS on all user tables; service-role used only server-side (webhook, account delete); open-redirect guard in middleware; Stripe webhook signature verified |
 | NFR-4 | Privacy | `conversation_messages` auto-purged after 3 days via `pg_cron` |
 | NFR-5 | Availability | Stripe webhook idempotent against duplicate events |
@@ -61,7 +61,7 @@ Tarnly is a mobile-first web app (Next.js 16 PWA) that helps Thai speakers learn
 
 ## Constraints & Assumptions
 - Stack: Next.js 16 (App Router, React 19), TypeScript, Tailwind v4, Supabase (Postgres + Auth), Stripe, Vitest.
-- **Two LLM providers:** OpenRouter (chat = Llama 3.1 8B, TTS = Kokoro-82M, STT = Whisper-large-v3) and KKU `gen.ai.kku.ac.th` (grammar/word-detail/translate = DeepSeek V4 Flash). Token cost in µ฿/token: OpenRouter = 2, KKU = 1. Daily budget: free 20,000 µ฿, premium 50,000 µ฿.
+- **AI provider:** OpenRouter (LLM = Google Gemini 3.1 Flash Lite, TTS = Kokoro-82M, STT = Whisper-large-v3). Token cost in µ฿/token: 2. Daily budget: free 20,000 µ฿, premium 50,000 µ฿.
 - Users may supply their own key/model via `x-custom-api-key` / `x-custom-model` headers.
 - Schema applied manually to Supabase; `supabase/migrations/*.sql` documents the live budget schema and the pg_cron cleanup.
 - Single learning target language (English); UI language defaults to Thai (`th`).
@@ -70,5 +70,5 @@ Tarnly is a mobile-first web app (Next.js 16 PWA) that helps Thai speakers learn
 ## Open Questions
 - Middleware lists `/tutor /topik /backoffice` as protected, but those routes don't exist on disk yet — planned features.
 - Will additional target languages ship? The type system is built for it but `LANG_PROMPT`/`VALID_LANGUAGES` only contain `english`.
-- `translateToThai` comments mention an on-device Chrome Translator path, but the implementation calls the server `/api/translate` (KKU) — confirm intended source of truth.
+- `translateToThai` calls the server `/api/translate` (OpenRouter) — confirm intended source of truth.
 - Some legacy JSON keys (`korean`) are still accepted in `parseChatResponse` for backward-compat; confirm when they can be dropped.

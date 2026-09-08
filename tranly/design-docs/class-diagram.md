@@ -123,4 +123,4 @@ classDiagram
     StripeRoutes --> BudgetRPC : updates profiles
 ```
 
-Guidance: `-->` association/usage, `..>` HTTP/RPC dependency. Hooks live under `app/**/_lib/hooks`; pure utilities under `app/**/_lib/utils`; route handlers under `app/api/**/route.ts`; `BudgetRPC` is the Supabase `SECURITY DEFINER` pair in `supabase/migrations/budget_rpcs.sql`. Chat/TTS/STT call OpenRouter; grammar/word-detail/translate call KKU DeepSeek.
+Guidance: `-->` association/usage, `..>` HTTP/RPC dependency. Hooks live under `app/**/_lib/hooks`; pure utilities under `app/**/_lib/utils`; route handlers under `app/api/**/route.ts`; `BudgetRPC` is the Supabase `SECURITY DEFINER` pair in `supabase/migrations/budget_rpcs.sql`. Chat, TTS, STT, grammar, word-detail, and translate all call OpenRouter (LLM: Google Gemini 3.1 Flash Lite).

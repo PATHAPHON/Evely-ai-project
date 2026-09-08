@@ -138,7 +138,7 @@ export function useConversationSession(isPremium = false): UseConversationSessio
           config.language,
         );
 
-        // The model replies in English only; fill Thai translations via the KKU
+        // The model replies in English only; fill Thai translations via the
         // batch translate call. On failure they stay empty and the UI simply
         // shows no Thai line.
         const sentences = aiResponse.sentences ?? [];

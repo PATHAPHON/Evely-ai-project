@@ -13,7 +13,8 @@ import { TOKEN_COST_MICROBAHT, DAILY_BUDGET_MICROBAHT } from '@/app/api/_lib/uti
 // at its default cap (10s on Vercel hobby) before our own timeout fires.
 export const maxDuration = 60;
 
-const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const MODEL = 'google/gemini-3.1-flash-lite';
 const API_TIMEOUT_MS = 30_000;
 const MAX_TEXT_LENGTH = 500;
 
@@ -66,13 +67,13 @@ export async function POST(
     return errorResponse('invalid_input', 'Text must be 1–500 characters.', 400);
   }
 
-  const apiKey = process.env.KKU_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 'API key is missing.', 401);
   }
 
   const requestBody = {
-    model: 'deepseek-v4-flash',
+    model: MODEL,
     messages: [
       {
         role: 'user' as const,
@@ -101,17 +102,15 @@ export async function POST(
       },
     ],
     max_tokens: 1024,
-    // Disable deepseek reasoning — grammar correction needs no chain-of-thought,
-    // and it ~halves token cost + latency. Verified: KKU accepts this param
-    // (reasoning_effort / enable_thinking / reasoning.enabled were all ignored).
-    chat_template_kwargs: { thinking: false },
+    include_reasoning: false,
+    reasoning: { effort: 'minimal' },
   };
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
-    const response = await fetch(KKU_API_URL, {
+    const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -150,9 +149,8 @@ export async function POST(
 
     // Debit budget after response
     after(async () => {
-      // ponytail: fallback estimate if KKU didn't return usage (≈300 tokens avg)
       const tokens = totalTokens > 0 ? totalTokens : 300;
-      await debitBudget(tokens * TOKEN_COST_MICROBAHT.kku);
+      await debitBudget(tokens * TOKEN_COST_MICROBAHT.openrouter);
     });
 
     return NextResponse.json(result, { status: 200 });

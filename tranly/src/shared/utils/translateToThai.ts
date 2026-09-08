@@ -1,5 +1,5 @@
 /**
- * Client-side batch English→Thai translation via /api/translate (KKU DeepSeek).
+ * Client-side batch English→Thai translation via /api/translate.
  * Returns null when unauthenticated or on server error (callers fall back).
  */
 export async function translateBatchToThai(texts: string[]): Promise<string[] | null> {

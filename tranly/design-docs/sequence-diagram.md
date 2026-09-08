@@ -8,7 +8,7 @@ Covers the three core interactions: sending a chat turn (grammar + budget-gated 
 sequenceDiagram
     actor User
     participant UI as ChatScreen
-    participant Grammar as /api/grammar (KKU)
+    participant Grammar as /api/grammar (OpenRouter)
     participant Chat as /api/chat (OpenRouter)
     participant DB as Supabase (RPC + tables)
 
@@ -17,7 +17,7 @@ sequenceDiagram
     UI->>Grammar: POST {text} (premium only)
     Grammar->>DB: check_budget(premium)
     Grammar-->>UI: {englishText, grammarCorrect, grammarNotes}
-    Note over Grammar,DB: after() debit_budget(tokens × kku)
+    Note over Grammar,DB: after() debit_budget(tokens × openrouter)
     UI->>UI: Patch user bubble with correction
     UI->>Chat: POST {messages(last 20), language}
     Chat->>DB: check_budget(limit)
@@ -38,7 +38,7 @@ sequenceDiagram
 sequenceDiagram
     actor User
     participant WR as WordRenderer
-    participant API as /api/word-detail (KKU)
+    participant API as /api/word-detail (OpenRouter)
     participant Cache as ai_word_detail_cache
     participant Bank as useWordBank → words / word_progress
 
@@ -48,7 +48,7 @@ sequenceDiagram
     alt cache hit (or word+language fallback)
         Cache-->>API: response_json
     else miss
-        API->>API: KKU DeepSeek generate detail
+        API->>API: OpenRouter generate detail
         Note over API,Cache: after() debit_budget + upsert cache
     end
     API-->>WR: {thai, definition, partOfSpeech, tense, usage}

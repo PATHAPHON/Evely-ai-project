@@ -23,9 +23,7 @@ import type {
 export const maxDuration = 60;
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_OPENROUTER_MODEL = 'meta-llama/llama-3.1-8b-instruct';
-const KKU_API_URL = 'https://gen.ai.kku.ac.th/api/v1/chat/completions';
-const KKU_MODEL = 'deepseek-v4-flash';
+const DEFAULT_OPENROUTER_MODEL = 'google/gemini-3.1-flash-lite';
 const API_TIMEOUT_MS = 30_000;
 
 const ERROR_MESSAGES: Record<ChatErrorType, string> = {
@@ -137,9 +135,8 @@ export async function POST(
   const { messages, language } = input;
 
   const openRouterKey = process.env.OPENROUTER_API_KEY;
-  const kkuKey = process.env.KKU_API_KEY;
 
-  if (!openRouterKey && !kkuKey) {
+  if (!openRouterKey) {
     return errorResponse('api_error', 401);
   }
 
@@ -180,84 +177,42 @@ export async function POST(
 
   let textContent: string | null = null;
   let totalTokens = 500;
-  let providerUsed: 'openrouter' | 'kku' = 'openrouter';
 
-  // 1. Try OpenRouter if API key is provided
-  if (openRouterKey) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-    try {
-      const openRouterRes = await fetch(OPENROUTER_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openRouterKey}`,
-        },
-        body: JSON.stringify({
-          model: DEFAULT_OPENROUTER_MODEL,
-          messages: apiMessages,
-          max_tokens: 2048,
-          stream: false,
-        }),
-        signal: controller.signal,
-      });
+  try {
+    const openRouterRes = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${openRouterKey}`,
+      },
+      body: JSON.stringify({
+        model: DEFAULT_OPENROUTER_MODEL,
+        messages: apiMessages,
+        max_tokens: 2048,
+        stream: false,
+        include_reasoning: false,
+        reasoning: { effort: 'minimal' },
+      }),
+      signal: controller.signal,
+    });
 
-      if (openRouterRes.ok) {
-        const result = await openRouterRes.json();
-        const content = result?.choices?.[0]?.message?.content;
-        if (typeof content === 'string' && content.trim().length > 0) {
-          textContent = content;
-          totalTokens = result?.usage?.total_tokens ?? 500;
-          providerUsed = 'openrouter';
-        }
-      } else {
-        console.warn(`OpenRouter returned status ${openRouterRes.status}, attempting KKU fallback...`);
+    if (openRouterRes.ok) {
+      const result = await openRouterRes.json();
+      const content = result?.choices?.[0]?.message?.content;
+      if (typeof content === 'string' && content.trim().length > 0) {
+        textContent = content;
+        totalTokens = result?.usage?.total_tokens ?? 500;
       }
-    } catch (err) {
-      console.warn('OpenRouter request failed, attempting KKU fallback...', err);
-    } finally {
-      clearTimeout(timeoutId);
+    } else {
+      console.error(`OpenRouter returned status ${openRouterRes.status}:`, await openRouterRes.text());
     }
-  }
-
-  // 2. Fallback to KKU DeepSeek if OpenRouter did not return valid content
-  if (!textContent && kkuKey) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
-    try {
-      const kkuRes = await fetch(KKU_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${kkuKey}`,
-        },
-        body: JSON.stringify({
-          model: KKU_MODEL,
-          messages: apiMessages,
-          max_tokens: 2048,
-          stream: false,
-        }),
-        signal: controller.signal,
-      });
-
-      if (kkuRes.ok) {
-        const result = await kkuRes.json();
-        const content = result?.choices?.[0]?.message?.content;
-        if (typeof content === 'string' && content.trim().length > 0) {
-          textContent = content;
-          totalTokens = result?.usage?.total_tokens ?? 250;
-          providerUsed = 'kku';
-        }
-      } else {
-        console.error(`KKU DeepSeek error [${kkuRes.status}]:`, await kkuRes.text());
-      }
-    } catch (err) {
-      console.error('KKU DeepSeek request failed:', err);
-    } finally {
-      clearTimeout(timeoutId);
-    }
+  } catch (err) {
+    console.error('OpenRouter request failed:', err);
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!textContent) {
@@ -265,9 +220,7 @@ export async function POST(
   }
 
   // Debit budget after response is parsed
-  const debitCost = providerUsed === 'openrouter'
-    ? totalTokens * TOKEN_COST_MICROBAHT.openrouter
-    : totalTokens * TOKEN_COST_MICROBAHT.kku;
+  const debitCost = totalTokens * TOKEN_COST_MICROBAHT.openrouter;
 
   after(async () => {
     await debitBudget(debitCost);

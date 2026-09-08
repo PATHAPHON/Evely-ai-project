@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRequestUser, unauthorizedResponse, debitBudget } from '@/app/api/_lib/utils/requireUser';
-import { KkuTranslator } from '@/app/api/_lib/utils/kkuTranslate';
+import { OpenRouterTranslator } from '@/app/api/_lib/utils/openRouterTranslate';
 import { TOKEN_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 
-// ponytail: LLM call can take up to ~30s; without this the serverless gateway
-// can 504 before kkuTranslate's own timeout fires.
+// LLM call can take up to ~30s; without this the serverless gateway
+// can 504 before openRouterTranslate's own timeout fires.
 export const maxDuration = 60;
 
 const MAX_TEXTS = 50;
@@ -46,46 +46,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return errorResponse('invalid_input', 'Missing or invalid texts field.', 400);
   }
 
-  const apiKey = process.env.KKU_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error('[translate] Missing KKU_API_KEY');
+    console.error('[translate] Missing OPENROUTER_API_KEY');
     return errorResponse('api_error', 'Translation service not configured.', 500);
   }
 
-async function translateWithDeepL(texts: string[], apiKey: string): Promise<string[] | null> {
-  const isFree = apiKey.endsWith(':fx');
-  const endpoint = isFree
-    ? 'https://api-free.deepl.com/v2/translate'
-    : 'https://api.deepl.com/v2/translate';
-
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `DeepL-Auth-Key ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text: texts,
-        target_lang: 'TH',
-      }),
-    });
-
-    if (!res.ok) return null;
-    const data = (await res.json()) as { translations?: { text: string }[] };
-    return data.translations?.map((t) => t.text) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-  // Retry once on transient 5xx / parse failure — KKU is occasionally flaky.
-  // Timeouts (AbortError) and 429 are not retried; they already burn the budget.
-  let result: Awaited<ReturnType<KkuTranslator['translateWithUsage']>> = null;
+  // Retry once on transient 5xx / parse failure.
+  // Timeouts (AbortError) and 429 are not retried.
+  let result: Awaited<ReturnType<OpenRouterTranslator['translateWithUsage']>> = null;
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      result = await new KkuTranslator(apiKey).translateWithUsage(texts as string[]);
+      result = await new OpenRouterTranslator(apiKey).translateWithUsage(texts as string[]);
       if (result) break;
       // Null without exception = parse/5xx — retry once
       if (attempt < 2) {
@@ -100,16 +73,6 @@ async function translateWithDeepL(texts: string[], apiKey: string): Promise<stri
       console.error(`[translate] Attempt ${attempt} error:`, e);
       if (attempt < 2 && !(e instanceof Error && e.name === 'AbortError')) continue;
       break;
-    }
-  }
-
-  // Fallback to DeepL if KKU failed or timed out
-  const deeplKey = process.env.DEEPL_API_KEY;
-  if (!result && deeplKey) {
-    console.log('[translate] KKU unavailable or timed out; falling back to DeepL...');
-    const deepLTranslations = await translateWithDeepL(texts as string[], deeplKey);
-    if (deepLTranslations && deepLTranslations.length === texts.length) {
-      return NextResponse.json({ translations: deepLTranslations }, { status: 200 });
     }
   }
 
@@ -130,7 +93,7 @@ async function translateWithDeepL(texts: string[], apiKey: string): Promise<stri
   // route (which already gates on budget), so debit-only — never block here.
   after(async () => {
     const tokens = result.tokens > 0 ? result.tokens : 300;
-    await debitBudget(tokens * TOKEN_COST_MICROBAHT.kku);
+    await debitBudget(tokens * TOKEN_COST_MICROBAHT.openrouter);
   });
 
   return NextResponse.json({ translations: result.translations }, { status: 200 });

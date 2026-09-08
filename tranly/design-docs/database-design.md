@@ -169,7 +169,7 @@ Permanent shared cache of LLM-generated word details, keyed by SHA-256 of `word:
 | language | text | not null, CHECK = `'english'` | |
 | english | text | nullable | |
 | part_of_speech | text | nullable | |
-| model | text | not null | e.g. `deepseek-v4-flash` |
+| model | text | not null | e.g. `google/gemini-3.1-flash-lite` |
 | response_json | jsonb | not null | `{thai, definition, partOfSpeech, tense, usage}` |
 | created_at | timestamptz | not null, default `now()` | permanent — no expiry |
 
