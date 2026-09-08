@@ -154,7 +154,7 @@ Individual chat lines. **Retention: purged 3 days after creation via `pg_cron`.*
 | english_text | text | nullable | assistant sentences joined with `\|\|\|` |
 | translation | text | nullable | Thai, `\|\|\|`-joined for assistant |
 | english | text | nullable | normalized English, `\|\|\|`-joined |
-| english_phrases | text | nullable | JSON grammar data (`grammarCorrect`/`grammarNotes`) — user rows only |
+| english_phrases | text | nullable | JSON grammar data (user rows) / suggestions metadata (assistant rows) |
 | raw_text | text | nullable | original/spoken input |
 | timestamp | timestamptz | not null, default utc `now()` | |
 

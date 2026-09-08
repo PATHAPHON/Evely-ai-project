@@ -49,7 +49,11 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
   const lang = LANG_PROMPT[language];
 
   const suggestionsSection = isPremium
-    ? `Also provide "suggestions": 2-3 short, natural replies (in ${lang.label}) that the USER could send back to you next along with natural Thai translations — these help the user when they don't know what to say. Make them fit the conversation and the user's level, and vary them (e.g. an answer, a follow-up question, a reaction).\n\n`
+    ? `SUGGESTED REPLIES ("suggestions"):\n` +
+      `- Provide 2-3 short, natural reply choices (in ${lang.label}) that the USER could send back to you next, along with natural conversational Thai translations.\n` +
+      `- DIVERSE, CASUAL & OPEN-ENDED: Do NOT make them sound formal, corporate, or limited to work tasks. The suggestions can be ANYTHING that fits a natural chat — casual opinions, playful reactions, direct answers, curiosity, sharing personal feelings, or changing the topic.\n` +
+      `- Offer varied angles across the 2-3 options so the user has fun and flexible choices (e.g. 1 direct/positive reply, 1 casual opinion/reaction, 1 curious question or alternate thought).\n` +
+      `- Aim for 3 to 10 words per reply, simple and natural for a learner to speak or send.\n\n`
     : '';
 
   const suggestionsSchema = isPremium
@@ -65,9 +69,9 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
     `- Sentence 1 (and 2): Acknowledge or react warmly and briefly to what the user said (e.g. "That sounds like a busy day!", "Nice!"). Keep it simple, clear, and direct.\n` +
     `- No long paragraphs, no compound run-on sentences, and no over-explaining.\n\n` +
     `PROACTIVE FOLLOW-UP QUESTION (MANDATORY):\n` +
-    `- The LAST sentence of your reply MUST always be a clear, engaging follow-up question in ${lang.label} that helps the user continue the conversation.\n` +
-    `- Focus the question on what they are going to do next, their plans, or specific next steps so they can easily build their next sentence (e.g. if they say they are working on a project, ask what they will do next or what their plan is after: "What are you going to do next?", "What is your next task?", "What are your plans for after work?").\n` +
-    `- Make the question simple and natural for a learner to answer, encouraging them to keep practicing their English.\n\n` +
+    `- The LAST sentence of your reply MUST always be a clear, engaging, and friendly follow-up question in ${lang.label} that invites the user to continue the conversation.\n` +
+    `- Keep it natural, casual, and directly relevant to whatever topic was just discussed (feelings, everyday life, food, hobbies, opinions, fun curiosity, personal experiences). Do NOT force questions into work tasks, to-do lists, or next steps unless the user explicitly brought up work.\n` +
+    `- Make the question simple and easy for a language learner to answer, encouraging them to chat comfortably.\n\n` +
     `EMOTION / TONE (MANDATORY):\n` +
     `- For each sentence, assign a natural emotional vocal delivery tone in the "emotion" field.\n` +
     `- Choose from this standard list suited for conversational speech: "friendly", "cheerful", "curious", "encouraging", "calm", "excited", "empathetic", "thoughtful", "neutral".\n` +
@@ -91,7 +95,7 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
     `- The "englishText" field in each sentence always holds the ${lang.label} text\n` +
     `- The "translation" field in each sentence always holds the natural Thai translation (conversational Thai suited for chat) of that sentence\n` +
     `- The "emotion" field in each sentence indicates the vocal tone for speech synthesis\n` +
-    `- "suggestions" are replies for the USER to choose from, where "englishText" is in ${lang.label} and "translation" is the Thai translation, NOT your reply\n` +
+    `- "suggestions" are 2-3 casual, diverse conversational replies for the USER to choose from (open-ended and NOT work-restricted), where "englishText" is in ${lang.label} and "translation" is the conversational Thai translation\n` +
     `- Do NOT add any markdown formatting, code fences, or text before or after the JSON`
   );
 }

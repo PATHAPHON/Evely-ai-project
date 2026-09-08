@@ -30,7 +30,7 @@ interface ChatScreenProps {
 }
 
 /**
- * The chat tab — a full-screen, open-ended chat with จีจีจบล่ะ.
+ * The chat tab — a full-screen, open-ended chat with Evely AI.
  * Used by both /new (sessionId null) and /chat/[id] (sessionId set).
  */
 export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps) {

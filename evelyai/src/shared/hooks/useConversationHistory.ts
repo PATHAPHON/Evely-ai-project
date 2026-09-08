@@ -5,6 +5,7 @@ import { supabase } from '@/shared/supabase/supabaseClient';
 import type {
   ChatMessage,
   ConversationSessionRecord,
+  ReplySuggestion,
 } from '../types/chatTypes';
 
 export interface UseConversationHistoryReturn {
@@ -86,14 +87,21 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         const splitTranslation = (r.translation || '').split('|||');
         const splitEnglish = (r.english || '').split('|||');
 
-        // The english_phrases column now only stores grammar correction data
-        // for user messages (JSON). Assistant rows leave it null.
+        // The english_phrases column stores:
+        // - User messages: JSON grammar correction data ({ grammarCorrect, grammarNotes })
+        // - Assistant messages: JSON reply suggestions metadata ({ suggestions, suggestionsLocked })
         let grammarData: { grammarCorrect?: boolean; grammarNotes?: string } | null = null;
-        if (r.english_phrases && r.role === 'user') {
+        let assistantMeta: { suggestions?: ReplySuggestion[]; suggestionsLocked?: boolean } | null = null;
+        if (r.english_phrases) {
           try {
-            grammarData = JSON.parse(r.english_phrases);
+            const parsed = JSON.parse(r.english_phrases);
+            if (r.role === 'user') {
+              grammarData = parsed;
+            } else if (r.role === 'assistant') {
+              assistantMeta = parsed;
+            }
           } catch {
-            // ignore malformed grammar data
+            // ignore malformed data
           }
         }
 
@@ -115,6 +123,8 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           // Only assistant messages are serialised with '|||' separators;
           // user rows store a plain string and never had sentences in memory.
           sentences: r.role === 'assistant' && sentences.length > 0 ? sentences : undefined,
+          suggestions: assistantMeta?.suggestions,
+          suggestionsLocked: assistantMeta?.suggestionsLocked,
           grammarCorrect: grammarData?.grammarCorrect,
           grammarNotes: grammarData?.grammarNotes,
         };
@@ -165,9 +175,15 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         english: isAssistant && message.sentences
           ? message.sentences.map((s) => s.english).join('|||')
           : message.english,
-        // english_phrases column now only carries grammar data for user messages.
-        english_phrases:
-          !isAssistant && (message.grammarCorrect !== undefined || message.grammarNotes)
+        // english_phrases stores grammar feedback for user, and suggestions metadata for assistant.
+        english_phrases: isAssistant
+          ? (message.suggestions && message.suggestions.length > 0) || message.suggestionsLocked !== undefined
+            ? JSON.stringify({
+                suggestions: message.suggestions,
+                suggestionsLocked: message.suggestionsLocked,
+              })
+            : null
+          : (message.grammarCorrect !== undefined || message.grammarNotes)
             ? JSON.stringify({ grammarCorrect: message.grammarCorrect, grammarNotes: message.grammarNotes })
             : null,
         raw_text: message.rawText,

@@ -6,7 +6,7 @@ describe('ElephantMascot', () => {
   it('renders a tappable mascot with an accessible label', () => {
     render(<ElephantMascot />);
     expect(
-      screen.getByRole('button', { name: "มาสคอตช้างจีจีจบล่ะ" }),
+      screen.getByRole('button', { name: "มาสคอตช้าง Evely AI" }),
     ).toBeInTheDocument();
   });
 
@@ -27,7 +27,7 @@ describe('ElephantMascot', () => {
 
   it('reacts with a bounce when tapped', () => {
     const { container } = render(<ElephantMascot state="idle" />);
-    fireEvent.click(screen.getByRole('button', { name: "มาสคอตช้างจีจีจบล่ะ" }));
+    fireEvent.click(screen.getByRole('button', { name: "มาสคอตช้าง Evely AI" }));
     expect(container.querySelector('svg')).toHaveClass('mascot-bounce');
   });
 

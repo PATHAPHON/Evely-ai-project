@@ -76,7 +76,7 @@ export default function ElephantMascot({ state = 'idle', size = 40 }: ElephantMa
     <button
       type="button"
       onClick={handleTap}
-      aria-label="มาสคอตช้างจีจีจบล่ะ"
+      aria-label="มาสคอตช้าง Evely AI"
       className="shrink-0 cursor-pointer border-0 bg-transparent p-0 leading-none outline-none focus-visible:opacity-80"
       style={{ width: size, height: size }}
     >

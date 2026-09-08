@@ -10,6 +10,33 @@ interface UseSuggestionPanelArgs {
   isLoading: boolean;
 }
 
+function getSessionItem(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setSessionItem(key: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Ignore storage quota or security errors
+  }
+}
+
+function removeSessionItem(key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 /**
  * UI state for the suggestion/options panel that merges with the chat input.
  *
@@ -31,21 +58,42 @@ export function useSuggestionPanel({
   const [isAnimating, setIsAnimating] = useState(false);
   const [inputResetKey, setInputResetKey] = useState(0);
 
-  // Collapse (hide) options at the start of each new AI turn
-  const lastSuggestionsKey = lastMessage ? lastMessage.id : '';
+  // Sync / restore state for the latest AI message
+  const lastMsgId = lastMessage ? lastMessage.id : '';
   useEffect(() => {
-    // Collapse options at the start of each new AI turn
+    if (!lastMsgId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsOptionsCollapsed(true);
+      return;
+    }
+    const isDismissed = getSessionItem(`suggestion_dismissed_${lastMsgId}`) === 'true';
+    if (isDismissed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDismissedSuggestId(lastMsgId);
+    }
+    const isOpen = getSessionItem(`suggestion_open_${lastMsgId}`) === 'true';
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsOptionsCollapsed(true);
-  }, [lastSuggestionsKey]);
+    setIsOptionsCollapsed(!isOpen);
+  }, [lastMsgId]);
 
-  const toggleOptions = useCallback((collapse: boolean) => {
-    setIsAnimating(true);
-    setTimeout(() => {
-      setIsOptionsCollapsed(collapse);
-      setIsAnimating(false);
-    }, 200); // 200ms smooth animation
-  }, []);
+  const toggleOptions = useCallback(
+    (collapse: boolean) => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setIsOptionsCollapsed(collapse);
+        setIsAnimating(false);
+        if (lastMessage?.id) {
+          if (collapse) {
+            removeSessionItem(`suggestion_open_${lastMessage.id}`);
+          } else {
+            setSessionItem(`suggestion_open_${lastMessage.id}`, 'true');
+            removeSessionItem(`suggestion_dismissed_${lastMessage.id}`);
+          }
+        }
+      }, 200); // 200ms smooth animation
+    },
+    [lastMessage?.id]
+  );
 
   const handleToggleSuggestions = useCallback(() => {
     setInputResetKey((prev) => prev + 1);
@@ -62,10 +110,12 @@ export function useSuggestionPanel({
 
   // "ข้าม": dismiss the options and show the plain input again for this turn.
   const handleOptionsSkip = useCallback(() => {
-    if (lastMessage) {
+    if (lastMessage?.id) {
       setDismissedSuggestId(lastMessage.id);
+      setSessionItem(`suggestion_dismissed_${lastMessage.id}`, 'true');
+      removeSessionItem(`suggestion_open_${lastMessage.id}`);
     }
-  }, [lastMessage]);
+  }, [lastMessage?.id]);
 
   return {
     isOptionsCollapsed,

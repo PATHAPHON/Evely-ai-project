@@ -406,7 +406,7 @@ export const th: UIStrings = {
   },
   chat: {
     navLockedHint: 'เรียนหรือสนทนาให้จบ หรือกดสิ้นสุดก่อน',
-    inputPlaceholder: 'ถามจีจีจบล่ะ',
+    inputPlaceholder: 'ถาม Evely AI',
     inputAria: 'ช่องพิมพ์ข้อความ',
     micStart: 'เริ่มพูด',
     micStop: 'หยุดพูด',
