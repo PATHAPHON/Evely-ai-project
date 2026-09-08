@@ -41,6 +41,7 @@ export function buildAssistantMessage(
     status: 'sent',
     suggestions: translatedSuggestions,
     sentences: translatedSentences,
+    ttsText: aiResponse.ttsText,
     suggestionsLocked: aiResponse.suggestionsLocked,
   };
 }

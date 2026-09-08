@@ -199,6 +199,22 @@ describe('useTTS', () => {
       expect((synth.speak.mock.calls[0]![0] as MockUtterance).lang).toBe('en-US');
     });
 
+    it('strips inline audio emotion tags in Web Speech fallback', async () => {
+      const synth = installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchStatus(503));
+
+      const { result } = renderHook(() => useTTS('en-US'));
+
+      act(() => {
+        result.current.speak('[excited] Great job! [curious] What is next?');
+      });
+
+      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
+
+      const utterance = synth.speak.mock.calls[0]![0] as MockUtterance;
+      expect(utterance.text).toBe('Great job! What is next?');
+    });
+
     it('falls back when audio playback errors out', async () => {
       const synth = installSpeechSynthesis();
       vi.stubGlobal('fetch', mockFetchOk());

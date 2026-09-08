@@ -68,13 +68,18 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
     `- The LAST sentence of your reply MUST always be a clear, engaging follow-up question in ${lang.label} that helps the user continue the conversation.\n` +
     `- Focus the question on what they are going to do next, their plans, or specific next steps so they can easily build their next sentence (e.g. if they say they are working on a project, ask what they will do next or what their plan is after: "What are you going to do next?", "What is your next task?", "What are your plans for after work?").\n` +
     `- Make the question simple and natural for a learner to answer, encouraging them to keep practicing their English.\n\n` +
+    `EMOTION / TONE (MANDATORY):\n` +
+    `- For each sentence, assign a natural emotional vocal delivery tone in the "emotion" field.\n` +
+    `- Choose from this standard list suited for conversational speech: "friendly", "cheerful", "curious", "encouraging", "calm", "excited", "empathetic", "thoughtful", "neutral".\n` +
+    `- Match the emotion directly to the sentiment of the sentence (e.g. reactions can be "cheerful", "excited", or "empathetic"; questions can be "curious" or "friendly").\n\n` +
     suggestionsSection +
     `Respond with ONLY a valid JSON object — no prose, no markdown, no code fences, no text before or after it. Exactly this structure:\n` +
     `{\n` +
     `  "sentences": [\n` +
     `    {\n` +
     `      "englishText": "<sentence in ${lang.script}>",\n` +
-    `      "translation": "<natural Thai translation of this sentence>"\n` +
+    `      "translation": "<natural Thai translation of this sentence>",\n` +
+    `      "emotion": "<one of: friendly, cheerful, curious, encouraging, calm, excited, empathetic, thoughtful, neutral>"\n` +
     `    }\n` +
     `  ],\n` +
     suggestionsSchema +
@@ -85,6 +90,7 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
     `- Output ONLY the JSON object, starting with { and ending with }\n` +
     `- The "englishText" field in each sentence always holds the ${lang.label} text\n` +
     `- The "translation" field in each sentence always holds the natural Thai translation (conversational Thai suited for chat) of that sentence\n` +
+    `- The "emotion" field in each sentence indicates the vocal tone for speech synthesis\n` +
     `- "suggestions" are replies for the USER to choose from, where "englishText" is in ${lang.label} and "translation" is the Thai translation, NOT your reply\n` +
     `- Do NOT add any markdown formatting, code fences, or text before or after the JSON`
   );

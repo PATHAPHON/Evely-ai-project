@@ -6,40 +6,43 @@ const OPENROUTER_TTS_URL = 'https://openrouter.ai/api/v1/audio/speech';
 const API_TIMEOUT_MS = 15_000;
 const MAX_TEXT_LENGTH = 500;
 const CACHE_MAX_ENTRIES = 500;
-const DEFAULT_VOICE = 'af_heart';
+const DEFAULT_VOICE = 'Aoede';
 
 const VOICE_WHITELIST: ReadonlySet<string> = new Set([
-  // Kokoro-82M English Voices
-  // American English
+  // Google Gemini 3.1 Flash TTS Voices
+  'Aoede',
+  'Puck',
+  'Charon',
+  'Kore',
+  'Fenrir',
+  'Leda',
+  'Orus',
+  'Zephyr',
+  'Callirrhoe',
+  'Autonoe',
+  'Enceladus',
+  'Iapetus',
+  'Umbriel',
+  'Algieba',
+  'Despina',
+  'Erinome',
+  'Algenib',
+  'Rasalgethi',
+  'Laomedeia',
+  'Achernar',
+  'Alnilam',
+  'Schedar',
+  'Gacrux',
+  'Pulcherrima',
+  'Achird',
+  'Zubenelgenubi',
+  'Vindemiatrix',
+  'Sadachbia',
+  'Sadaltager',
+  'Sulafat',
+  // Backward-compatibility aliases if previously requested
   'af_heart',
-  'af_alloy',
-  'af_aoede',
-  'af_bella',
-  'af_jessica',
-  'af_kore',
-  'af_nicole',
-  'af_nova',
-  'af_river',
-  'af_sarah',
-  'af_sky',
-  'am_adam',
-  'am_echo',
-  'am_eric',
-  'am_fenrir',
-  'am_liam',
-  'am_michael',
-  'am_onyx',
-  'am_puck',
-  'am_santa',
-  // British English
-  'bf_alice',
   'bf_emma',
-  'bf_isabella',
-  'bf_lily',
-  'bm_daniel',
-  'bm_fable',
-  'bm_george',
-  'bm_lewis',
 ]);
 
 // Module-scope FIFO cache shared across requests in the same Node instance.
@@ -69,11 +72,44 @@ function resolveVoice(requested: unknown): string {
   return DEFAULT_VOICE;
 }
 
+/**
+ * Prepend a standard 44-byte RIFF/WAVE header to raw 16-bit mono PCM samples
+ * so that standard HTML5 Audio / browser decoders can play it seamlessly.
+ */
+function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitDepth = 16): Buffer {
+  const byteRate = (sampleRate * numChannels * bitDepth) / 8;
+  const blockAlign = (numChannels * bitDepth) / 8;
+  const dataSize = pcmBuffer.length;
+  const buffer = Buffer.alloc(44 + dataSize);
+
+  // RIFF chunk descriptor
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write('WAVE', 8);
+
+  // "fmt " sub-chunk
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16); // subchunk1 size for PCM
+  buffer.writeUInt16LE(1, 20);  // audio format 1 = PCM
+  buffer.writeUInt16LE(numChannels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(byteRate, 28);
+  buffer.writeUInt16LE(blockAlign, 32);
+  buffer.writeUInt16LE(bitDepth, 34);
+
+  // "data" sub-chunk
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataSize, 40);
+
+  pcmBuffer.copy(buffer, 44);
+  return buffer;
+}
+
 function audioResponse(buffer: Buffer, cacheStatus: 'HIT' | 'MISS'): Response {
   return new Response(new Uint8Array(buffer), {
     status: 200,
     headers: {
-      'Content-Type': 'audio/mpeg',
+      'Content-Type': 'audio/wav',
       'Content-Length': String(buffer.byteLength),
       'Cache-Control': 'public, max-age=31536000, immutable',
       'X-Cache': cacheStatus,
@@ -137,6 +173,9 @@ export async function POST(request: NextRequest) {
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
+    // Map any legacy Kokoro voice aliases to default Gemini voice
+    const effectiveVoice = (voice === 'af_heart' || voice === 'bf_emma') ? DEFAULT_VOICE : voice;
+
     const openRouterResponse = await fetch(
       OPENROUTER_TTS_URL,
       {
@@ -146,10 +185,10 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'hexgrad/kokoro-82m',
+          model: 'google/gemini-3.1-flash-tts-preview',
           input: text,
-          voice: voice,
-          response_format: 'mp3',
+          voice: effectiveVoice,
+          response_format: 'pcm',
         }),
         signal: controller.signal,
       },
@@ -167,7 +206,11 @@ export async function POST(request: NextRequest) {
     }
 
     const audioArrayBuffer = await openRouterResponse.arrayBuffer();
-    const buffer = Buffer.from(audioArrayBuffer);
+    const rawBuffer = Buffer.from(audioArrayBuffer);
+    // Wrap raw PCM (24kHz 16-bit mono) in a standard 44-byte RIFF/WAVE header
+    // so HTML5 Audio (<audio> / new Audio) can decode and play it seamlessly.
+    const isWav = rawBuffer.subarray(0, 4).toString() === 'RIFF';
+    const buffer = isWav ? rawBuffer : pcmToWav(rawBuffer, 24000);
     audioCache.set(key, buffer);
     evictIfNeeded();
 

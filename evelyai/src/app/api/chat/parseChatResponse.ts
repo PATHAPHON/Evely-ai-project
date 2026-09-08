@@ -80,12 +80,25 @@ function extractChatResponse(
       if (typeof s === 'object' && s !== null) {
         const rec = s as Record<string, unknown>;
         const rawEt = rec.englishText;
-        sentences.push({
+        const rawEmotion = rec.emotion;
+        const sObj: {
+          englishText: string;
+          translation: string;
+          english: string;
+          emotion?: string;
+        } = {
           englishText: typeof rawEt === 'string' ? rawEt.trim() : '',
           translation:
             typeof rec.translation === 'string' ? rec.translation.trim() : '',
           english: typeof rec.english === 'string' ? rec.english.trim() : '',
-        });
+        };
+        if (typeof rawEmotion === 'string' && rawEmotion.trim().length > 0) {
+          const sanitized = rawEmotion.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+          if (sanitized) {
+            sObj.emotion = sanitized;
+          }
+        }
+        sentences.push(sObj);
       }
     }
   }
@@ -97,7 +110,20 @@ function extractChatResponse(
   const english = typeof obj.english === 'string' ? obj.english.trim() : '';
 
   if (!sentences && englishText.length > 0) {
-    sentences = [{ englishText, translation, english }];
+    const rawEmotion = typeof obj.emotion === 'string' ? obj.emotion.trim() : undefined;
+    const sObj: {
+      englishText: string;
+      translation: string;
+      english: string;
+      emotion?: string;
+    } = { englishText, translation, english };
+    if (rawEmotion) {
+      const sanitized = rawEmotion.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      if (sanitized) {
+        sObj.emotion = sanitized;
+      }
+    }
+    sentences = [sObj];
   }
 
   const response: ChatSuccessResponse = {
@@ -107,6 +133,17 @@ function extractChatResponse(
       translation || (sentences ? sentences.map((s) => s.translation).join(' ') : ''),
     english: english || (sentences ? sentences.map((s) => s.english).join(' ') : ''),
   };
+
+  // Compile ttsText with inline audio tags if at least one sentence has an emotion tag
+  if (sentences && sentences.some((s) => Boolean(s.emotion))) {
+    const parts = sentences.map((s) => {
+      const tag = s.emotion ? `[${s.emotion}] ` : '';
+      return `${tag}${s.englishText}`.trim();
+    }).filter(Boolean);
+    if (parts.length > 0) {
+      response.ttsText = parts.join(' ');
+    }
+  }
 
   const suggestions = extractSuggestions(obj.suggestions);
   if (suggestions !== undefined) {

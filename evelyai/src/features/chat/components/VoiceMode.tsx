@@ -91,7 +91,7 @@ export default function VoiceMode({
     ) {
       lastSpokenIdRef.current = last.id;
       setStatus('speaking');
-      speak(last.englishText);
+      speak(last.ttsText ?? last.englishText);
     } else {
       // No usable reply (error/empty) — wait for user to tap mic.
       setStatus('idle');

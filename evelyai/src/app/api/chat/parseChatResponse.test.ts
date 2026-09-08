@@ -67,6 +67,27 @@ describe('parseChatResponse', () => {
     expect(result).toEqual(expectedResponse);
   });
 
+  it('parses sentence emotion tags and compiles ttsText with inline audio tags', () => {
+    const responseWithEmotion = {
+      sentences: [
+        { englishText: "That's wonderful news!", translation: 'เป็นข่าวที่ยอดเยี่ยมมาก!', emotion: 'cheerful' },
+        { englishText: 'What will you do next?', translation: 'คุณจะทำอะไรต่อ?', emotion: 'curious' },
+      ],
+    };
+    const content = JSON.stringify(responseWithEmotion);
+    const result = parseChatResponse(content);
+    expect(result).toEqual({
+      sentences: [
+        { english: '', englishText: "That's wonderful news!", translation: 'เป็นข่าวที่ยอดเยี่ยมมาก!', emotion: 'cheerful' },
+        { english: '', englishText: 'What will you do next?', translation: 'คุณจะทำอะไรต่อ?', emotion: 'curious' },
+      ],
+      englishText: "That's wonderful news! What will you do next?",
+      translation: 'เป็นข่าวที่ยอดเยี่ยมมาก! คุณจะทำอะไรต่อ?',
+      english: ' ',
+      ttsText: "[cheerful] That's wonderful news! [curious] What will you do next?",
+    });
+  });
+
   it('throws error for empty input', () => {
     expect(() => parseChatResponse('')).toThrow('Empty response content');
     expect(() => parseChatResponse('   ')).toThrow('Empty response content');

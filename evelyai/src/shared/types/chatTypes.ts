@@ -41,7 +41,10 @@ export interface ChatMessage {
     englishText: string;
     translation: string;
     english: string;
+    emotion?: string;
   }>;
+  /** Pre-compiled text with audio emotion tags for TTS playback. */
+  ttsText?: string;
   type?: 'text';
   /** Grammar correctness and correction explanation */
   grammarCorrect?: boolean;
@@ -88,7 +91,10 @@ export interface ChatSuccessResponse {
     englishText: string;
     translation: string;
     english: string;
+    emotion?: string;
   }>;
+  /** Optional pre-compiled TTS text with audio emotion tags */
+  ttsText?: string;
   grammarCorrect?: boolean;
   grammarNotes?: string;
 }

@@ -74,7 +74,13 @@ export function useTTS(
       }
 
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Strip any audio tags like [cheerful], [curious], [whispers] so browser doesn't speak "bracket ..."
+      const cleanText = text.replace(/\[[a-zA-Z0-9_-]+\]\s*/g, '').trim();
+      if (!cleanText) {
+        setIsSpeaking(false);
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = lang;
 
       utterance.onstart = () => setIsSpeaking(true);

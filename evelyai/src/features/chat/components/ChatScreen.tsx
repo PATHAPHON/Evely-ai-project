@@ -117,8 +117,18 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
         return;
       }
       const message = sessionMessages.find((m) => m.id === messageId);
-      if (message && message.englishText) {
-        speak(message.englishText);
+      if (message) {
+        // Prioritize pre-compiled ttsText with inline audio tags for dynamic emotion
+        if (message.ttsText) {
+          speak(message.ttsText);
+        } else if (message.sentences && message.sentences.length > 0) {
+          const tagged = message.sentences
+            .map((s) => (s.emotion ? `[${s.emotion}] ${s.englishText}` : s.englishText))
+            .join(' ');
+          speak(tagged || message.englishText);
+        } else if (message.englishText) {
+          speak(message.englishText);
+        }
       }
     },
     [sessionMessages, speak]
