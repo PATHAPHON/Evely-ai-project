@@ -1,0 +1,97 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+
+const STORAGE_KEY = 'evelyai:budget-exhausted-until';
+const LEGACY_STORAGE_KEY = 'tranly:budget-exhausted-until';
+
+/** เที่ยงคืนไทยถัดไป (Bangkok = UTC+7 คงที่) เป็น UTC instant. */
+function nextThaiMidnight(): Date {
+  const bkk = new Date(Date.now() + 7 * 3600 * 1000);
+  bkk.setUTCHours(24, 0, 0, 0);
+  return new Date(bkk.getTime() - 7 * 3600 * 1000);
+}
+
+function readUntil(): number | null {
+  if (typeof window === 'undefined') return null;
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacy) {
+      localStorage.setItem(STORAGE_KEY, legacy);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      raw = legacy;
+    }
+  }
+  if (!raw) return null;
+  const ms = Date.parse(raw);
+  if (Number.isNaN(ms) || ms <= Date.now()) return null;
+  return ms;
+}
+
+const listeners = new Set<() => void>();
+
+function notifyListeners() {
+  listeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+export function markBudgetExhausted(): void {
+  if (typeof window === 'undefined') return;
+  const value = nextThaiMidnight().toISOString();
+  localStorage.setItem(STORAGE_KEY, value);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  notifyListeners();
+  try {
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: value }));
+  } catch {
+    // ignore if StorageEvent fails to construct
+  }
+}
+
+export function clearBudgetExhausted(): void {
+  if (typeof window === 'undefined') return;
+  if (localStorage.getItem(STORAGE_KEY) === null && localStorage.getItem(LEGACY_STORAGE_KEY) === null) return;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  notifyListeners();
+  try {
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null }));
+  } catch {
+    // ignore if StorageEvent fails to construct
+  }
+}
+
+export function useBudgetExhausted(): { exhausted: boolean } {
+  const [until, setUntil] = useState<number | null>(null);
+
+  const refresh = useCallback(() => setUntil(readUntil()), []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refresh();
+    listeners.add(refresh);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY || e.key === LEGACY_STORAGE_KEY) refresh();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      listeners.delete(refresh);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [refresh]);
+
+  // Auto-clear เมื่อถึงเวลา reset
+  useEffect(() => {
+    if (until === null) return;
+    const timer = setTimeout(() => clearBudgetExhausted(), until - Date.now());
+    return () => clearTimeout(timer);
+  }, [until]);
+
+  return { exhausted: until !== null };
+}
