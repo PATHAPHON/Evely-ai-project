@@ -6,10 +6,14 @@ import { markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 export interface StartListeningOptions {
   /** Called once the transcription session ends, with the final transcript and error. */
   onEnd?: (transcript: string, error: string | null) => void;
+  /** Called as soon as recording stops and audio transcription begins */
+  onTranscribeStart?: () => void;
   /** Automatically stop recording after a period of silence (in ms) */
   autoStopSilenceMs?: number;
   /** Automatically stop recording after a maximum duration (in ms) */
   maxDurationMs?: number;
+  /** Optional language code for transcription (e.g. 'en', 'th'). */
+  language?: string;
 }
 
 export interface UseSTTReturn {
@@ -65,14 +69,22 @@ function extractErrorMessage(errResult: unknown, fallback: string): string {
 }
 
 /** POST a recorded blob to /api/stt and map the response into a transcript or an error message. */
-async function transcribeBlob(blob: Blob, format: string): Promise<{ text: string } | { error: string }> {
+async function transcribeBlob(
+  blob: Blob,
+  format: string,
+  language?: string,
+): Promise<{ text: string } | { error: string }> {
   try {
     const base64 = await blobToBase64(blob);
 
     const res = await fetch('/api/stt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audio: base64, format }),
+      body: JSON.stringify({
+        audio: base64,
+        format,
+        ...(language ? { language } : {}),
+      }),
     });
 
     if (!res.ok) {
@@ -178,6 +190,8 @@ export function useSTT(): UseSTTReturn {
     // startListening (which fires this recorder's onstop synchronously) can't
     // overwrite which onEnd the old recorder reports to.
     const sessionOnEnd = opts?.onEnd;
+    const sessionOnTranscribeStart = opts?.onTranscribeStart;
+    const sessionLanguage = opts?.language;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -200,6 +214,7 @@ export function useSTT(): UseSTTReturn {
 
       mediaRecorder.onstop = async () => {
         const currentOnEnd = sessionOnEnd;
+        const currentOnTranscribeStart = sessionOnTranscribeStart;
 
         cleanupMedia();
 
@@ -211,7 +226,8 @@ export function useSTT(): UseSTTReturn {
         }
 
         setIsTranscribing(true);
-        const result = await transcribeBlob(blob, format);
+        currentOnTranscribeStart?.();
+        const result = await transcribeBlob(blob, format, sessionLanguage);
         if ('error' in result) {
           setError(result.error);
           currentOnEnd?.('', result.error);

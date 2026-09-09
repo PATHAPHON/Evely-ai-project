@@ -164,6 +164,29 @@ describe('useTTS', () => {
       });
       expect(result.current.isSpeaking).toBe(false);
     });
+
+    it('calls onReady when audio blob is loaded, before onplay', async () => {
+      installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchOk());
+      const onReady = vi.fn();
+      const onStart = vi.fn();
+
+      const { result } = renderHook(() => useTTS());
+
+      act(() => {
+        result.current.speak('Hello world', { onReady, onStart });
+      });
+
+      await waitFor(() => expect(MockAudio.lastInstance).not.toBeNull());
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+      expect(onStart).not.toHaveBeenCalled();
+
+      act(() => {
+        MockAudio.lastInstance!.onplay?.();
+      });
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('speak — fallback to Web Speech', () => {

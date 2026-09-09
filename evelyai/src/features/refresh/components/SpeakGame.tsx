@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Mic, RotateCcw, Volume2 } from 'lucide-react';
 import { useTTS } from '@/shared/hooks/useTTS';
 import { useSTT } from '@/shared/hooks/useSTT';
@@ -56,6 +56,13 @@ export default function SpeakGame(props: SpeakGameProps) {
 
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionModalStatus, setPermissionModalStatus] = useState<PermissionModalStatus>('unrequested');
+  const [prevWord, setPrevWord] = useState(word);
+  const [imageError, setImageError] = useState(false);
+
+  if (prevWord !== word) {
+    setPrevWord(word);
+    setImageError(false);
+  }
 
   function runListening() {
     const nextAttempt = attempts + 1;
@@ -132,27 +139,78 @@ export default function SpeakGame(props: SpeakGameProps) {
     runListening();
   }
 
-  // Auto-advance & auto-TTS on correct
+  const finishedRef = useRef(false);
+
+  // Auto-advance & auto-TTS on correct: wait for TTS to finish before completing round
   useEffect(() => {
     if (state !== 'correct') return;
-    speak(word);
-    const t = setTimeout(() => {
-      round.finish(round.score(attempts, true));
-    }, 1200);
-    return () => clearTimeout(t);
+    finishedRef.current = false;
+
+    let timeoutId: NodeJS.Timeout | null = null;
+    const finishRound = () => {
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      // Small visual pause after speech ends so user hears full pronunciation
+      setTimeout(() => {
+        round.finish(round.score(attempts, true));
+      }, 400);
+    };
+
+    // Fallback timer in case audio fails or cannot play
+    timeoutId = setTimeout(() => {
+      finishRound();
+    }, 4500);
+
+    speak(word, {
+      onEnd: () => {
+        finishRound();
+      },
+      onError: () => {
+        finishRound();
+      },
+    });
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [state, word, attempts, round, speak]);
 
-  // Auto-advance & auto-TTS on wrong2 (missed 2 attempts)
+  // Auto-advance & auto-TTS on wrong2 (missed 2 attempts): wait for TTS to finish before completing round
   useEffect(() => {
     if (state !== 'wrong2') return;
-    speak(word);
-    const t = setTimeout(() => {
-      round.finish(round.score(attempts, false));
-    }, 1900);
-    return () => clearTimeout(t);
+    finishedRef.current = false;
+
+    let timeoutId: NodeJS.Timeout | null = null;
+    const finishRound = () => {
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      setTimeout(() => {
+        round.finish(round.score(attempts, false));
+      }, 500);
+    };
+
+    // Fallback timer in case audio fails or cannot play
+    timeoutId = setTimeout(() => {
+      finishRound();
+    }, 5000);
+
+    speak(word, {
+      onEnd: () => {
+        finishRound();
+      },
+      onError: () => {
+        finishRound();
+      },
+    });
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [state, word, attempts, round, speak]);
 
-  // Skip / loop handler
+  // Skip / loop handler: wait for TTS to finish before animating card out
   function handleSkipClick() {
     if (
       state === 'correct' ||
@@ -167,13 +225,34 @@ export default function SpeakGame(props: SpeakGameProps) {
     }
 
     setState('skipped');
-    speak(word);
-    setTimeout(() => {
-      setIsSkipExiting(true);
+
+    let isDone = false;
+    let fallbackTimeout: NodeJS.Timeout | null = null;
+
+    const proceedSkip = () => {
+      if (isDone) return;
+      isDone = true;
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
       setTimeout(() => {
-        onSkip?.();
-      }, EXIT_ANIM_MS);
-    }, 1500);
+        setIsSkipExiting(true);
+        setTimeout(() => {
+          onSkip?.();
+        }, EXIT_ANIM_MS);
+      }, 400);
+    };
+
+    fallbackTimeout = setTimeout(() => {
+      proceedSkip();
+    }, 4500);
+
+    speak(word, {
+      onEnd: () => {
+        proceedSkip();
+      },
+      onError: () => {
+        proceedSkip();
+      },
+    });
   }
 
   const cardBorder =
@@ -208,14 +287,15 @@ export default function SpeakGame(props: SpeakGameProps) {
           <div
             className={`relative w-full h-full rounded-[2.5rem] border-2 flex flex-col items-center justify-center p-6 transition-all duration-300 shadow-xl ${cardBorder} ${cardAnim}`}
           >
-            {/* Illustration area (Hybrid: image if available, else subtle styled visual) */}
-            {imageUrl ? (
-              <div className="w-28 h-28 flex items-center justify-center mb-2">
+            {/* Illustration area (Hybrid: image if available and loaded, else subtle styled visual) */}
+            {imageUrl && !imageError ? (
+              <div className="w-28 h-28 flex items-center justify-center mb-2 select-none">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl}
-                  alt={word}
-                  className="max-h-full max-w-full object-contain drop-shadow-sm"
+                  alt={thai || word}
+                  onError={() => setImageError(true)}
+                  className="max-h-full max-w-full object-contain drop-shadow-sm rounded-2xl"
                 />
               </div>
             ) : (

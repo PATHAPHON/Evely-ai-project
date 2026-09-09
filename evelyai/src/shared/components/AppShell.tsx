@@ -26,6 +26,8 @@ interface AppShellProps {
   showBackButton?: boolean;
   /** Path for the back button. Defaults to router.back(). */
   backPath?: string;
+  /** When true, prevents main from scrolling (useful when child has its own scroll container). */
+  noScroll?: boolean;
 }
 
 interface DrawerContentProps {
@@ -218,6 +220,7 @@ export default function AppShell({
   rightElement,
   showBackButton,
   backPath,
+  noScroll = false,
 }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -269,7 +272,7 @@ export default function AppShell({
       </header>
 
       {/* Main content body */}
-      <main className="flex-1 overflow-y-auto relative flex flex-col min-h-0">
+      <main className={`flex-1 relative flex flex-col min-h-0 ${noScroll ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {children}
       </main>
 

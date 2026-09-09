@@ -155,4 +155,14 @@ describe('useUserProfile', () => {
     expect(result.current.handle).toBe('');
     expect(localStorage.getItem('evelyai:profile:handle')).toBeNull();
   });
+
+  it('marks isUnlimited and Infinity budget limit when handle is admin', () => {
+    localStorage.setItem('evelyai:profile:handle', 'admin');
+    const { result } = renderHook(() => useUserProfile());
+
+    expect(result.current.isUnlimited).toBe(true);
+    expect(result.current.isPremium).toBe(true);
+    expect(result.current.dailyBudgetLimit).toBe(Infinity);
+    expect(result.current.isBudgetExhausted).toBe(false);
+  });
 });

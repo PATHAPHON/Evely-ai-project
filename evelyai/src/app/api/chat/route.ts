@@ -131,12 +131,12 @@ export async function POST(
   const user = await getRequestUser();
   if (!user) return unauthorizedResponse();
 
-  const { isPremium } = user;
+  const { isPremium, isUnlimited } = user;
   const limit = isPremium
     ? DAILY_BUDGET_MICROBAHT.premium
     : DAILY_BUDGET_MICROBAHT.free;
 
-  const hasBudget = await checkBudget(limit);
+  const hasBudget = await checkBudget(limit, isUnlimited);
   if (!hasBudget) return budgetExhaustedResponse();
 
   let body: unknown;

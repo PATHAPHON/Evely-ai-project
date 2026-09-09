@@ -77,14 +77,15 @@ function AuthPageContent() {
                 <label className={labelClass} htmlFor="auth-email">{t.auth.emailLabel}</label>
                 <input
                   id="auth-email"
-                  type="email"
+                  type={mode === 'login' ? 'text' : 'email'}
                   required
                   className={fieldClass}
-                  placeholder={t.auth.emailPlaceholder}
+                  placeholder={mode === 'login' ? 'admin หรือ email' : t.auth.emailPlaceholder}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
                   autoCapitalize="none"
+                  autoCorrect="off"
                 />
               </div>
 

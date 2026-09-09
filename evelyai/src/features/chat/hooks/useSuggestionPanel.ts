@@ -68,11 +68,9 @@ export function useSuggestionPanel({
     }
     const isDismissed = getSessionItem(`suggestion_dismissed_${lastMsgId}`) === 'true';
     if (isDismissed) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDismissedSuggestId(lastMsgId);
     }
     const isOpen = getSessionItem(`suggestion_open_${lastMsgId}`) === 'true';
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsOptionsCollapsed(!isOpen);
   }, [lastMsgId]);
 
@@ -92,7 +90,7 @@ export function useSuggestionPanel({
         }
       }, 200); // 200ms smooth animation
     },
-    [lastMessage?.id]
+    [lastMessage]
   );
 
   const handleToggleSuggestions = useCallback(() => {
@@ -115,7 +113,7 @@ export function useSuggestionPanel({
       setSessionItem(`suggestion_dismissed_${lastMessage.id}`, 'true');
       removeSessionItem(`suggestion_open_${lastMessage.id}`);
     }
-  }, [lastMessage?.id]);
+  }, [lastMessage]);
 
   return {
     isOptionsCollapsed,

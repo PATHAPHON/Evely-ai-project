@@ -21,7 +21,7 @@ import { useStrings } from '@/shared/utils/strings';
 import type { SessionConfig } from '@/shared/types/chatTypes';
 import { useToast } from '@/shared/components/Toast';
 
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, Loader2, Volume2 } from 'lucide-react';
 import AppShell from '@/shared/components/AppShell';
 
 interface ChatScreenProps {
@@ -38,6 +38,8 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   const t = useStrings();
   const { showToast } = useToast();
   const [voiceMode, setVoiceMode] = useState(false);
+  const [voiceTranscribing, setVoiceTranscribing] = useState(false);
+  const [spokenVoiceId, setSpokenVoiceId] = useState<string | null>(null);
 
   const { activeLanguage } = useActiveLanguage();
   const { displayName, isPremium, isBudgetExhausted } = useUserProfile();
@@ -73,6 +75,54 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
     }
   }, [sttError, showToast]);
 
+  const handleVoiceClose = useCallback(() => {
+    setVoiceMode(false);
+    setVoiceTranscribing(false);
+  }, []);
+
+  const handleOpenVoiceMode = useCallback(() => {
+    const lastAssistant = [...sessionMessages].reverse().find((m) => m.role === 'assistant');
+    setSpokenVoiceId(lastAssistant?.id ?? null);
+    setVoiceTranscribing(false);
+    setVoiceMode(true);
+  }, [sessionMessages]);
+
+  const handleAudioReady = useCallback((messageId: string) => {
+    setSpokenVoiceId(messageId);
+  }, []);
+
+  // Suggested replies and message tracking for latest AI message
+  const lastMessage = sessionMessages[sessionMessages.length - 1];
+
+  // In voiceMode, hold the latest assistant message until its TTS audio is loaded
+  const pendingVoiceMessageId =
+    voiceMode &&
+    lastMessage?.role === 'assistant' &&
+    lastMessage.status === 'sent' &&
+    lastMessage.id !== spokenVoiceId
+      ? lastMessage.id
+      : null;
+
+  // Single unified loading state for voice mode — prevents multiple overlapping loading windows
+  const voiceLoadingState = voiceMode
+    ? voiceTranscribing
+      ? { icon: 'loader' as const, text: 'กำลังแปลงเสียงเป็นข้อความ...' }
+      : isSessionLoading
+      ? { icon: 'loader' as const, text: 'กำลังคิดคำตอบ...' }
+      : pendingVoiceMessageId
+      ? { icon: 'volume' as const, text: 'กำลังสร้างเสียงพูด...' }
+      : null
+    : null;
+
+  // Auto-close VoiceMode if budget runs out during voice conversation
+  useEffect(() => {
+    if (voiceMode && budgetExhausted) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVoiceMode(false);
+      showToast('งบ AI วันนี้เต็มแล้ว — สลับกลับสู่โหมดข้อความ', 'info');
+    }
+  }, [voiceMode, budgetExhausted, showToast]);
+
   // Start a fresh open-ended session.
   const startOpenSession = useCallback(() => {
     const config: SessionConfig = {
@@ -102,7 +152,6 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   );
 
   // Suggested replies for latest AI message
-  const lastMessage = sessionMessages[sessionMessages.length - 1];
   const currentSuggestions =
     lastMessage && lastMessage.role === 'assistant'
       ? lastMessage.suggestions ?? []
@@ -180,12 +229,12 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
       resetKey={inputResetKey}
       disabled={budgetExhausted}
       placeholder={budgetExhausted ? 'งบ AI วันนี้หมดแล้ว ใช้ต่อพรุ่งนี้' : undefined}
-      onVoiceMode={budgetExhausted ? undefined : () => setVoiceMode(true)}
+      onVoiceMode={budgetExhausted ? undefined : handleOpenVoiceMode}
     />
   );
 
   return (
-    <AppShell onNewChat={handleNewChat}>
+    <AppShell onNewChat={handleNewChat} noScroll>
       <div
         className="flex-1 flex flex-col overflow-hidden relative"
         style={
@@ -215,6 +264,9 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
             error={sessionError}
             onRetry={retrySessionMessage}
             onSpeak={handleSpeak}
+            voiceTranscribing={voiceTranscribing}
+            pendingVoiceMessageId={pendingVoiceMessageId}
+            voiceMode={voiceMode}
           />
         )}
 
@@ -225,13 +277,32 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
               isAnimating ? 'opacity-0 translate-y-2 scale-[0.99]' : 'opacity-100 translate-y-0 scale-100'
             }`}>
               {voiceMode ? (
-                <VoiceMode
-                  speechLang={speechLang}
-                  messages={sessionMessages}
-                  isLoading={isSessionLoading}
-                  onSend={handleSendMessage}
-                  onClose={() => setVoiceMode(false)}
-                />
+                <div className="flex flex-col items-center gap-3 w-full">
+                  {/* Single unified loading window for all voice processing stages */}
+                  {voiceLoadingState && (
+                    <div className="animate-bubble-pop-in">
+                      <div className="rounded-full bg-card-bg/95 backdrop-blur-md border border-primary/30 text-foreground py-2.5 px-6 shadow-soft-lg flex items-center gap-3">
+                        {voiceLoadingState.icon === 'loader' ? (
+                          <Loader2 size={16} className="animate-spin text-primary shrink-0" />
+                        ) : (
+                          <Volume2 size={16} className="text-primary animate-bounce shrink-0" />
+                        )}
+                        <span className="text-sm font-semibold text-foreground tracking-wide whitespace-nowrap">
+                          {voiceLoadingState.text}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <VoiceMode
+                    speechLang={speechLang}
+                    messages={sessionMessages}
+                    isLoading={isSessionLoading}
+                    onSend={handleSendMessage}
+                    onClose={handleVoiceClose}
+                    onTranscribingChange={setVoiceTranscribing}
+                    onAudioReady={handleAudioReady}
+                  />
+                </div>
               ) : optionsMode && !isOptionsCollapsed ? (
                 <div className="rounded-[28px] bg-card-bg p-2 border border-border-color shadow-soft-md">
                   <SuggestionOptions

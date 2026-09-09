@@ -44,7 +44,7 @@ export async function POST(
     );
   }
 
-  const hasBudget = await checkBudget(DAILY_BUDGET_MICROBAHT.premium);
+  const hasBudget = await checkBudget(DAILY_BUDGET_MICROBAHT.premium, user.isUnlimited);
   if (!hasBudget) return budgetExhaustedResponse();
 
   let body: unknown;

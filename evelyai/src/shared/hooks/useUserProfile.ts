@@ -55,7 +55,8 @@ export interface UseUserProfileReturn extends ProfileFields {
   setDisplayName: (name: string) => void;
   updateProfile: (partial: Partial<ProfileFields>) => void;
   isPremium: boolean;
-  subscriptionStatus: 'free' | 'active';
+  isUnlimited: boolean;
+  subscriptionStatus: 'free' | 'active' | 'unlimited';
   periodEnd: string | null;
   energySpent: number;
   isBudgetExhausted: boolean;
@@ -66,7 +67,7 @@ export interface UseUserProfileReturn extends ProfileFields {
 export function useUserProfile(): UseUserProfileReturn {
   const [displayName, setDisplayNameState] = useState<string>(DEFAULT_NAME);
   const [handle, setHandle] = useState("");
-  const [subscriptionStatus, setSubscriptionStatus] = useState<'free' | 'active'>('free');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'free' | 'active' | 'unlimited'>('free');
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [energySpent, setEnergySpent] = useState<number>(0);
 
@@ -99,8 +100,9 @@ export function useUserProfile(): UseUserProfileReturn {
       if (data) {
         setDisplayNameState(data.display_name || DEFAULT_NAME);
         setHandle(data.handle || "");
-        const isSubActive = data.subscription_status === 'active';
-        setSubscriptionStatus(isSubActive ? 'active' : 'free');
+        const isUnlimitedUser = data.subscription_status === 'unlimited' || data.handle === 'admin';
+        const isSubActive = isUnlimitedUser || data.subscription_status === 'active';
+        setSubscriptionStatus(isUnlimitedUser ? 'unlimited' : isSubActive ? 'active' : 'free');
         setPeriodEnd(data.subscription_current_period_end ?? null);
 
         const todayBkk = getBangkokTodayDateString();
@@ -108,8 +110,10 @@ export function useUserProfile(): UseUserProfileReturn {
         const currentSpend = isOldReset ? 0 : (data.daily_spend_microbaht ?? 0);
         setEnergySpent(currentSpend);
 
-        const limit = isSubActive ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
-        if (currentSpend >= limit) {
+        const limit = isUnlimitedUser ? Infinity : isSubActive ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+        if (isUnlimitedUser) {
+          clearBudgetExhausted();
+        } else if (currentSpend >= limit) {
           markBudgetExhausted();
         } else if (isOldReset) {
           clearBudgetExhausted();
@@ -229,8 +233,14 @@ export function useUserProfile(): UseUserProfileReturn {
   }, [loadProfileFromDB]);
 
   const avatarInitial = displayName.length > 0 ? displayName[0] : "L";
-  const dailyBudgetLimit = subscriptionStatus === 'active' ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
-  const isBudgetExhausted = energySpent >= dailyBudgetLimit;
+  const isUnlimited = subscriptionStatus === 'unlimited' || handle === 'admin';
+  const isPremium = isUnlimited || subscriptionStatus === 'active';
+  const dailyBudgetLimit = isUnlimited
+    ? Infinity
+    : subscriptionStatus === 'active'
+    ? DAILY_BUDGET_MICROBAHT.premium
+    : DAILY_BUDGET_MICROBAHT.free;
+  const isBudgetExhausted = !isUnlimited && energySpent >= dailyBudgetLimit;
 
   return {
     displayName,
@@ -238,7 +248,8 @@ export function useUserProfile(): UseUserProfileReturn {
     avatarInitial,
     setDisplayName,
     updateProfile,
-    isPremium: subscriptionStatus === 'active',
+    isPremium,
+    isUnlimited,
     subscriptionStatus,
     periodEnd,
     energySpent,

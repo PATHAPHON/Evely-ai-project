@@ -18,16 +18,18 @@ function ProfilePageContent() {
   const router = useRouter();
 
   const profile = useUserProfile();
-  const { isPremium, energySpent } = profile;
+  const { isPremium, isUnlimited, energySpent } = profile;
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const { showTranslation, toggleShowTranslation } = useShowTranslation();
 
   // Usage summary for the menu row.
-  const usageLimit = isPremium
+  const usageLimit = isUnlimited
+    ? Infinity
+    : isPremium
     ? DAILY_BUDGET_MICROBAHT.premium
     : DAILY_BUDGET_MICROBAHT.free;
-  const usagePct = computeUsagePct(energySpent, usageLimit);
+  const usagePct = isUnlimited ? 0 : computeUsagePct(energySpent, usageLimit);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -81,12 +83,14 @@ function ProfilePageContent() {
                   <div className="flex items-center gap-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                        isPremium
+                        isUnlimited
+                          ? "bg-primary/10 text-primary"
+                          : isPremium
                           ? "bg-warning/10 text-warning"
                           : "bg-card-bg text-foreground/70"
                       }`}
                     >
-                      {isPremium ? t.profile.planPremium : t.profile.planFree}
+                      {isUnlimited ? "Admin / Unlimited" : isPremium ? t.profile.planPremium : t.profile.planFree}
                     </span>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" className="shrink-0 text-foreground/45" aria-hidden="true">
                       <polyline points="9 6 15 12 9 18" />
@@ -107,7 +111,7 @@ function ProfilePageContent() {
                 rightElement={
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-foreground/70">
-                      {usagePct}%
+                      {isUnlimited ? "Unlimited" : `${usagePct}%`}
                     </span>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" className="shrink-0 text-foreground/45" aria-hidden="true">
                       <polyline points="9 6 15 12 9 18" />

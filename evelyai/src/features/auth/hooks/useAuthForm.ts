@@ -39,8 +39,11 @@ export function useAuthForm() {
     setSuccess(null);
 
     try {
+      const trimmed = email.trim();
+      const loginEmail = trimmed.toLowerCase() === 'admin' ? 'admin@tranly.com' : trimmed;
+
       const { error: loginErr } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: loginEmail,
         password,
       });
 

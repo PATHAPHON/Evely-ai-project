@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useContext } from "react";
 import { createPortal } from "react-dom";
+import { Calendar } from "lucide-react";
 import { supabase } from "@/shared/supabase/supabaseClient";
 import { useTTS } from "@/shared/hooks/useTTS";
 import { markBudgetExhausted } from "@/shared/hooks/useBudgetExhausted";
+import { WordStatusContext } from "@/shared/components/WordStatusProvider";
 import type { FeedWordRecord } from "@/shared/types/wordTypes";
 import type { WordDetailResponse } from "@/app/api/word-detail/route";
 
@@ -12,6 +14,61 @@ interface WordDetailPopupProps {
   word: FeedWordRecord | null; // null = closed
   onClose: () => void;
   onUpdate?: (updated: { id: string; thai: string; partOfSpeech?: string }) => void;
+}
+
+const THAI_MONTHS = [
+  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+];
+
+function formatThaiDate(d: Date): string {
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]}`;
+}
+
+export interface ReviewScheduleInfo {
+  days: number;
+  label: string;
+  isDue: boolean;
+  interval?: number | null;
+}
+
+export function computeReviewSchedule(
+  nextReviewDate: Date | string | null | undefined,
+  interval?: number | null,
+): ReviewScheduleInfo | null {
+  if (!nextReviewDate) return null;
+  const target = new Date(nextReviewDate);
+  if (isNaN(target.getTime())) return null;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const reviewDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+
+  const diffMs = reviewDay.getTime() - today.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return {
+      days: 0,
+      label: "ครบกำหนดทบทวนแล้ว (ทบทวนได้เลย)",
+      isDue: true,
+      interval,
+    };
+  } else if (diffDays === 1) {
+    return {
+      days: 1,
+      label: `ทบทวนอีกครั้งใน 1 วัน (พรุ่งนี้ · ${formatThaiDate(target)})`,
+      isDue: false,
+      interval,
+    };
+  } else {
+    return {
+      days: diffDays,
+      label: `ทบทวนอีกครั้งในอีก ${diffDays} วัน (${formatThaiDate(target)})`,
+      isDue: false,
+      interval,
+    };
+  }
 }
 
 function Skeleton({ lines }: { lines: number }) {
@@ -30,9 +87,57 @@ function Skeleton({ lines }: { lines: number }) {
 
 export default function WordDetailPopup({ word, onClose, onUpdate }: WordDetailPopupProps) {
   const { speak } = useTTS("en-US");
+  const wordStatusContext = useContext(WordStatusContext);
   const [detail, setDetail] = useState<WordDetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dbProgress, setDbProgress] = useState<{
+    wordId: string;
+    nextReviewAt: string | null;
+    interval: number | null;
+  } | null>(null);
+
+  const currentDbProgress = dbProgress?.wordId === word?.id ? dbProgress : null;
+
+  const contextEntry = word?.word ? wordStatusContext?.getEntry(word.word) : null;
+  const effectiveNextReviewAt =
+    word?.nextReviewAt ?? contextEntry?.nextReviewAt ?? currentDbProgress?.nextReviewAt;
+  const effectiveInterval =
+    word?.interval ?? contextEntry?.interval ?? currentDbProgress?.interval;
+
+  useEffect(() => {
+    if (!word || word.nextReviewAt || contextEntry?.nextReviewAt) return;
+    if (!word.id || word.id === word.word) return;
+
+    let mounted = true;
+    const fetchProgress = async () => {
+      try {
+        const { data } = await supabase
+          .from("word_progress")
+          .select("next_review_at, interval")
+          .eq("word_id", word.id)
+          .maybeSingle();
+
+        if (mounted && data) {
+          setDbProgress({
+            wordId: word.id,
+            nextReviewAt: data.next_review_at,
+            interval: data.interval,
+          });
+        }
+      } catch {
+        // Ignore progress fetch error
+      }
+    };
+
+    fetchProgress();
+
+    return () => {
+      mounted = false;
+    };
+  }, [word, contextEntry]);
+
+  const reviewSchedule = computeReviewSchedule(effectiveNextReviewAt, effectiveInterval);
 
   const fetchDetail = useCallback(async (w: FeedWordRecord) => {
     setIsLoading(true);
@@ -168,8 +273,32 @@ export default function WordDetailPopup({ word, onClose, onUpdate }: WordDetailP
           </div>
         )}
 
+        {/* Review Schedule / Spaced Repetition Info */}
+        {reviewSchedule && (
+          <div
+            className={`mt-4 flex items-center justify-between px-3.5 py-2.5 rounded-2xl border text-xs font-medium ${
+              reviewSchedule.isDue
+                ? "bg-correct/10 border-correct/25 text-correct"
+                : "bg-primary-bg/70 border-primary/25 text-foreground"
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <Calendar
+                size={15}
+                className={reviewSchedule.isDue ? "text-correct shrink-0" : "text-primary shrink-0"}
+              />
+              <span className="truncate">{reviewSchedule.label}</span>
+            </div>
+            {typeof reviewSchedule.interval === "number" && reviewSchedule.interval > 0 && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-foreground/10 text-foreground/70 shrink-0 ml-1">
+                รอบ {reviewSchedule.interval} วัน
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Definition */}
-        <div className="mt-5 rounded-2xl border border-primary/20 bg-primary-bg p-4">
+        <div className="mt-4 rounded-2xl border border-primary/20 bg-primary-bg p-4">
           <div className="mb-1.5 text-sm font-bold text-primary">
             Definition
           </div>

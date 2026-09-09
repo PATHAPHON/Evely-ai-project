@@ -5,8 +5,8 @@ export const TOKEN_COST_MICROBAHT = {
   openrouter: 2, // chat, grammar, word-detail, translate routes
 } as const;
 
-// ponytail: flat per-call estimate, not metered — whisper-large-v3 via
-// OpenRouter bills per audio minute, not per token, and clips here are short
+// ponytail: flat per-call estimate, not metered — google/chirp-3 via
+// OpenRouter bills per audio minute ($0.016/min), not per token, and clips here are short
 // (<=~10s). VERIFY against actual OpenRouter audio pricing.
 export const STT_COST_MICROBAHT = 500;
 

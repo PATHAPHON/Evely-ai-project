@@ -8,10 +8,19 @@ const getClientSupport = () =>
   typeof window !== 'undefined' && typeof Audio !== 'undefined';
 const getServerSupport = () => false;
 
+export interface SpeakOptions {
+  onStart?: () => void;
+  onEnd?: () => void;
+  onError?: (err?: unknown) => void;
+  /** Called as soon as the audio blob is fetched and decoded (or when fallback initiates), before playback begins */
+  onReady?: () => void;
+}
+
 export interface UseTTSReturn {
-  speak: (text: string) => void;
+  speak: (text: string, options?: SpeakOptions) => void;
   stop: () => void;
   isSpeaking: boolean;
+  isSynthesizing: boolean;
   isSupported: boolean;
   error: string | null;
 }
@@ -24,6 +33,7 @@ export function useTTS(
   voice?: string,
 ): UseTTSReturn {
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isSupported = useSyncExternalStore(
     noopSubscribe,
@@ -62,14 +72,19 @@ export function useTTS(
     requestIdRef.current += 1;
     releaseAudio();
     cancelSpeechSynthesis();
+    setIsSynthesizing(false);
     setIsSpeaking(false);
   }, [releaseAudio, cancelSpeechSynthesis]);
 
   const speakViaWebSpeech = useCallback(
-    (text: string) => {
+    (text: string, options?: SpeakOptions) => {
+      setIsSynthesizing(false);
+      options?.onReady?.();
+
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
         setError(ERROR_MESSAGE);
         setIsSpeaking(false);
+        options?.onError?.(new Error(ERROR_MESSAGE));
         return;
       }
 
@@ -78,25 +93,32 @@ export function useTTS(
       const cleanText = text.replace(/\[[a-zA-Z0-9_-]+\]\s*/g, '').trim();
       if (!cleanText) {
         setIsSpeaking(false);
+        options?.onEnd?.();
         return;
       }
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = lang;
 
-      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        options?.onStart?.();
+      };
       utterance.onend = () => {
         setIsSpeaking(false);
         utteranceRef.current = null;
+        options?.onEnd?.();
       };
       utterance.onerror = (event) => {
         if (event.error === 'interrupted' || event.error === 'canceled') {
           setIsSpeaking(false);
           utteranceRef.current = null;
+          options?.onEnd?.();
           return;
         }
         setError(ERROR_MESSAGE);
         setIsSpeaking(false);
         utteranceRef.current = null;
+        options?.onError?.(event);
       };
 
       utteranceRef.current = utterance;
@@ -106,9 +128,13 @@ export function useTTS(
   );
 
   const speak = useCallback(
-    (text: string) => {
+    (text: string, options?: SpeakOptions) => {
       const trimmed = text.trim();
-      if (trimmed.length === 0) return;
+      if (trimmed.length === 0) {
+        options?.onReady?.();
+        options?.onEnd?.();
+        return;
+      }
 
       // Bump the request id and snapshot for staleness checks across async work.
       requestIdRef.current += 1;
@@ -119,11 +145,18 @@ export function useTTS(
       cancelSpeechSynthesis();
       setError(null);
 
-      if (typeof window === 'undefined') return;
+      if (typeof window === 'undefined') {
+        options?.onReady?.();
+        options?.onEnd?.();
+        return;
+      }
+
+      setIsSynthesizing(true);
 
       const fallback = () => {
         if (requestIdRef.current !== currentRequestId) return;
-        speakViaWebSpeech(trimmed);
+        setIsSynthesizing(false);
+        speakViaWebSpeech(trimmed, options);
       };
 
       void (async () => {
@@ -149,14 +182,20 @@ export function useTTS(
           audioUrlRef.current = url;
           audioRef.current = audio;
 
+          // Audio blob is fetched and decoded into Audio instance!
+          setIsSynthesizing(false);
+          options?.onReady?.();
+
           audio.onplay = () => {
             if (requestIdRef.current !== currentRequestId) return;
             setIsSpeaking(true);
+            options?.onStart?.();
           };
           audio.onended = () => {
             if (requestIdRef.current !== currentRequestId) return;
             setIsSpeaking(false);
             releaseAudio();
+            options?.onEnd?.();
           };
           audio.onerror = () => {
             if (requestIdRef.current !== currentRequestId) return;
@@ -189,5 +228,5 @@ export function useTTS(
     };
   }, [releaseAudio, cancelSpeechSynthesis]);
 
-  return { speak, stop, isSpeaking, isSupported, error };
+  return { speak, stop, isSpeaking, isSynthesizing, isSupported, error };
 }

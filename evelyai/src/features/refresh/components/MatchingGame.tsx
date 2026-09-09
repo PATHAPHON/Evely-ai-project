@@ -64,6 +64,7 @@ export interface MatchingItem {
 export interface MatchingResult {
   wordId: string;
   quality: number;
+  mistakes: number;
 }
 
 interface MatchingGameProps {
@@ -155,6 +156,7 @@ export default function MatchingGame({
       return {
         wordId: item.wordId,
         quality: matchingQuality(mistakes),
+        mistakes,
       };
     });
     onRoundComplete(results);

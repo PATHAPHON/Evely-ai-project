@@ -41,8 +41,8 @@ Tarnly is a mobile-first web app (Next.js 16 PWA) that helps Thai speakers learn
 | FR-5 | `POST /api/grammar` (OpenRouter Gemini, premium-only): correct/translate the user's message, return `grammarCorrect`/`grammarNotes` | Should |
 | FR-6 | `POST /api/word-detail` (OpenRouter Gemini): serve from permanent `ai_word_detail_cache` (SHA-256 key incl. prompt version) or generate + cache | Must |
 | FR-7 | `POST /api/translate` (OpenRouter Gemini): batch English→Thai, index-aligned | Should |
-| FR-8 | `POST /api/tts` (OpenRouter Kokoro): synthesize speech, voice-whitelisted, in-memory FIFO cache (500 entries) | Should |
-| FR-9 | `POST /api/stt` (OpenRouter Whisper): transcribe recorded audio to text | Could |
+| FR-8 | `POST /api/tts` (OpenRouter Google Gemini TTS): synthesize speech, voice-whitelisted, in-memory FIFO cache (500 entries) | Should |
+| FR-9 | `POST /api/stt` (OpenRouter Google Chirp 3): transcribe recorded audio to text | Could |
 | FR-10 | Word bank: add/remove words, derive status, store SM-2 progress in `word_progress`; review updates progress | Must |
 | FR-11 | Refresh mini-games (matching/typing/speak) score performance → SM-2 quality (0–5) → `reviewWord` | Should |
 | FR-12 | Persist conversations lazily (row on first message; first message = title) and list recents; resume by `sessionId` | Must |
@@ -61,7 +61,7 @@ Tarnly is a mobile-first web app (Next.js 16 PWA) that helps Thai speakers learn
 
 ## Constraints & Assumptions
 - Stack: Next.js 16 (App Router, React 19), TypeScript, Tailwind v4, Supabase (Postgres + Auth), Stripe, Vitest.
-- **AI provider:** OpenRouter (LLM = Google Gemini 3.1 Flash Lite, TTS = Kokoro-82M, STT = Whisper-large-v3). Token cost in µ฿/token: 2. Daily budget: free 20,000 µ฿, premium 50,000 µ฿.
+- **AI provider:** OpenRouter (LLM = Google Gemini 3.1 Flash Lite, TTS = Google Gemini Flash TTS, STT = Google Chirp 3). Token cost in µ฿/token: 2. Daily budget: free 20,000 µ฿, premium 50,000 µ฿.
 - Users may supply their own key/model via `x-custom-api-key` / `x-custom-model` headers.
 - Schema applied manually to Supabase; `supabase/migrations/*.sql` documents the live budget schema and the pg_cron cleanup.
 - Single learning target language (English); UI language defaults to Thai (`th`).

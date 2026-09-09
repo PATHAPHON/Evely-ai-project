@@ -4,6 +4,21 @@ import { matchingQuality, speakQuality, typingQuality } from './quality';
 
 export type WordBank = ReturnType<typeof useWordBank>['words'];
 
+export interface WordReviewSummaryItem {
+  wordId: string;
+  word: string;
+  thai: string;
+  partOfSpeech?: string | null;
+  quality: number; // 0-5
+  mistakes: number;
+  isPassed: boolean; // quality >= 3
+  oldInterval: number;
+  newInterval: number;
+  nextReviewAt: Date;
+  repetitions: number;
+  easeFactor: number;
+}
+
 export interface GameProps {
   /** Target word in the language being learned. */
   word: string;

@@ -39,4 +39,6 @@ export interface FeedWordRecord {
   partOfSpeech?: string;
   // English fields
   word?: string;
+  nextReviewAt?: Date | string | null;
+  interval?: number | null;
 }

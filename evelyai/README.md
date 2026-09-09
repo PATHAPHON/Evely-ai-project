@@ -55,13 +55,14 @@ flowchart TD
         GrammarRoute["POST /api/grammar (Gemini 3.1 Flash Lite)"]
         WordRoute["POST /api/word-detail (Cache + Gemini 3.1 Flash Lite)"]
         TransRoute["POST /api/translate (Gemini 3.1 Flash Lite)"]
-        TTSRoute["POST /api/tts (Kokoro Audio)"]
+        TTSRoute["POST /api/tts (Google Gemini Flash TTS)"]
+        STTRoute["POST /api/stt (Google Chirp 3)"]
         StripeRoute["POST /api/stripe/webhook"]
         BudgetEngine["Budget Engine (check/debit µ฿)"]
     end
     
     subgraph ExternalServices ["External AI & Cloud Services"]
-        OpenRouter["OpenRouter API\n(Google Gemini 3.1 Flash Lite, Kokoro TTS, Whisper STT)"]
+        OpenRouter["OpenRouter API\n(Google Gemini 3.1 Flash Lite, Google Gemini TTS, Google Chirp 3 STT)"]
         StripeAPI["Stripe API & Webhook"]
         SupabaseDB[("Supabase PostgreSQL\n- Profiles & Word Bank\n- SM-2 Progress & Cache\n- RLS Security Policies")]
     end
@@ -72,6 +73,7 @@ flowchart TD
     BudgetEngine --> SupabaseDB
     ChatRoute --> OpenRouter
     TTSRoute --> OpenRouter
+    STTRoute --> OpenRouter
     GrammarRoute --> OpenRouter
     WordRoute --> OpenRouter
     TransRoute --> OpenRouter
@@ -92,8 +94,8 @@ flowchart TD
 | **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL 15+, Row Level Security, RPC Functions) |
 | **Payment Gateway** | [Stripe](https://stripe.com/) (Subscription Checkout, Customer Portal, Idempotent Webhook) |
 | **AI LLM Routing** | OpenRouter (Google: Gemini 3.1 Flash Lite) |
-| **Speech Processing** | Kokoro-82M (TTS) via OpenRouter, Whisper Large v3 (STT) |
-| **Testing Suite** | [Vitest 4.1.7](https://vitest.dev/) (Unit, Component, and Logic Testing - 181+ tests) |
+| **Speech Processing** | Google Gemini 3.1 Flash TTS (TTS), Google: Chirp 3 (STT) via OpenRouter |
+| **Testing Suite** | [Vitest 4.1.7](https://vitest.dev/) (Unit, Component, and Logic Testing - 214+ tests) |
 
 ---
 

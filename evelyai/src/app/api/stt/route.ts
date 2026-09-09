@@ -10,6 +10,7 @@ import { DAILY_BUDGET_MICROBAHT, STT_COST_MICROBAHT } from '@/app/api/_lib/utils
 
 // Base64 encodes ~4/3 bytes; this caps raw audio at roughly 8MB.
 const MAX_AUDIO_BASE64_LENGTH = 11_000_000;
+const DEFAULT_STT_MODEL = 'google/chirp-3';
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     if (!user) return unauthorizedResponse();
 
     const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
-    const hasBudget = await checkBudget(limit);
+    const hasBudget = await checkBudget(limit, user.isUnlimited);
     if (!hasBudget) return budgetExhaustedResponse();
 
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -31,11 +32,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing audio data' }, { status: 400 });
     }
 
-    const { audio, format = 'webm' } = body;
+    const { audio, format = 'webm', language = 'en' } = body;
 
     if (typeof audio !== 'string' || audio.length > MAX_AUDIO_BASE64_LENGTH) {
       return NextResponse.json({ error: 'Audio data too large' }, { status: 400 });
     }
+
+    const model = process.env.OPENROUTER_STT_MODEL || DEFAULT_STT_MODEL;
 
     // Call OpenRouter Audio Transcription API
     const response = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
@@ -45,12 +48,12 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/whisper-large-v3',
+        model,
         input_audio: {
           data: audio,
           format: format,
         },
-        language: 'en',
+        ...(language ? { language } : {}),
       }),
     });
 

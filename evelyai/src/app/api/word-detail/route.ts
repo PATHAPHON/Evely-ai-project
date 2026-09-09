@@ -222,7 +222,7 @@ export async function POST(
   // Gate only the cache-miss path — cached lookups above stay free even when
   // the daily budget is exhausted.
   const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
-  if (!(await checkBudget(limit))) return budgetExhaustedResponse();
+  if (!(await checkBudget(limit, user.isUnlimited))) return budgetExhaustedResponse();
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {

@@ -19,11 +19,17 @@ async function getServerClient(): Promise<SupabaseClient | null> {
   });
 }
 
+export interface RequestUser {
+  id: string;
+  isPremium: boolean;
+  isUnlimited: boolean;
+}
+
 /**
- * Returns the authenticated user with premium status, or null if unauthenticated.
- * Reads subscription_status from profiles table.
+ * Returns the authenticated user with premium and unlimited status, or null if unauthenticated.
+ * Reads subscription_status and handle from profiles table.
  */
-export async function getRequestUser(): Promise<{ id: string; isPremium: boolean } | null> {
+export async function getRequestUser(): Promise<RequestUser | null> {
   try {
     const supabase = await getServerClient();
     if (!supabase) return null;
@@ -33,7 +39,7 @@ export async function getRequestUser(): Promise<{ id: string; isPremium: boolean
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('subscription_status')
+      .select('subscription_status, handle')
       .eq('id', user.id)
       .single();
 
@@ -41,9 +47,13 @@ export async function getRequestUser(): Promise<{ id: string; isPremium: boolean
       console.warn('getRequestUser: profile lookup warning:', profileError);
     }
 
+    const isUnlimited = profile?.subscription_status === 'unlimited' || profile?.handle === 'admin';
+    const isPremium = isUnlimited || profile?.subscription_status === 'active';
+
     return {
       id: user.id,
-      isPremium: profile?.subscription_status === 'active',
+      isPremium,
+      isUnlimited,
     };
   } catch (err) {
     console.error('getRequestUser unexpected error:', err);
@@ -53,9 +63,11 @@ export async function getRequestUser(): Promise<{ id: string; isPremium: boolean
 
 /**
  * Check if the caller has remaining token budget for today.
+ * Unlimited users always pass.
  * Resets daily spend when the date has changed.
  */
-export async function checkBudget(limitMicrobaht: number): Promise<boolean> {
+export async function checkBudget(limitMicrobaht: number, isUnlimited = false): Promise<boolean> {
+  if (isUnlimited) return true;
   try {
     const supabase = await getServerClient();
     if (!supabase) return false;

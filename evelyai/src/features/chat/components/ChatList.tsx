@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
 import type { ChatMessage } from '@/shared/types/chatTypes';
 import AIMessage from './AIMessage';
@@ -13,6 +13,9 @@ interface ChatListProps {
   error: string | null;
   onRetry: () => void;
   onSpeak: (messageId: string, text?: string) => void;
+  voiceTranscribing?: boolean;
+  pendingVoiceMessageId?: string | null;
+  voiceMode?: boolean;
 }
 
 /** True once a pending (streaming) assistant message has anything worth rendering. */
@@ -31,12 +34,14 @@ export default function ChatList({
   error,
   onRetry,
   onSpeak,
+  voiceTranscribing = false,
+  pendingVoiceMessageId = null,
+  voiceMode = false,
 }: ChatListProps) {
   const t = useStrings();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const prevUserCountRef = useRef(0);
-  const [spacerHeight, setSpacerHeight] = useState(0);
 
   useLayoutEffect(() => {
     const userCount = messages.filter((m) => m.role === 'user').length;
@@ -47,20 +52,30 @@ export default function ChatList({
     if (!el) return;
 
     if (delta > 1) {
-      // bulk load (restore session) → jump to bottom
-      setSpacerHeight(0);
+      // Bulk load (restore session) → jump to bottom
       el.scrollTo({ top: el.scrollHeight });
       return;
     }
 
-    if (delta === 1 && lastUserMsgRef.current) {
-      const anchor = lastUserMsgRef.current;
-      setSpacerHeight(Math.max(0, el.clientHeight - anchor.offsetHeight));
+    if (delta === 1) {
       requestAnimationFrame(() => {
-        anchor.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        // Scroll down smoothly so the new user message sits comfortably above the bottom bar
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       });
     }
   }, [messages]);
+
+  // Scroll down when voice processing state or message updates
+  useEffect(() => {
+    if (voiceTranscribing || pendingVoiceMessageId || isLoading) {
+      const el = scrollRef.current;
+      if (el) {
+        requestAnimationFrame(() => {
+          el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        });
+      }
+    }
+  }, [voiceTranscribing, pendingVoiceMessageId, isLoading]);
 
   const lastUserIndex = messages.reduce(
     (acc, m, i) => (m.role === 'user' ? i : acc),
@@ -75,8 +90,12 @@ export default function ChatList({
       aria-live="polite"
       aria-label={t.chat.messagesAria}
     >
-      <div className="max-w-2xl mx-auto w-full space-y-5 pb-[380px]">
+      <div className="max-w-2xl mx-auto w-full space-y-5 pb-44">
         {messages.map((message, index) => {
+          // If this assistant message is waiting for TTS audio to load completely, hold display
+          if (message.id === pendingVoiceMessageId) {
+            return null;
+          }
           if (message.status === 'pending') {
             // Show partial streaming content if available, otherwise hide
             if (!hasPartialContent(message)) return null;
@@ -92,13 +111,12 @@ export default function ChatList({
           );
         })}
 
-        {isLoading && !messages.some(
+        {/* In voiceMode, the single floating capsule handles loading state; in text mode, show 3 dots */}
+        {!voiceMode && isLoading && !messages.some(
           (m) => m.status === 'pending' && hasPartialContent(m)
         ) && <LoadingBubble />}
 
         {error && <ErrorBanner error={error} onRetry={onRetry} />}
-
-        <div aria-hidden style={{ height: spacerHeight }} />
       </div>
     </div>
   );

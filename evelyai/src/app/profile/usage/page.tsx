@@ -15,7 +15,7 @@ function UsagePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
-  const { isPremium, energySpent, refetchProfile } = useUserProfile();
+  const { isPremium, isUnlimited, energySpent, refetchProfile } = useUserProfile();
 
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -44,18 +44,18 @@ function UsagePageContent() {
           await refetchProfile();
           showToast("อัปเกรด Premium สำเร็จ! ได้รับงบ AI 50,000 ต่อวันแล้ว", "info");
         } else {
-          await refetchProfile();
+          showToast("ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง", "error");
         }
       } catch (err) {
-        console.error("Error syncing Stripe session:", err);
-        await refetchProfile();
+        console.error("Sync error:", err);
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
       } finally {
         setIsSyncing(false);
         router.replace("/profile/usage");
       }
     };
 
-    syncAndRefresh();
+    void syncAndRefresh();
   }, [checkout, sessionId, isMock, refetchProfile, router, showToast]);
 
   // Upgrade directly from usage page
@@ -77,10 +77,12 @@ function UsagePageContent() {
     }
   }, [showToast]);
 
-  const usageLimit = isPremium
+  const usageLimit = isUnlimited
+    ? Infinity
+    : isPremium
     ? DAILY_BUDGET_MICROBAHT.premium
     : DAILY_BUDGET_MICROBAHT.free;
-  const usagePct = computeUsagePct(energySpent, usageLimit);
+  const usagePct = isUnlimited ? 0 : computeUsagePct(energySpent, usageLimit);
   const barColor = usageBarColor(usagePct);
 
   return (
@@ -136,11 +138,11 @@ function UsagePageContent() {
                 <p className="text-2xl font-extrabold tracking-tight text-foreground tabular-nums">
                   {energySpent.toLocaleString()}{" "}
                   <span className="text-sm font-semibold text-foreground/60">
-                    / {usageLimit.toLocaleString()}
+                    / {isUnlimited ? "∞ (ไม่จำกัด)" : usageLimit.toLocaleString()}
                   </span>
                 </p>
-                <span className={`text-sm font-bold tabular-nums ${usageTextColor(usagePct)}`}>
-                  {usagePct}%
+                <span className={`text-sm font-bold tabular-nums ${isUnlimited ? 'text-primary' : usageTextColor(usagePct)}`}>
+                  {isUnlimited ? "Unlimited" : `${usagePct}%`}
                 </span>
               </div>
 
@@ -198,18 +200,24 @@ function UsagePageContent() {
                 </span>
                 <span
                   className={`ml-auto rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                    isPremium
+                    isUnlimited
+                      ? "bg-primary/10 text-primary"
+                      : isPremium
                       ? "bg-warning/10 text-warning"
                       : "bg-background border border-border-color text-foreground/75"
                   }`}
                 >
-                  {isPremium ? t.profile.planPremium : t.profile.planFree}
+                  {isUnlimited ? "Admin / Unlimited" : isPremium ? t.profile.planPremium : t.profile.planFree}
                 </span>
               </div>
 
               {/* Explanation */}
               <p className="text-[13px] leading-relaxed text-foreground/70">
-                {isPremium ? (
+                {isUnlimited ? (
+                  <>
+                    คุณได้รับสิทธิ์ <strong className="text-foreground">Unlimited (Admin)</strong> ใช้งาน Token และ AI ได้อย่างไม่จำกัด
+                  </>
+                ) : isPremium ? (
                   <>
                     คุณใช้แพลน <strong className="text-foreground">Premium</strong> ที่มีงบ AI{" "}
                     <strong className="text-foreground tabular-nums">
@@ -229,7 +237,7 @@ function UsagePageContent() {
               </p>
 
               {/* Upgrade box with action button for free users */}
-              {!isPremium && (
+              {!isPremium && !isUnlimited && (
                 <div className="mt-4 rounded-xl bg-primary-bg border border-primary/10 p-4">
                   <div className="flex items-center gap-3">
                     <svg

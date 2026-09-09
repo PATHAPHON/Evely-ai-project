@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWordBank } from '@/shared/hooks/useWordBank';
 import { useUserProfile } from '@/shared/hooks/useUserProfile';
@@ -11,6 +11,8 @@ import TypingGame from '@/features/refresh/components/TypingGame';
 import SpeakGame from '@/features/refresh/components/SpeakGame';
 import SummaryScreen from '@/features/refresh/components/SummaryScreen';
 import { shuffle } from '@/features/refresh/utils/shuffle';
+import { WordProgress } from '@/shared/utils/spacedRepetition';
+import type { WordReviewSummaryItem } from '@/features/refresh/gameTypes';
 
 type GameKind = 'matching' | 'typing' | 'speak';
 type Phase = 'loading' | 'playing' | 'summary';
@@ -38,7 +40,7 @@ function RefreshPlayContent() {
   const rawMode = searchParams.get('mode');
   const targetMode: GameKind = rawMode === 'typing' || rawMode === 'speak' ? rawMode : 'matching';
 
-  const { words, reviewWord, isLoading } = useWordBank();
+  const { words, reviewWord, getEntry, isLoading } = useWordBank();
   const { isPremium } = useUserProfile();
   const { exhausted: isBudgetExhausted } = useBudgetExhausted();
 
@@ -48,6 +50,10 @@ function RefreshPlayContent() {
   const [index, setIndex] = useState(0);
   const [improved, setImproved] = useState(0);
   const [isPractice, setIsPractice] = useState(false);
+  const [summaryItems, setSummaryItems] = useState<WordReviewSummaryItem[]>([]);
+  const summaryMapRef = useRef<Map<string, WordReviewSummaryItem>>(new Map());
+
+  const isPracticeMode = searchParams.get('practice') === 'true';
 
   useEffect(() => {
     if (isLoading || phase !== 'loading') return;
@@ -73,24 +79,30 @@ function RefreshPlayContent() {
     }
 
     const yellow = dedupShuffle(words.filter((w) => w.status === 'needs_review' && hasThai(w)));
+    const allEligible = dedupShuffle(words.filter(hasThai));
+    const pool = isPracticeMode ? allEligible : yellow;
+    const practiceActive = isPracticeMode;
 
     const minRequired = targetMode === 'matching' ? 3 : WORDS_PER_MODE;
 
     // Gate: require minimum words to play (3 for matching, 5 for typing/speak)
-    if (yellow.length < minRequired) {
+    if (pool.length < minRequired) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQueue([]);
       setInitialTotal(0);
-      setIsPractice(false);
+      setIsPractice(practiceActive);
       setIndex(0);
       setImproved(0);
+      setSummaryItems([]);
+      summaryMapRef.current.clear();
       setPhase('summary');
       return;
     }
 
     // Matching mode: 3 words per round, up to 6 words (max 2 rounds)
     if (targetMode === 'matching') {
-      const takeCount = yellow.length >= 6 ? 6 : 3;
-      const selected = yellow.slice(0, takeCount);
+      const takeCount = pool.length >= 6 ? 6 : 3;
+      const selected = pool.slice(0, takeCount);
       shuffle(selected);
 
       const items: QueueItem[] = selected.map((w) => ({
@@ -103,7 +115,7 @@ function RefreshPlayContent() {
 
       setQueue(items);
       setInitialTotal(items.length);
-      setIsPractice(false);
+      setIsPractice(practiceActive);
       setIndex(0);
       setImproved(0);
       setPhase('playing');
@@ -111,10 +123,10 @@ function RefreshPlayContent() {
     }
 
     const requiredTotal = WORDS_PER_MODE;
-    const selected = yellow.slice(0, requiredTotal);
+    const selected = pool.slice(0, requiredTotal);
     shuffle(selected);
 
-    if (targetMode === 'typing') {
+    if (targetMode === 'typing' || targetMode === 'speak') {
       const wordsToFetch = selected.map((w) => ({ word: w.word, thai: w.thai }));
       fetch('/api/word-image', {
         method: 'POST',
@@ -137,7 +149,7 @@ function RefreshPlayContent() {
           });
           setQueue(items);
           setInitialTotal(items.length);
-          setIsPractice(false);
+          setIsPractice(practiceActive);
           setIndex(0);
           setImproved(0);
           setPhase('playing');
@@ -153,7 +165,7 @@ function RefreshPlayContent() {
           }));
           setQueue(items);
           setInitialTotal(items.length);
-          setIsPractice(false);
+          setIsPractice(practiceActive);
           setIndex(0);
           setImproved(0);
           setPhase('playing');
@@ -171,18 +183,117 @@ function RefreshPlayContent() {
 
     setQueue(items);
     setInitialTotal(items.length);
-    setIsPractice(false);
+    setIsPractice(practiceActive);
     setIndex(0);
     setImproved(0);
     setPhase('playing');
-  }, [isLoading, words, phase, isBudgetExhausted, targetMode, router]);
+  }, [isLoading, words, phase, isBudgetExhausted, targetMode, isPracticeMode, router]);
+
+  function recordWordResult(
+    wordId: string,
+    wordStr: string,
+    thaiStr: string,
+    quality: number,
+    mistakes: number,
+  ) {
+    const normalized = wordStr.toLowerCase().trim();
+    const entry = getEntry(normalized);
+
+    const prev = summaryMapRef.current.get(wordId);
+    const totalMistakes = (prev?.mistakes ?? 0) + mistakes;
+
+    const oldInterval = entry?.interval ?? 1;
+    const currentProgress = new WordProgress(
+      entry?.box ?? 1,
+      oldInterval,
+      entry?.easeFactor ?? 2.5,
+      entry?.repetitions ?? 0,
+      entry?.nextReviewAt ?? new Date(),
+      entry?.lastReviewedAt ?? null
+    );
+    const nextProgress = currentProgress.review(quality);
+
+    summaryMapRef.current.set(wordId, {
+      wordId,
+      word: wordStr,
+      thai: thaiStr,
+      partOfSpeech: entry?.partOfSpeech ?? null,
+      quality,
+      mistakes: totalMistakes,
+      isPassed: quality >= 3,
+      oldInterval,
+      newInterval: nextProgress.interval,
+      nextReviewAt: nextProgress.nextReviewAt,
+      repetitions: nextProgress.repetitions,
+      easeFactor: nextProgress.easeFactor,
+    });
+  }
 
   function handlePlayAgain() {
+    summaryMapRef.current.clear();
+    setSummaryItems([]);
     setIndex(0);
     setImproved(0);
     setQueue([]);
     setInitialTotal(0);
     setPhase('loading');
+  }
+
+  function handleRetryMissedWords() {
+    const missed = Array.from(summaryMapRef.current.values()).filter((it) => !it.isPassed);
+    if (missed.length === 0) return;
+
+    const missedWordIds = new Set(missed.map((m) => m.wordId));
+    const selected = words.filter((w) => missedWordIds.has(w.id));
+
+    if (targetMode === 'matching') {
+      let pool = [...selected];
+      if (pool.length < 3) {
+        const distractors = words.filter((w) => !missedWordIds.has(w.id) && !!w.thai?.trim());
+        shuffle(distractors);
+        pool = pool.concat(distractors.slice(0, 3 - pool.length));
+      }
+      shuffle(pool);
+
+      const items: QueueItem[] = pool.map((w) => ({
+        id: `${w.id}-${targetMode}-missed-${Date.now()}`,
+        wordId: w.id,
+        word: w.word,
+        thai: (w.thai || '') as string,
+        game: targetMode,
+      }));
+
+      summaryMapRef.current.clear();
+      setSummaryItems([]);
+      setQueue(items);
+      setInitialTotal(items.length);
+      setIsPractice(true);
+      setIndex(0);
+      setImproved(0);
+      setPhase('playing');
+      return;
+    }
+
+    const items: QueueItem[] = selected.map((w) => {
+      const prev = queue.find((q) => q.wordId === w.id);
+      return {
+        id: `${w.id}-${targetMode}-missed-${Date.now()}`,
+        wordId: w.id,
+        word: w.word,
+        thai: (w.thai || '') as string,
+        game: targetMode,
+        imageUrl: prev?.imageUrl,
+      };
+    });
+
+    summaryMapRef.current.clear();
+    setSummaryItems([]);
+    setQueue(items);
+    setInitialTotal(items.length);
+    setIsPractice(true);
+    setIndex(0);
+    setImproved(0);
+    setPhase('playing');
   }
 
   function handleFallbackToTyping() {
@@ -207,11 +318,19 @@ function RefreshPlayContent() {
       }
     }
 
+    for (const res of results) {
+      const qItem = queue.find((q) => q.wordId === res.wordId);
+      if (qItem) {
+        recordWordResult(res.wordId, qItem.word, qItem.thai, res.quality, res.mistakes);
+      }
+    }
+
     const improvedCount = results.filter((r) => r.quality >= 3).length;
     setImproved((m) => m + improvedCount);
 
     const nextIdx = index + 3;
     if (nextIdx >= queue.length) {
+      setSummaryItems(Array.from(summaryMapRef.current.values()));
       setPhase('summary');
     } else {
       setIndex(nextIdx);
@@ -229,6 +348,16 @@ function RefreshPlayContent() {
     }
     if (quality >= 3) {
       setImproved((m) => m + 1);
+    }
+
+    if (item) {
+      let mistakes = 0;
+      if (item.game === 'typing') {
+        mistakes = quality === 5 ? 0 : quality === 4 ? 1 : quality === 3 ? 2 : 3;
+      } else if (item.game === 'speak') {
+        mistakes = quality === 5 ? 0 : quality === 3 ? 1 : 2;
+      }
+      recordWordResult(item.wordId, item.word, item.thai, quality, mistakes);
     }
 
     // If failed (quality < 3), re-queue word at the end of current game mode's block
@@ -253,6 +382,7 @@ function RefreshPlayContent() {
 
     const nextIdx = index + 1;
     if (!willRequeue && nextIdx >= queue.length) {
+      setSummaryItems(Array.from(summaryMapRef.current.values()));
       setPhase('summary');
     } else {
       setIndex(nextIdx);
@@ -296,14 +426,17 @@ function RefreshPlayContent() {
   }
 
   if (phase === 'summary') {
+    const hasMissed = summaryItems.some((it) => !it.isPassed);
     return (
       <SummaryScreen
         total={initialTotal || queue.length}
         improved={improved}
         isPractice={isPractice}
         isPremium={isPremium}
+        summaryItems={summaryItems}
         onPlayAgain={handlePlayAgain}
         onBackToMenu={() => router.push('/refresh')}
+        onRetryMissed={hasMissed ? handleRetryMissedWords : undefined}
       />
     );
   }
