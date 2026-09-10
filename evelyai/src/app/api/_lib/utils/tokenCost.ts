@@ -9,6 +9,7 @@ export const TOKEN_COST_MICROBAHT = {
 // OpenRouter bills per audio minute ($0.016/min), not per token, and clips here are short
 // (<=~10s). VERIFY against actual OpenRouter audio pricing.
 export const STT_COST_MICROBAHT = 500;
+export const TTS_COST_MICROBAHT = 500;
 
 export const DAILY_BUDGET_MICROBAHT = {
   free: 20_000,    // 0.02 THB

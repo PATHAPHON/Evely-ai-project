@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { getRequestUser, unauthorizedResponse, debitBudget } from '@/app/api/_lib/utils/requireUser';
+import {
+  getRequestUser,
+  unauthorizedResponse,
+  checkBudget,
+  debitBudget,
+  budgetExhaustedResponse,
+} from '@/app/api/_lib/utils/requireUser';
 import { OpenRouterTranslator } from '@/app/api/_lib/utils/openRouterTranslate';
-import { TOKEN_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
+import { TOKEN_COST_MICROBAHT, DAILY_BUDGET_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 
 // LLM call can take up to ~30s; without this the serverless gateway
 // can 504 before openRouterTranslate's own timeout fires.
@@ -27,7 +33,12 @@ function errorResponse(
  * Returns { translations: string[] } index-aligned to the input.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (!await getRequestUser()) return unauthorizedResponse();
+  const user = await getRequestUser();
+  if (!user) return unauthorizedResponse();
+
+  const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+  const hasBudget = await checkBudget(limit, user.isUnlimited);
+  if (!hasBudget) return budgetExhaustedResponse();
 
   let body: unknown;
   try {
@@ -68,7 +79,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } catch (e) {
       lastError = e;
       if (e instanceof Error && (e as Error & { status?: number }).status === 429) {
-        return errorResponse('rate_limit', 'Too many requests. Please wait.', 429);
+        // Map upstream rate-limit to 502 so 429 remains reserved for client budget exhaustion
+        return errorResponse('api_error', 'Translation provider is busy. Please try again.', 502);
       }
       console.error(`[translate] Attempt ${attempt} error:`, e);
       if (attempt < 2 && !(e instanceof Error && e.name === 'AbortError')) continue;

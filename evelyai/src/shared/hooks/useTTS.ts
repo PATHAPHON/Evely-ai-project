@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import type { SpeechLang } from '../types/chatTypes';
 
 const noopSubscribe = () => () => {};
@@ -170,6 +171,9 @@ export function useTTS(
           if (requestIdRef.current !== currentRequestId) return;
 
           if (!response.ok) {
+            if (response.status === 429) {
+              markBudgetExhausted();
+            }
             fallback();
             return;
           }

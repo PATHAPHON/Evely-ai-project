@@ -1,3 +1,5 @@
+import { markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
+
 /**
  * Client-side batch English→Thai translation via /api/translate.
  * Returns null when unauthenticated or on server error (callers fall back).
@@ -10,7 +12,12 @@ export async function translateBatchToThai(texts: string[]): Promise<string[] | 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ texts }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 429) {
+        markBudgetExhausted();
+      }
+      return null;
+    }
     const data = await res.json() as { translations: string[] | null };
     return data.translations;
   } catch {

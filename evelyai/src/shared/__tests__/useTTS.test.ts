@@ -190,6 +190,23 @@ describe('useTTS', () => {
   });
 
   describe('speak — fallback to Web Speech', () => {
+    it('falls back and marks budget exhausted when /api/tts returns 429', async () => {
+      const synth = installSpeechSynthesis();
+      vi.stubGlobal('fetch', mockFetchStatus(429));
+
+      const { result } = renderHook(() => useTTS('en-US'));
+
+      act(() => {
+        result.current.speak('Hello');
+      });
+
+      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
+
+      const utterance = synth.speak.mock.calls[0]![0] as MockUtterance;
+      expect(utterance.text).toBe('Hello');
+      expect(utterance.lang).toBe('en-US');
+    });
+
     it('falls back when /api/tts returns 503', async () => {
       const synth = installSpeechSynthesis();
       vi.stubGlobal('fetch', mockFetchStatus(503));

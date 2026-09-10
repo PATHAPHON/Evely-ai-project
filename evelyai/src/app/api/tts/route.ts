@@ -1,6 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createHash } from 'node:crypto';
-import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
+import {
+  getRequestUser,
+  unauthorizedResponse,
+  checkBudget,
+  debitBudget,
+  budgetExhaustedResponse,
+} from '@/app/api/_lib/utils/requireUser';
+import { DAILY_BUDGET_MICROBAHT, TTS_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 
 const OPENROUTER_TTS_URL = 'https://openrouter.ai/api/v1/audio/speech';
 const API_TIMEOUT_MS = 15_000;
@@ -118,7 +125,8 @@ function audioResponse(buffer: Buffer, cacheStatus: 'HIT' | 'MISS'): Response {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await getRequestUser()) return unauthorizedResponse();
+  const user = await getRequestUser();
+  if (!user) return unauthorizedResponse();
 
   let body: unknown;
   try {
@@ -153,20 +161,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'tts_unavailable', message: 'TTS not configured.' },
-      { status: 503 },
-    );
-  }
-
   const voice = resolveVoice((body as Record<string, unknown>).voice);
   const key = cacheKey(voice, text);
 
   const cached = audioCache.get(key);
   if (cached) {
     return audioResponse(cached, 'HIT');
+  }
+
+  // Gate cache MISS path by daily token budget
+  const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+  const hasBudget = await checkBudget(limit, user.isUnlimited);
+  if (!hasBudget) return budgetExhaustedResponse();
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'tts_unavailable', message: 'TTS not configured.' },
+      { status: 503 },
+    );
   }
 
   const controller = new AbortController();
@@ -213,6 +226,10 @@ export async function POST(request: NextRequest) {
     const buffer = isWav ? rawBuffer : pcmToWav(rawBuffer, 24000);
     audioCache.set(key, buffer);
     evictIfNeeded();
+
+    after(async () => {
+      await debitBudget(TTS_COST_MICROBAHT);
+    });
 
     return audioResponse(buffer, 'MISS');
   } catch (error: unknown) {
