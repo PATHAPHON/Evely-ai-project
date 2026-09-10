@@ -72,8 +72,9 @@ export function useUserProfile(): UseUserProfileReturn {
   const [energySpent, setEnergySpent] = useState<number>(0);
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
 
-  const loadProfileFromDB = useCallback(async (uid: string) => {
+  const loadProfileFromDB = useCallback(async (uid: string, userEmail?: string | null) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -100,7 +101,8 @@ export function useUserProfile(): UseUserProfileReturn {
       if (data) {
         setDisplayNameState(data.display_name || DEFAULT_NAME);
         setHandle(data.handle || "");
-        const isUnlimitedUser = data.subscription_status === 'unlimited' || data.handle === 'admin';
+        const isAdminEmail = Boolean(userEmail && (userEmail.toLowerCase() === 'admin@tranly.com' || userEmail.toLowerCase().startsWith('admin@')));
+        const isUnlimitedUser = data.subscription_status === 'unlimited' || data.handle === 'admin' || isAdminEmail;
         const isSubActive = isUnlimitedUser || data.subscription_status === 'active';
         setSubscriptionStatus(isUnlimitedUser ? 'unlimited' : isSubActive ? 'active' : 'free');
         setPeriodEnd(data.subscription_current_period_end ?? null);
@@ -140,20 +142,24 @@ export function useUserProfile(): UseUserProfileReturn {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const uid = session?.user?.id;
+      const userEmail = session?.user?.email;
       if (active && uid) {
         setUserId(uid);
-        await loadProfileFromDB(uid);
+        setEmail(userEmail || null);
+        await loadProfileFromDB(uid, userEmail);
       }
     };
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const uid = session?.user?.id;
+      const userEmail = session?.user?.email;
       if (active) {
         setUserId(uid || null);
+        setEmail(userEmail || null);
       }
       if (uid) {
-        loadProfileFromDB(uid);
+        loadProfileFromDB(uid, userEmail);
       } else if (active) {
         setDisplayNameState(DEFAULT_NAME);
         setHandle("");
@@ -226,14 +232,17 @@ export function useUserProfile(): UseUserProfileReturn {
   const refetchProfile = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user?.id;
+    const userEmail = session?.user?.email;
     if (uid) {
       setUserId(uid);
-      await loadProfileFromDB(uid);
+      if (userEmail) setEmail(userEmail);
+      await loadProfileFromDB(uid, userEmail);
     }
   }, [loadProfileFromDB]);
 
   const avatarInitial = displayName.length > 0 ? displayName[0] : "L";
-  const isUnlimited = subscriptionStatus === 'unlimited' || handle === 'admin';
+  const isAdminEmail = Boolean(email && (email.toLowerCase() === 'admin@tranly.com' || email.toLowerCase().startsWith('admin@')));
+  const isUnlimited = subscriptionStatus === 'unlimited' || handle === 'admin' || isAdminEmail;
   const isPremium = isUnlimited || subscriptionStatus === 'active';
   const dailyBudgetLimit = isUnlimited
     ? Infinity

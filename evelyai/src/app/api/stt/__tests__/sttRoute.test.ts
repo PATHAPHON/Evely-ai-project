@@ -58,7 +58,7 @@ describe('POST /api/stt', () => {
   });
 
   it('returns 429 if budget is exhausted', async () => {
-    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false });
+    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
     vi.mocked(checkBudget).mockResolvedValueOnce(false);
 
     const req = new Request('http://localhost/api/stt', {
@@ -71,7 +71,7 @@ describe('POST /api/stt', () => {
   });
 
   it('returns 400 if audio is missing', async () => {
-    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false });
+    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
     vi.mocked(checkBudget).mockResolvedValueOnce(true);
 
     const req = new Request('http://localhost/api/stt', {
@@ -86,7 +86,7 @@ describe('POST /api/stt', () => {
   });
 
   it('calls OpenRouter with google/chirp-3 by default and returns transcribed text', async () => {
-    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false });
+    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
     vi.mocked(checkBudget).mockResolvedValueOnce(true);
 
     const fetchMock = vi.fn().mockResolvedValueOnce({
@@ -122,7 +122,7 @@ describe('POST /api/stt', () => {
 
   it('supports custom language and OPENROUTER_STT_MODEL override', async () => {
     process.env.OPENROUTER_STT_MODEL = 'custom/model';
-    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: true });
+    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: true, isUnlimited: false });
     vi.mocked(checkBudget).mockResolvedValueOnce(true);
 
     const fetchMock = vi.fn().mockResolvedValueOnce({
@@ -151,7 +151,7 @@ describe('POST /api/stt', () => {
   });
 
   it('returns 502 when OpenRouter STT service fails', async () => {
-    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false });
+    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
     vi.mocked(checkBudget).mockResolvedValueOnce(true);
 
     const fetchMock = vi.fn().mockResolvedValueOnce({

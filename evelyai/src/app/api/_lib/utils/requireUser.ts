@@ -47,7 +47,8 @@ export async function getRequestUser(): Promise<RequestUser | null> {
       console.warn('getRequestUser: profile lookup warning:', profileError);
     }
 
-    const isUnlimited = profile?.subscription_status === 'unlimited' || profile?.handle === 'admin';
+    const isAdminEmail = Boolean(user.email && (user.email.toLowerCase() === 'admin@tranly.com' || user.email.toLowerCase().startsWith('admin@')));
+    const isUnlimited = profile?.subscription_status === 'unlimited' || profile?.handle === 'admin' || isAdminEmail;
     const isPremium = isUnlimited || profile?.subscription_status === 'active';
 
     return {

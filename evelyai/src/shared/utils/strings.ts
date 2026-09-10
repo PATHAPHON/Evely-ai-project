@@ -260,6 +260,10 @@ export interface UIStrings {
     tosAnd: string;
     tosPrivacy: string;
     tosError: string;
+    loggingIn: string;
+    registering: string;
+    redirecting: string;
+    pleaseWait: string;
   };
 }
 
@@ -510,6 +514,10 @@ export const th: UIStrings = {
     tosAnd: 'และ',
     tosPrivacy: 'นโยบายความเป็นส่วนตัว',
     tosError: 'กรุณายอมรับข้อกำหนดการใช้บริการและนโยบายความเป็นส่วนตัว',
+    loggingIn: 'กำลังเข้าสู่ระบบ...',
+    registering: 'กำลังสมัครสมาชิก...',
+    redirecting: 'กำลังพาคุณเข้าสู่ระบบ...',
+    pleaseWait: 'กรุณารอสักครู่...',
   },
 };
 

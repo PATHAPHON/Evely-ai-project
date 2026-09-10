@@ -5,6 +5,7 @@ import { useStrings } from "@/shared/utils/strings";
 import { useUserProfile } from "@/shared/hooks/useUserProfile";
 import { useToast } from "@/shared/components/Toast";
 import AppShell from "@/shared/components/AppShell";
+import SandboxCheckoutModal from "@/shared/components/SandboxCheckoutModal";
 
 /* ── Plan feature lists (hard-coded; no string keys exist yet) ─── */
 const FREE_FEATURES = [
@@ -24,31 +25,66 @@ const PREMIUM_FEATURES = [
 function BillingPageContent() {
   const t = useStrings();
   const { showToast } = useToast();
-  const { isPremium, periodEnd } = useUserProfile();
+  const { isPremium, isUnlimited, subscriptionStatus, periodEnd } = useUserProfile();
   const [loading, setLoading] = useState(false);
+  const [showSandboxModal, setShowSandboxModal] = useState(false);
 
-  /* Redirect to Stripe portal (manage) or checkout (upgrade) */
-  const handleBilling = useCallback(async () => {
+  // User is an active paying Stripe subscriber with an existing subscription
+  const hasActiveStripeSub = subscriptionStatus === 'active' && !isUnlimited;
+
+  /* Redirect to Stripe checkout (create checkout session) */
+  const handleCheckout = useCallback(async () => {
     setLoading(true);
     try {
-      const endpoint = isPremium
-        ? "/api/stripe/portal"
-        : "/api/stripe/create-checkout-session";
-      const res = await fetch(endpoint, { method: "POST" });
+      const res = await fetch("/api/stripe/create-checkout-session", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
         window.location.href = data.url;
         return;
       }
-      console.error("Billing error:", data.error);
+      console.error("Checkout session error:", data.error);
       showToast(typeof data.error === 'string' ? data.error : 'ไม่สามารถดำเนินการเรื่องการชำระเงินได้ในขณะนี้', 'error');
     } catch (err) {
-      console.error("Billing request failed:", err);
+      console.error("Checkout request failed:", err);
       showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง', 'error');
     } finally {
       setLoading(false);
     }
-  }, [isPremium, showToast]);
+  }, [showToast]);
+
+  /* Redirect to Stripe customer portal (manage existing subscription) */
+  const handleManagePortal = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      console.error("Billing portal error:", data.error);
+      if (data.error === 'No subscription found') {
+        showToast('ไม่พบข้อมูลการสมัครสมาชิกใน Stripe สำหรับบัญชีนี้', 'warning');
+        setShowSandboxModal(true);
+      } else {
+        showToast(typeof data.error === 'string' ? data.error : 'ไม่สามารถเปิดหน้าจัดการการเรียกเก็บเงินได้', 'error');
+      }
+    } catch (err) {
+      console.error("Portal request failed:", err);
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  /* Primary action click handler */
+  const handleClickAction = useCallback(() => {
+    if (hasActiveStripeSub) {
+      void handleManagePortal();
+    } else {
+      setShowSandboxModal(true);
+    }
+  }, [hasActiveStripeSub, handleManagePortal]);
 
   const expiryText = periodEnd
     ? new Date(periodEnd).toLocaleDateString("th-TH", {
@@ -58,7 +94,7 @@ function BillingPageContent() {
       })
     : null;
 
-  const features = isPremium ? PREMIUM_FEATURES : FREE_FEATURES;
+  const features = (isPremium || isUnlimited) ? PREMIUM_FEATURES : FREE_FEATURES;
 
   return (
     <AppShell
@@ -95,20 +131,26 @@ function BillingPageContent() {
               {/* Plan badge */}
               <span
                 className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${
-                  isPremium
+                  isUnlimited
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : isPremium
                     ? "bg-warning/10 text-warning"
                     : "bg-background border border-border-color text-foreground/75"
                 }`}
               >
-                {isPremium ? t.profile.planPremium : t.profile.planFree}
+                {isUnlimited ? "Admin / Unlimited" : isPremium ? t.profile.planPremium : t.profile.planFree}
               </span>
 
-              {/* Expiry (premium only) */}
-              {isPremium && expiryText && (
+              {/* Plan description or Expiry */}
+              {isUnlimited ? (
+                <p className="mt-2 text-xs text-primary font-semibold">
+                  สิทธิ์ผู้ดูแลระบบ (Admin) • ใช้งานได้ไม่จำกัด
+                </p>
+              ) : isPremium && expiryText ? (
                 <p className="mt-2 text-xs text-foreground/70">
                   {t.profile.expiresOn} {expiryText}
                 </p>
-              )}
+              ) : null}
 
               {/* Feature list */}
               <ul className="mt-5 w-full space-y-2 text-left">
@@ -139,19 +181,35 @@ function BillingPageContent() {
               {/* Big action button */}
               <button
                 type="button"
-                onClick={handleBilling}
+                onClick={handleClickAction}
                 disabled={loading}
                 className="mt-6 w-full rounded-xl bg-primary hover:bg-primary-hover px-4 py-3 text-sm font-bold text-white dark:text-gray-900 shadow-soft-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading
                   ? t.common.loading
-                  : isPremium
+                  : hasActiveStripeSub
                     ? t.profile.manageBilling
+                    : isUnlimited
+                    ? "ทดสอบชำระเงิน (Sandbox)"
                     : t.profile.upgradePremium}
               </button>
+
+              {!hasActiveStripeSub && (
+                <p className="mt-3 text-[11px] text-foreground/50">
+                  (ระบบทดสอบ Sandbox พร้อมบัตรตัวอย่าง)
+                </p>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Sandbox Payment test credentials modal */}
+        <SandboxCheckoutModal
+          isOpen={showSandboxModal}
+          onClose={() => setShowSandboxModal(false)}
+          onConfirm={handleCheckout}
+          loading={loading}
+        />
       </div>
     </AppShell>
   );

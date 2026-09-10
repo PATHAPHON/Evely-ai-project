@@ -4,6 +4,54 @@ import { Suspense } from "react";
 import { useStrings } from "@/shared/utils/strings";
 import { useAuthForm } from "@/features/auth/hooks/useAuthForm";
 import { AUTH_FIELD_CLASS as fieldClass, AUTH_LABEL_CLASS as labelClass } from "@/features/auth/utils/fieldStyles";
+import SlothMascot from "@/shared/components/mascots/SlothMascot";
+
+interface AuthLoadingOverlayProps {
+  mode: "login" | "register";
+  isSuccess: boolean;
+}
+
+function AuthLoadingOverlay({ mode, isSuccess }: AuthLoadingOverlayProps) {
+  const t = useStrings();
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm px-4 select-none"
+    >
+      {/* Decorative elements conforming to reduced motion */}
+      <div className="absolute top-10 left-10 text-foreground/5 font-bold text-7xl select-none pointer-events-none hidden md:block">
+        한
+      </div>
+      <div className="absolute bottom-10 right-10 text-foreground/5 font-bold text-7xl select-none pointer-events-none hidden md:block">
+        국
+      </div>
+
+      <div className="w-full max-w-[340px] flex flex-col items-center gap-6 rounded-3xl border border-border-color bg-card-bg/90 p-8 shadow-soft-xl text-center">
+        {/* Mascot / Spinner */}
+        <div className="relative flex items-center justify-center">
+          <div className="h-20 w-20 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <SlothMascot size={46} state={isSuccess ? "happy" : "idle"} />
+          </div>
+        </div>
+
+        {/* Status text */}
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-lg font-bold text-foreground tracking-tight">
+            {isSuccess
+              ? t.auth.successLogin
+              : (mode === "login" ? t.auth.loggingIn : t.auth.registering)}
+          </h2>
+          <p className="text-xs font-semibold text-foreground/60">
+            {isSuccess ? t.auth.redirecting : t.auth.pleaseWait}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AuthPageContent() {
   const t = useStrings();
@@ -33,6 +81,7 @@ function AuthPageContent() {
 
   return (
       <div className="relative flex min-h-dvh w-full select-none flex-col justify-center bg-background px-4 py-8 text-foreground font-sans">
+        {isLoading && <AuthLoadingOverlay mode={mode} isSuccess={!!success} />}
         
         {/* Decorative elements conforming to reduced motion */}
         <div className="absolute top-10 left-10 text-foreground/5 font-bold text-7xl select-none pointer-events-none hidden md:block">
