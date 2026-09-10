@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWordBank } from '@/shared/hooks/useWordBank';
 import { useUserProfile } from '@/shared/hooks/useUserProfile';
-import { useBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
+import { useBudgetExhausted, markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import GameShell from '@/features/refresh/components/GameShell';
 import MatchingGame, { MatchingResult } from '@/features/refresh/components/MatchingGame';
 import TypingGame from '@/features/refresh/components/TypingGame';
@@ -133,7 +133,12 @@ function RefreshPlayContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ words: wordsToFetch }),
       })
-        .then((res) => (res.ok ? res.json() : null))
+        .then((res) => {
+          if (res.headers.get('X-Budget-Exhausted') === '1' || res.status === 429) {
+            markBudgetExhausted();
+          }
+          return res.ok ? res.json() : null;
+        })
         .then((data) => {
           const images: Record<string, string> = data?.images || {};
           const items: QueueItem[] = selected.map((w) => {

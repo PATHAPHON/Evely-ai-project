@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useWordBank } from '@/shared/hooks/useWordBank';
+import { useUserProfile } from '@/shared/hooks/useUserProfile';
 import { useBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import RefreshMenu from '@/features/refresh/components/RefreshMenu';
 
@@ -10,7 +11,9 @@ import type { RefreshMode } from '@/features/refresh/components/RefreshMenu';
 export default function RefreshPage() {
   const router = useRouter();
   const { words, isLoading } = useWordBank();
-  const { exhausted: isBudgetExhausted } = useBudgetExhausted();
+  const { isBudgetExhausted: userBudgetExhausted } = useUserProfile();
+  const { exhausted: localBudgetExhausted } = useBudgetExhausted();
+  const isBudgetExhausted = userBudgetExhausted || localBudgetExhausted;
 
   // Deduplicate yellow words that have Thai translation
   const yellowMap = new Map<string, typeof words[number]>();

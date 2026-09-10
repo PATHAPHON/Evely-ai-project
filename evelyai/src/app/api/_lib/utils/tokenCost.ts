@@ -10,6 +10,7 @@ export const TOKEN_COST_MICROBAHT = {
 // (<=~10s). VERIFY against actual OpenRouter audio pricing.
 export const STT_COST_MICROBAHT = 500;
 export const TTS_COST_MICROBAHT = 500;
+export const IMAGE_COST_MICROBAHT = 1_000;
 
 export const DAILY_BUDGET_MICROBAHT = {
   free: 20_000,    // 0.02 THB

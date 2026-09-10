@@ -1,6 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getRequestUser, unauthorizedResponse } from '@/app/api/_lib/utils/requireUser';
+import {
+  getRequestUser,
+  unauthorizedResponse,
+  checkBudget,
+  debitBudget,
+} from '@/app/api/_lib/utils/requireUser';
+import { DAILY_BUDGET_MICROBAHT, IMAGE_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 
 export const maxDuration = 60;
 
@@ -85,15 +91,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ images: imagesMap }, { status: 200 });
   }
 
+  // Gate AI image generation by daily token budget
+  const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+  const hasBudget = await checkBudget(limit, user.isUnlimited);
+  if (!hasBudget) {
+    return NextResponse.json(
+      { images: imagesMap },
+      {
+        status: 200,
+        headers: {
+          'X-Budget-Exhausted': '1',
+        },
+      }
+    );
+  }
+
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     console.error('[word-image] OPENROUTER_API_KEY not found');
     return NextResponse.json({ images: imagesMap }, { status: 200 });
   }
 
+  // Cap batch generation to at most 2 images per request to prevent token spikes and latency
+  const wordsToGenerate = missingWords.slice(0, 2);
+  let generatedCount = 0;
+
   // 3. Generate missing images via OpenRouter with meta/muse-image
   await Promise.all(
-    missingWords.map(async (word) => {
+    wordsToGenerate.map(async (word) => {
       try {
         const thai = wordMap.get(word);
         const context = thai ? `representing "${word}" (meaning in Thai: "${thai}")` : `representing "${word}"`;
@@ -175,6 +200,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (finalUrl) {
           imagesMap[word] = finalUrl;
+          generatedCount++;
 
           // Save to database cache table
           await supabase.from('word_images').upsert(
@@ -190,6 +216,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     })
   );
+
+  if (generatedCount > 0) {
+    after(async () => {
+      await debitBudget(generatedCount * IMAGE_COST_MICROBAHT);
+    });
+  }
 
   return NextResponse.json({ images: imagesMap }, { status: 200 });
 }
