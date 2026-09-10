@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/shared/supabase/supabaseClient';
 import { useStrings } from '@/shared/utils/strings';
@@ -25,19 +25,18 @@ export function useAuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
-  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setHasSession(!!session);
     }).catch(() => {});
 
-    return () => {
-      if (redirectTimerRef.current) {
-        clearTimeout(redirectTimerRef.current);
-      }
-    };
   }, []);
+
+  const redirectAfterAuth = () => {
+    router.replace(redirectTarget);
+    router.refresh();
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,9 +56,7 @@ export function useAuthForm() {
       if (loginErr) throw loginErr;
 
       setSuccess(t.auth.successLogin);
-      redirectTimerRef.current = setTimeout(() => {
-        router.push(redirectTarget);
-      }, 900);
+      redirectAfterAuth();
     } catch (err: unknown) {
       setError(mapAuthError(err, t.auth));
       setIsLoading(false);
@@ -91,9 +88,7 @@ export function useAuthForm() {
 
       if (signUpData.session) {
         setSuccess(t.auth.successLogin);
-        redirectTimerRef.current = setTimeout(() => {
-          router.push(redirectTarget);
-        }, 900);
+        redirectAfterAuth();
       } else {
         setSuccess(t.auth.successRegister);
         setIsLoading(false);

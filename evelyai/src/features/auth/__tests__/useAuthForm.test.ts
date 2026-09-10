@@ -6,11 +6,15 @@ import { useAuthForm } from '../hooks/useAuthForm';
 import { supabase } from '@/shared/supabase/supabaseClient';
 
 const pushMock = vi.fn();
+const replaceMock = vi.fn();
+const refreshMock = vi.fn();
 const getSearchParamMock = vi.fn().mockReturnValue(null);
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: pushMock,
+    replace: replaceMock,
+    refresh: refreshMock,
   }),
   useSearchParams: () => ({
     get: getSearchParamMock,
@@ -48,7 +52,7 @@ describe('useAuthForm', () => {
     expect(result.current.success).toBeNull();
   });
 
-  it('handleLogin sets isLoading=true immediately and stays true on success until redirect', async () => {
+  it('handleLogin replaces the auth page and refreshes the route immediately on success', async () => {
     vi.mocked(supabase.auth.signInWithPassword).mockImplementation(
       () =>
         new Promise((resolve) =>
@@ -84,16 +88,12 @@ describe('useAuthForm', () => {
       await loginPromise;
     });
 
-    // On success, isLoading must STILL be true (showing loading screen while waiting to redirect)
+    // Keep the loading overlay mounted until the route is replaced.
     expect(result.current.isLoading).toBe(true);
     expect(result.current.success).toBeTruthy();
-
-    // Fast-forward redirect timer
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    expect(pushMock).toHaveBeenCalledWith('/new');
+    expect(replaceMock).toHaveBeenCalledWith('/new');
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it('handleLogin resets isLoading=false and sets error on auth failure', async () => {
@@ -165,11 +165,9 @@ describe('useAuthForm', () => {
     expect(result.current.isLoading).toBe(true);
     expect(result.current.success).toBeTruthy();
 
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    expect(pushMock).toHaveBeenCalledWith('/new');
+    expect(replaceMock).toHaveBeenCalledWith('/new');
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it('handleRegister sets isLoading=false when email confirmation is needed without session', async () => {
