@@ -42,7 +42,7 @@ function UsagePageContent() {
         if (res.ok) {
           clearBudgetExhausted();
           await refetchProfile();
-          showToast("อัปเกรด Premium สำเร็จ! ได้รับงบ AI 50,000 ต่อวันแล้ว", "info");
+          showToast("อัปเกรด Premium สำเร็จ! ได้รับงบ AI 50,000 tokens ต่อวันแล้ว", "info");
         } else {
           showToast("ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง", "error");
         }
@@ -138,7 +138,7 @@ function UsagePageContent() {
                 <p className="text-2xl font-extrabold tracking-tight text-foreground tabular-nums">
                   {energySpent.toLocaleString()}{" "}
                   <span className="text-sm font-semibold text-foreground/60">
-                    / {isUnlimited ? "∞ (ไม่จำกัด)" : usageLimit.toLocaleString()}
+                    / {isUnlimited ? "∞ (ไม่จำกัด)" : `${usageLimit.toLocaleString()} tokens`}
                   </span>
                 </p>
                 <span className={`text-sm font-bold tabular-nums ${isUnlimited ? 'text-primary' : usageTextColor(usagePct)}`}>
@@ -221,7 +221,7 @@ function UsagePageContent() {
                   <>
                     คุณใช้แพลน <strong className="text-foreground">Premium</strong> ที่มีงบ AI{" "}
                     <strong className="text-foreground tabular-nums">
-                      {DAILY_BUDGET_MICROBAHT.premium.toLocaleString()}
+                      {DAILY_BUDGET_MICROBAHT.premium.toLocaleString()} tokens
                     </strong>{" "}
                     ต่อวัน งบจะรีเซ็ตใหม่ทุกเที่ยงคืน
                   </>
@@ -229,7 +229,7 @@ function UsagePageContent() {
                   <>
                     คุณใช้แพลน <strong className="text-foreground">Free</strong> ที่มีงบ AI{" "}
                     <strong className="text-foreground tabular-nums">
-                      {DAILY_BUDGET_MICROBAHT.free.toLocaleString()}
+                      {DAILY_BUDGET_MICROBAHT.free.toLocaleString()} tokens
                     </strong>{" "}
                     ต่อวัน งบจะรีเซ็ตใหม่ทุกเที่ยงคืน
                   </>
@@ -261,7 +261,7 @@ function UsagePageContent() {
                       <p className="text-[11px] text-primary/70 mt-0.5">
                         ได้รับงบ AI เพิ่มเป็น{" "}
                         <strong className="tabular-nums">
-                          {DAILY_BUDGET_MICROBAHT.premium.toLocaleString()}
+                          {DAILY_BUDGET_MICROBAHT.premium.toLocaleString()} tokens
                         </strong>{" "}
                         ต่อวัน
                       </p>

@@ -5,13 +5,13 @@ import { Check } from "lucide-react";
 import { useReveal } from "@/shared/hooks/useReveal";
 
 const FREE_FEATURES = [
-  "งบ AI 20,000 µ฿/วัน",
+  "งบ AI 20,000 tokens/วัน",
   "คุย AI + แตะคำดูความหมาย",
   "คลังคำ + ทบทวน SRS",
 ];
 
 const PREMIUM_FEATURES = [
-  "งบ AI 50,000 µ฿/วัน",
+  "งบ AI 50,000 tokens/วัน",
   "ตัวเลือกคำตอบ (reply suggestions)",
   "ตรวจไวยากรณ์ประโยคของคุณ",
   "ไม่มีโฆษณา",
