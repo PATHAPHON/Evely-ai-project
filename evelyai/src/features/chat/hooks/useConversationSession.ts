@@ -168,55 +168,120 @@ export function useConversationSession(isPremium = false): UseConversationSessio
    * Clears `isTranslating` regardless of outcome so the skeleton always resolves.
    */
   const translateUserMessage = useCallback(
-    (userMessage: ChatMessage): Promise<void> => {
+    async (userMessage: ChatMessage): Promise<void> => {
+      const { id: userMessageId, rawText } = userMessage;
+
       if (!isPremium) {
         // Free tier: clear skeleton immediately, no grammar check
         setMessages((prev) =>
-          prev.map((msg) => (msg.id === userMessage.id ? { ...msg, isTranslating: false } : msg)),
+          prev.map((msg) => (msg.id === userMessageId ? { ...msg, isTranslating: false } : msg)),
         );
-        return Promise.resolve();
+        return;
       }
-      const { id: userMessageId, rawText } = userMessage;
-      return fetch('/api/grammar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: rawText }),
-      })
-        .then((res) => {
-          if (res.status === 429) markBudgetExhausted();
-          return res.ok ? res.json() : null;
-        })
-        .then((data) => {
-          if (data && typeof data.englishText === 'string' && data.englishText.trim()) {
-            const updated: ChatMessage = {
-              ...userMessage,
-              englishText: data.englishText,
-              translation: data.translation ?? '',
-              english: data.english ?? '',
-              grammarCorrect: data.grammarCorrect,
-              grammarNotes: data.grammarNotes,
-              isTranslating: false,
-            };
-            setMessages((prev) => prev.map((msg) => (msg.id === userMessageId ? updated : msg)));
-            if (sessionIdRef.current) {
-              saveMessage(sessionIdRef.current, updated).catch((err) => {
-                console.error('Failed to persist translated user message:', err);
-              });
-            }
-          } else {
-            // No usable translation — clear skeleton, fall back to rawText.
-            setMessages((prev) =>
-              prev.map((msg) => (msg.id === userMessageId ? { ...msg, isTranslating: false } : msg)),
-            );
-          }
-        })
-        .catch(() => {
-          setMessages((prev) =>
-            prev.map((msg) => (msg.id === userMessageId ? { ...msg, isTranslating: false } : msg)),
-          );
+
+      // Bypass grammar check for commands or texts without letters (emojis, numbers, symbols)
+      // "ทำให้มันสำเร็จไปเลย เพราะว่ามันมีบางตัวที่ใช้จุดไวยากรณ์ผิดไม่ได้"
+      const isCommand = rawText.trimStart().startsWith('/');
+      const hasLetters = /[a-zA-Z\u0E00-\u0E7F]/.test(rawText);
+      if (isCommand || !hasLetters) {
+        const updated: ChatMessage = {
+          ...userMessage,
+          englishText: rawText,
+          translation: '',
+          english: rawText,
+          grammarCorrect: true,
+          originalText: rawText,
+          correctedText: rawText,
+          grammarNotes: '',
+          isTranslating: false,
+        };
+        setMessages((prev) => prev.map((msg) => (msg.id === userMessageId ? updated : msg)));
+        if (sessionIdRef.current) {
+          await saveMessage(sessionIdRef.current, updated).catch((err) => {
+            console.error('Failed to persist bypassed user message:', err);
+          });
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/grammar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: rawText }),
         });
+
+        if (res.status === 429) markBudgetExhausted();
+
+        let data: (Partial<ChatMessage> & { error?: { message?: string } }) | null = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+
+        if (res.ok && data && typeof data.englishText === 'string' && data.englishText.trim()) {
+          const updated: ChatMessage = {
+            ...userMessage,
+            englishText: data.englishText,
+            translation: data.translation ?? '',
+            english: data.english ?? '',
+            grammarCorrect: data.grammarCorrect,
+            grammarNotes: data.grammarNotes,
+            originalText: data.originalText,
+            correctedText: data.correctedText,
+            grammarError: data.grammarError,
+            isTranslating: false,
+          };
+          setMessages((prev) => prev.map((msg) => (msg.id === userMessageId ? updated : msg)));
+          if (sessionIdRef.current) {
+            await saveMessage(sessionIdRef.current, updated).catch((err) => {
+              console.error('Failed to persist translated user message:', err);
+            });
+          }
+        } else {
+          // Fallback: grammar check failed or unusable response — do not block user!
+          let errorMsg = 'ไม่สามารถตรวจสอบไวยากรณ์ได้ในขณะนี้';
+          if (res.status === 429) {
+            errorMsg = 'งบประมาณการตรวจสอบไวยากรณ์รายวันหมดแล้ว';
+          } else if (data?.error?.message) {
+            errorMsg = data.error.message;
+          }
+
+          const updated: ChatMessage = {
+            ...userMessage,
+            englishText: rawText,
+            translation: '',
+            english: rawText,
+            grammarError: errorMsg,
+            isTranslating: false,
+          };
+          setMessages((prev) => prev.map((msg) => (msg.id === userMessageId ? updated : msg)));
+          if (sessionIdRef.current) {
+            await saveMessage(sessionIdRef.current, updated).catch((err) => {
+              console.error('Failed to persist fallback user message:', err);
+            });
+          }
+        }
+      } catch {
+        // Network error / timeout fallback
+        const updated: ChatMessage = {
+          ...userMessage,
+          englishText: rawText,
+          translation: '',
+          english: rawText,
+          grammarError: 'ไม่สามารถเชื่อมต่อระบบตรวจไวยากรณ์ได้',
+          isTranslating: false,
+        };
+        setMessages((prev) => prev.map((msg) => (msg.id === userMessageId ? updated : msg)));
+        if (sessionIdRef.current) {
+          await saveMessage(sessionIdRef.current, updated).catch((err) => {
+            console.error('Failed to persist fallback user message:', err);
+          });
+        }
+      }
     },
-    [isPremium, saveMessage],
+    [isPremium, saveMessage, markBudgetExhausted],
   );
 
   const sendMessage = useCallback(

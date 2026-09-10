@@ -49,6 +49,9 @@ export interface ChatMessage {
   /** Grammar correctness and correction explanation */
   grammarCorrect?: boolean;
   grammarNotes?: string;
+  originalText?: string;
+  correctedText?: string;
+  grammarError?: string;
   /** True when suggestions are locked (free tier). */
   suggestionsLocked?: boolean;
   /** Transient: true while waiting for /api/translate response; never persisted. */
@@ -97,6 +100,10 @@ export interface ChatSuccessResponse {
   ttsText?: string;
   grammarCorrect?: boolean;
   grammarNotes?: string;
+  originalText?: string;
+  correctedText?: string;
+  grammarError?: string;
+  fallback?: boolean;
 }
 
 export interface ChatErrorResponse {

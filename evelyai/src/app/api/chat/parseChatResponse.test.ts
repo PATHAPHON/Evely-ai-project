@@ -199,4 +199,48 @@ describe('parseChatResponse', () => {
     expect(result).toEqual(expectedResponseWithEscapes);
   });
 
+  it('extracts grammar feedback fields when grammar check detects errors', () => {
+    const grammarResponse = {
+      englishText: 'I went to school yesterday.',
+      translation: 'ฉันไปโรงเรียนเมื่อวานนี้',
+      english: 'I went to school yesterday.',
+      grammarCorrect: false,
+      originalText: 'I goes to school yesterday',
+      correctedText: 'I went to school yesterday.',
+      grammarNotes: 'ใช้ "went" แทน "goes" เพราะมี yesterday เป็นอดีต',
+    };
+    const result = parseChatResponse(JSON.stringify(grammarResponse));
+    expect(result.grammarCorrect).toBe(false);
+    expect(result.originalText).toBe('I goes to school yesterday');
+    expect(result.correctedText).toBe('I went to school yesterday.');
+    expect(result.grammarNotes).toBe('ใช้ "went" แทน "goes" เพราะมี yesterday เป็นอดีต');
+  });
+
+  it('handles string representation of grammarCorrect (e.g. "false" / "true")', () => {
+    const grammarResponse = {
+      englishText: 'She is smart.',
+      translation: 'เธอฉลาด',
+      grammarCorrect: 'true',
+    };
+    const result = parseChatResponse(JSON.stringify(grammarResponse));
+    expect(result.grammarCorrect).toBe(true);
+
+    const grammarErrorResponse = {
+      englishText: 'She is smart.',
+      translation: 'เธอฉลาด',
+      grammarCorrect: 'false',
+    };
+    const resultError = parseChatResponse(JSON.stringify(grammarErrorResponse));
+    expect(resultError.grammarCorrect).toBe(false);
+  });
+
+  it('extracts grammar feedback via regex fallback when JSON is malformed', () => {
+    const malformed =
+      '{"englishText":"I went","translation":"ฉันไป","originalText":"I goes","correctedText":"I went","grammarNotes":"ควรใช้ went","grammarCorrect":false';
+    const result = parseChatResponse(malformed);
+    expect(result.grammarCorrect).toBe(false);
+    expect(result.originalText).toBe('I goes');
+    expect(result.correctedText).toBe('I went');
+    expect(result.grammarNotes).toBe('ควรใช้ went');
+  });
 });

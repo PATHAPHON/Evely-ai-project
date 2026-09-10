@@ -67,6 +67,21 @@ export async function POST(
     return errorResponse('invalid_input', 'Text must be 1–500 characters.', 400);
   }
 
+  // Bypass grammar check for commands or texts without letters (emojis, numbers, symbols)
+  const isCommand = text.startsWith('/');
+  const hasLetters = /[a-zA-Z\u0E00-\u0E7F]/.test(text);
+  if (isCommand || !hasLetters) {
+    return NextResponse.json({
+      englishText: text,
+      english: text,
+      translation: '',
+      grammarCorrect: true,
+      originalText: text,
+      correctedText: text,
+      grammarNotes: '',
+    }, { status: 200 });
+  }
+
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return errorResponse('api_error', 'API key is missing.', 401);
@@ -84,17 +99,30 @@ export async function POST(
               `Analyze the following text for translation or English grammar correction. The text may be in Thai, English, or Korean.\n` +
               `Text: "${text}"\n\n` +
               `Instructions:\n` +
-              `1. If the text is in Thai or Korean, translate it into correct, natural English.\n` +
-              `2. If the text is in English, ALWAYS correct every grammatical, punctuation, and spelling error to make it correct and natural English — no matter how many errors there are, never refuse or leave it as-is.\n` +
-              `3. ALWAYS fill "englishText", "english", and "translation" — these are never empty.\n` +
-              `4. Fill out the JSON response schema below.\n\n` +
+              `1. If the text is in Thai or Korean:\n` +
+              `   - Translate it into correct, natural English.\n` +
+              `   - Set "grammarCorrect" to true, "grammarNotes" to "", and set "originalText" and "correctedText" to the translated English.\n` +
+              `2. If the text is in English:\n` +
+              `   - If it contains grammatical, spelling, or punctuation errors:\n` +
+              `     - Set "grammarCorrect" to false.\n` +
+              `     - Put the original incorrect sentence/phrase in "originalText".\n` +
+              `     - Put the corrected English sentence in "correctedText" and "englishText" (and "english").\n` +
+              `     - In "grammarNotes", explain clearly in Thai what was wrong and how it was fixed (e.g. 'ควรใช้ "went" แทน "go" เพราะเป็นเหตุการณ์ในอดีต').\n` +
+              `   - If it is already correct English:\n` +
+              `     - Set "grammarCorrect" to true, "grammarNotes" to "", and set "originalText" and "correctedText" to the English text.\n` +
+              `3. If the text cannot have grammar rules applied (e.g. symbols, numbers, emojis, slang that cannot be parsed):\n` +
+              `   - Set "grammarCorrect" to true, "grammarNotes" to "", and keep "englishText" as the original text.\n` +
+              `4. ALWAYS fill "englishText", "english", and "translation" — these are never empty.\n` +
+              `5. Fill out the JSON response schema below.\n\n` +
               `JSON Schema:\n` +
               `{\n` +
               `  "englishText": "<The corrected/translated English text>",\n` +
               `  "english": "<The corrected/translated English text>",\n` +
               `  "translation": "<Natural Thai translation of the corrected/translated English text>",\n` +
-              `  "grammarCorrect": <true if the input text was in English and had no errors, or if the input text was in Thai/Korean; false if the input text was in English and had grammatical/spelling errors>,\n` +
-              `  "grammarNotes": "<Brief, helpful explanation in Thai of any spelling/grammar corrections made. Explain what was wrong and how it was fixed, e.g. 'ควรใช้ I am hungry แทน I hungry เพราะขาด verb to be'. If correct or if translated from Thai, leave this empty.>" \n` +
+              `  "grammarCorrect": <true if text was correct or grammar check does not apply; false if text had grammar/spelling errors>,\n` +
+              `  "originalText": "<The original incorrect sentence or phrase if grammarCorrect is false, otherwise same as input>",\n` +
+              `  "correctedText": "<The corrected English sentence if grammarCorrect is false, otherwise same as englishText>",\n` +
+              `  "grammarNotes": "<Brief, helpful explanation in Thai of any spelling/grammar corrections made. If grammarCorrect is true, leave this empty.>" \n` +
               `}\n\n` +
               `Reply with ONLY a raw JSON object (no markdown, no code blocks/fences, no extra text).`,
           },
@@ -145,7 +173,28 @@ export async function POST(
       return errorResponse('api_error', 'Empty grammar check response.', 502);
     }
 
-    const result = parseChatResponse(content);
+    let result;
+    try {
+      result = parseChatResponse(content);
+      if (result.grammarCorrect === false) {
+        if (!result.originalText) result.originalText = text;
+        if (!result.correctedText) result.correctedText = result.englishText;
+        if (!result.grammarNotes) {
+          result.grammarNotes = 'พบจุดที่อาจไม่ถูกต้องตามหลักไวยากรณ์ แนะนำให้ปรับตามประโยคที่ถูกต้อง';
+        }
+      }
+    } catch {
+      result = {
+        englishText: text,
+        english: text,
+        translation: '',
+        grammarCorrect: true,
+        originalText: text,
+        correctedText: text,
+        grammarNotes: '',
+        fallback: true,
+      };
+    }
 
     // Debit budget after response
     after(async () => {

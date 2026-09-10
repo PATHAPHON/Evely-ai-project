@@ -88,9 +88,15 @@ export function useConversationHistory(): UseConversationHistoryReturn {
         const splitEnglish = (r.english || '').split('|||');
 
         // The english_phrases column stores:
-        // - User messages: JSON grammar correction data ({ grammarCorrect, grammarNotes })
+        // - User messages: JSON grammar correction data ({ grammarCorrect, grammarNotes, originalText, correctedText, grammarError })
         // - Assistant messages: JSON reply suggestions metadata ({ suggestions, suggestionsLocked })
-        let grammarData: { grammarCorrect?: boolean; grammarNotes?: string } | null = null;
+        let grammarData: {
+          grammarCorrect?: boolean;
+          grammarNotes?: string;
+          originalText?: string;
+          correctedText?: string;
+          grammarError?: string;
+        } | null = null;
         let assistantMeta: { suggestions?: ReplySuggestion[]; suggestionsLocked?: boolean } | null = null;
         if (r.english_phrases) {
           try {
@@ -127,6 +133,9 @@ export function useConversationHistory(): UseConversationHistoryReturn {
           suggestionsLocked: assistantMeta?.suggestionsLocked,
           grammarCorrect: grammarData?.grammarCorrect,
           grammarNotes: grammarData?.grammarNotes,
+          originalText: grammarData?.originalText,
+          correctedText: grammarData?.correctedText,
+          grammarError: grammarData?.grammarError,
         };
       });
 
@@ -183,8 +192,14 @@ export function useConversationHistory(): UseConversationHistoryReturn {
                 suggestionsLocked: message.suggestionsLocked,
               })
             : null
-          : (message.grammarCorrect !== undefined || message.grammarNotes)
-            ? JSON.stringify({ grammarCorrect: message.grammarCorrect, grammarNotes: message.grammarNotes })
+          : (message.grammarCorrect !== undefined || message.grammarNotes || message.originalText || message.correctedText || message.grammarError)
+            ? JSON.stringify({
+                grammarCorrect: message.grammarCorrect,
+                grammarNotes: message.grammarNotes,
+                originalText: message.originalText,
+                correctedText: message.correctedText,
+                grammarError: message.grammarError,
+              })
             : null,
         raw_text: message.rawText,
         timestamp: message.timestamp,

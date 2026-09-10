@@ -151,9 +151,22 @@ function extractChatResponse(
   }
   if (typeof obj.grammarCorrect === 'boolean') {
     response.grammarCorrect = obj.grammarCorrect;
+  } else if (typeof obj.grammarCorrect === 'string') {
+    const trimmed = obj.grammarCorrect.trim().toLowerCase();
+    if (trimmed === 'true') response.grammarCorrect = true;
+    else if (trimmed === 'false') response.grammarCorrect = false;
   }
   if (typeof obj.grammarNotes === 'string') {
-    response.grammarNotes = obj.grammarNotes;
+    response.grammarNotes = obj.grammarNotes.trim();
+  }
+  if (typeof obj.originalText === 'string' && obj.originalText.trim().length > 0) {
+    response.originalText = obj.originalText.trim();
+  }
+  if (typeof obj.correctedText === 'string' && obj.correctedText.trim().length > 0) {
+    response.correctedText = obj.correctedText.trim();
+  }
+  if (typeof obj.grammarError === 'string' && obj.grammarError.trim().length > 0) {
+    response.grammarError = obj.grammarError.trim();
   }
 
   return isValidChatResponse(response) ? response : null;
@@ -165,6 +178,9 @@ function extractChatResponseFromString(src: string): ChatSuccessResponse | null 
   const englishText = extractStringField(src, 'englishText');
   const translation = extractStringField(src, 'translation');
   const english = extractStringField(src, 'english');
+  const originalText = extractStringField(src, 'originalText');
+  const correctedText = extractStringField(src, 'correctedText');
+  const grammarNotes = extractStringField(src, 'grammarNotes');
 
   const response: ChatSuccessResponse = {
     sentences: englishText ? [{ englishText, translation, english }] : undefined,
@@ -172,6 +188,16 @@ function extractChatResponseFromString(src: string): ChatSuccessResponse | null 
     translation,
     english,
   };
+
+  if (originalText) response.originalText = originalText;
+  if (correctedText) response.correctedText = correctedText;
+  if (grammarNotes) response.grammarNotes = grammarNotes;
+
+  const grammarCorrectMatch = src.match(/"grammarCorrect"\s*:\s*(true|false)/i);
+  if (grammarCorrectMatch) {
+    response.grammarCorrect = grammarCorrectMatch[1].toLowerCase() === 'true';
+  }
+
   return isValidChatResponse(response) ? response : null;
 }
 

@@ -20,6 +20,9 @@ export default function UserMessage({
   // instead of chipping every English word as vocab.
   const isCommand = message.rawText.trimStart().startsWith('/');
 
+  const hasGrammarError = message.grammarCorrect === false;
+  const hasFallbackError = Boolean(message.grammarError);
+
   return (
     <div className="flex justify-end items-start w-full">
       <div className="animate-user-bubble-pop-in max-w-[85%] rounded-[28px] bg-primary-bg/70 text-foreground p-4 px-6 shadow-soft-sm">
@@ -42,12 +45,12 @@ export default function UserMessage({
           <div className="flex flex-col gap-1">
             <div className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap">
               <WordRenderer text={message.englishText} textClassName="text-xl font-bold text-foreground" />
-              {message.grammarCorrect === true && (
+              {message.grammarCorrect === true && !hasFallbackError && (
                 <span className="inline-flex items-center" title={t.chat.grammarCorrect}>
                   <CheckCircle2 className="text-correct" size={18} />
                 </span>
               )}
-              {message.grammarCorrect === false && (
+              {hasGrammarError && (
                 <button
                   type="button"
                   onClick={() => setIsExpanded(!isExpanded)}
@@ -58,20 +61,44 @@ export default function UserMessage({
                   <XCircle size={18} className={`transition-transform duration-200 ${isExpanded ? "scale-110" : ""}`} />
                 </button>
               )}
+              {hasFallbackError && (
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  title={message.grammarError}
+                  aria-label={t.chat.grammarStatusTitle}
+                  className="inline-flex items-center cursor-pointer text-amber-500 hover:text-amber-600 transition-colors focus:outline-none"
+                >
+                  <AlertCircle size={18} className={`transition-transform duration-200 ${isExpanded ? "scale-110" : ""}`} />
+                </button>
+              )}
             </div>
             {showTranslation && message.translation && (
               <p className="text-sm text-foreground/70 mt-1 leading-relaxed">{message.translation}</p>
             )}
           </div>
         ) : (
-          <div className="text-base text-foreground">
-            <WordRenderer text={message.rawText} textClassName="text-base text-foreground" />
+          <div className="flex flex-col gap-1">
+            <div className="text-base text-foreground flex items-center gap-2 flex-wrap">
+              <WordRenderer text={message.rawText} textClassName="text-base text-foreground" />
+              {hasFallbackError && (
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  title={message.grammarError}
+                  aria-label={t.chat.grammarStatusTitle}
+                  className="inline-flex items-center cursor-pointer text-amber-500 hover:text-amber-600 transition-colors focus:outline-none"
+                >
+                  <AlertCircle size={18} className={`transition-transform duration-200 ${isExpanded ? "scale-110" : ""}`} />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Grammar Error Popup Modal */}
-      {message.grammarCorrect === false && message.grammarNotes && isExpanded && (
+      {/* Grammar Popup Modal */}
+      {isExpanded && (hasGrammarError || hasFallbackError) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[1.5px] transition-opacity duration-300"
           onClick={() => setIsExpanded(false)}
@@ -82,9 +109,9 @@ export default function UserMessage({
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <div className="font-bold flex items-center gap-2 text-incorrect text-lg">
+              <div className={`font-bold flex items-center gap-2 text-lg ${hasGrammarError ? 'text-incorrect' : 'text-amber-500'}`}>
                 <AlertCircle size={20} />
-                <span>{t.chat.grammarErrorTitle}</span>
+                <span>{hasGrammarError ? t.chat.grammarErrorTitle : t.chat.grammarStatusTitle}</span>
               </div>
               <button
                 type="button"
@@ -96,17 +123,63 @@ export default function UserMessage({
               </button>
             </div>
 
-            {/* Content */}
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-foreground/45 uppercase tracking-wider mb-1">{t.chat.yourSentence}</p>
-                <p className="text-lg font-bold text-foreground leading-relaxed">{message.englishText}</p>
-              </div>
+            {/* Content for Grammar Correction */}
+            {hasGrammarError ? (
+              <div className="space-y-4">
+                {/* Incorrect Sentence */}
+                <div>
+                  <p className="text-xs font-semibold text-incorrect uppercase tracking-wider mb-1.5">
+                    {t.chat.incorrectSentence}
+                  </p>
+                  <div className="p-3.5 rounded-2xl bg-incorrect/10 border border-incorrect/25 flex items-start gap-2.5">
+                    <XCircle size={18} className="text-incorrect shrink-0 mt-0.5" />
+                    <p className="text-base font-semibold text-foreground/90 leading-relaxed break-words line-through decoration-incorrect/60">
+                      {message.originalText || message.rawText}
+                    </p>
+                  </div>
+                </div>
 
-              <div className="p-4 rounded-2xl bg-incorrect/5 border border-incorrect/20 text-sm text-incorrect leading-relaxed">
-                {message.grammarNotes}
+                {/* Corrected Sentence */}
+                <div>
+                  <p className="text-xs font-semibold text-correct uppercase tracking-wider mb-1.5">
+                    {t.chat.correctedSentence}
+                  </p>
+                  <div className="p-3.5 rounded-2xl bg-correct/10 border border-correct/25 flex items-start gap-2.5">
+                    <CheckCircle2 size={18} className="text-correct shrink-0 mt-0.5" />
+                    <p className="text-base font-bold text-foreground leading-relaxed break-words">
+                      {message.correctedText || message.englishText}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Explanation */}
+                <div>
+                  <p className="text-xs font-semibold text-foreground/55 uppercase tracking-wider mb-1.5">
+                    {t.chat.grammarExplanation}
+                  </p>
+                  <div className="p-4 rounded-2xl bg-card-bg/80 border border-border-color text-sm text-foreground/85 leading-relaxed">
+                    {message.grammarNotes || 'แนะนำให้ปรับประโยคตามตัวอย่างที่ถูกต้องด้านบน'}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Content for Fallback / Service Error */
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
+                  <p className="font-semibold mb-1">{t.chat.grammarCheckUnavailable}</p>
+                  <p className="opacity-90">{message.grammarError}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-foreground/45 uppercase tracking-wider mb-1">
+                    {t.chat.yourSentence}
+                  </p>
+                  <p className="text-base font-medium text-foreground leading-relaxed break-words">
+                    {message.rawText}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="mt-6 flex justify-end">

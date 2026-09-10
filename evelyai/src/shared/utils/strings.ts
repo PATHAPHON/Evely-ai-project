@@ -182,6 +182,11 @@ export interface UIStrings {
     grammarErrorToggleAria: string;
     grammarErrorTitle: string;
     yourSentence: string;
+    incorrectSentence: string;
+    correctedSentence: string;
+    grammarExplanation: string;
+    grammarCheckUnavailable: string;
+    grammarStatusTitle: string;
     closeDetailsAria: string;
     close: string;
     /** Reply suggestions. */
@@ -428,6 +433,11 @@ export const th: UIStrings = {
     grammarErrorToggleAria: 'ดูรายละเอียดจุดที่ผิด',
     grammarErrorTitle: 'จุดที่ไวยากรณ์ผิด',
     yourSentence: 'ประโยคของคุณ',
+    incorrectSentence: 'ประโยคเดิมที่ผิด',
+    correctedSentence: 'ประโยคที่ถูกต้อง',
+    grammarExplanation: 'คำอธิบายวิธีแก้ไข',
+    grammarCheckUnavailable: 'ไม่สามารถตรวจสอบไวยากรณ์ได้ในขณะนี้',
+    grammarStatusTitle: 'สถานะการตรวจไวยากรณ์',
     closeDetailsAria: 'ปิดรายละเอียด',
     close: 'ปิด',
     suggestPrompt: 'เลือกหรือพิมพ์ตอบได้เลย',
@@ -486,7 +496,7 @@ export const th: UIStrings = {
     successLogin: 'เข้าสู่ระบบสำเร็จ!',
     successLogout: 'ออกจากระบบสำเร็จแล้ว!',
     backToProfile: 'กลับไปยังโปรไฟล์',
-    googleBtn: 'ดำเนินการต่อด้วย Google',
+    googleBtn: 'ดำเนินการต่อด้วย Google (Coming Soon)',
     forgotPassword: 'ลืมรหัสผ่าน?',
     resetPasswordTitle: 'รีเซ็ตรหัสผ่าน',
     resetPasswordSubtitle: 'กรอกอีเมลของคุณ เราจะส่งลิงก์รีเซ็ตรหัสผ่านให้',
