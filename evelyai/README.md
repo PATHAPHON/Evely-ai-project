@@ -60,7 +60,6 @@ flowchart TD
         TransRoute["POST /api/translate (Gemini 3.1 Flash Lite)"]
         TTSRoute["POST /api/tts (Google Gemini Flash TTS)"]
         STTRoute["POST /api/stt (Google Chirp 3 STT)"]
-        WordImageRoute["POST /api/word-image (Meta Muse Image)"]
         StripeRoute["POST /api/stripe/webhook (Subscription Engine)"]
         BudgetEngine["Server-Side Budget Engine (check/debit µ฿)"]
     end
@@ -159,7 +158,6 @@ flowchart TD
 | `POST` | `/api/chat` | Session Token | มี (หักตาม Token) | ส่งข้อความสนทนา ตอบกลับเป็นข้อความ AI พร้อมแท็กอารมณ์ |
 | `POST` | `/api/grammar` | Session Token | มี (หักตาม Token) | ตรวจแก้ไวยากรณ์พร้อมส่งคำอธิบายภาษาไทย |
 | `POST` | `/api/word-detail` | Session Token | มี (เฉพาะ Cache Miss) | คืนค่าโครงสร้างคำแปล, คำนิยาม, ชนิดคำ และประโยคตัวอย่าง |
-| `POST` | `/api/word-image` | Session Token | มี | สร้างภาพประกอบคำศัพท์ด้วยโมเดลภาพ Generative AI |
 | `POST` | `/api/translate` | Session Token | มี | แปลข้อความภาษาอังกฤษเป็นภาษาไทยตามบริบทแชท |
 | `POST` | `/api/tts` | Session Token | มี | สังเคราะห์เสียงพูดภาษาอังกฤษเป็นไฟล์เสียง Audio Stream |
 | `POST` | `/api/stt` | Session Token | มี | แปลงเสียงพูดผู้ใช้เป็นข้อความภาษาอังกฤษเพื่อตรวจคำตอบ |

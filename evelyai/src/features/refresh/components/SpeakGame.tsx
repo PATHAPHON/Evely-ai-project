@@ -15,7 +15,6 @@ type SpeakState = 'idle' | 'listening' | 'correct' | 'wrong1' | 'wrong2' | 'skip
 export interface SpeakGameProps extends GameProps {
   onFallbackToTyping?: () => void;
   onSkip?: () => void;
-  imageUrl?: string | null;
 }
 
 /** Loosely compares recognized speech to the target word, ignoring case/punctuation. */
@@ -44,7 +43,7 @@ export default function SpeakGame(props: SpeakGameProps) {
   const { speak } = useTTS('en-US');
   const { startListening, stopListening, isListening, level, isTranscribing, isSupported } = useSTT();
   const { showToast } = useToast();
-  const { word, thai, onFallbackToTyping, onSkip, imageUrl } = props;
+  const { word, thai, onFallbackToTyping, onSkip } = props;
 
   const [state, setState] = useState<SpeakState>('idle');
   const [attempts, setAttempts] = useState(0);
@@ -56,13 +55,6 @@ export default function SpeakGame(props: SpeakGameProps) {
 
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionModalStatus, setPermissionModalStatus] = useState<PermissionModalStatus>('unrequested');
-  const [prevWord, setPrevWord] = useState(word);
-  const [imageError, setImageError] = useState(false);
-
-  if (prevWord !== word) {
-    setPrevWord(word);
-    setImageError(false);
-  }
 
   function runListening() {
     const nextAttempt = attempts + 1;
@@ -287,22 +279,10 @@ export default function SpeakGame(props: SpeakGameProps) {
           <div
             className={`relative w-full h-full rounded-[2.5rem] border-2 flex flex-col items-center justify-center p-6 transition-all duration-300 shadow-xl ${cardBorder} ${cardAnim}`}
           >
-            {/* Illustration area (Hybrid: image if available and loaded, else subtle styled visual) */}
-            {imageUrl && !imageError ? (
-              <div className="w-28 h-28 flex items-center justify-center mb-2 select-none">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt={thai || word}
-                  onError={() => setImageError(true)}
-                  className="max-h-full max-w-full object-contain drop-shadow-sm rounded-2xl"
-                />
-              </div>
-            ) : (
-              <div className="w-20 h-20 rounded-3xl bg-foreground/[0.03] dark:bg-foreground/[0.06] border border-border-color/40 flex items-center justify-center mb-3 shadow-inner">
-                <Volume2 size={32} className="text-foreground/35" />
-              </div>
-            )}
+            {/* Visual icon area */}
+            <div className="w-20 h-20 rounded-3xl bg-foreground/[0.03] dark:bg-foreground/[0.06] border border-border-color/40 flex items-center justify-center mb-3 shadow-inner">
+              <Volume2 size={32} className="text-foreground/35" />
+            </div>
 
             {/* Thai word */}
             <span className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-wide text-center">

@@ -27,7 +27,7 @@ vi.mock('@/shared/components/Toast', () => ({
   }),
 }));
 
-describe('SpeakGame image rendering', () => {
+describe('SpeakGame rendering', () => {
   const baseProps: SpeakGameProps = {
     word: 'apple',
     thai: 'แอปเปิ้ล',
@@ -39,37 +39,12 @@ describe('SpeakGame image rendering', () => {
     vi.clearAllMocks();
   });
 
-  it('renders Thai prompt text and volume icon when no imageUrl is provided', () => {
+  it('renders Thai prompt text and volume icon', () => {
     const { container } = render(<SpeakGame {...baseProps} />);
 
     expect(screen.getByText('แอปเปิ้ล')).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     // Check volume icon SVG exists
-    const svg = container.querySelector('svg.lucide-volume-2');
-    expect(svg).toBeInTheDocument();
-  });
-
-  it('renders illustration image when imageUrl is provided', () => {
-    render(<SpeakGame {...baseProps} imageUrl="https://example.com/apple.png" />);
-
-    const img = screen.getByRole('img');
-    expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute('src', 'https://example.com/apple.png');
-    expect(img).toHaveAttribute('alt', 'แอปเปิ้ล');
-    expect(screen.getByText('แอปเปิ้ล')).toBeInTheDocument();
-  });
-
-  it('falls back to volume icon if the image fails to load (onError)', () => {
-    const { container } = render(<SpeakGame {...baseProps} imageUrl="https://example.com/broken.png" />);
-
-    const img = screen.getByRole('img');
-    expect(img).toBeInTheDocument();
-
-    // Trigger image error
-    fireEvent.error(img);
-
-    // Image should be removed and volume icon rendered instead
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
     const svg = container.querySelector('svg.lucide-volume-2');
     expect(svg).toBeInTheDocument();
   });

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWordBank } from '@/shared/hooks/useWordBank';
 import { useUserProfile } from '@/shared/hooks/useUserProfile';
-import { useBudgetExhausted, markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
+import { useBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import GameShell from '@/features/refresh/components/GameShell';
 import MatchingGame, { MatchingResult } from '@/features/refresh/components/MatchingGame';
 import TypingGame from '@/features/refresh/components/TypingGame';
@@ -23,7 +23,6 @@ interface QueueItem {
   word: string;
   thai: string;
   game: GameKind;
-  imageUrl?: string;
 }
 
 const WORDS_PER_MODE = 5;
@@ -126,58 +125,6 @@ function RefreshPlayContent() {
     const selected = pool.slice(0, requiredTotal);
     shuffle(selected);
 
-    if (targetMode === 'typing' || targetMode === 'speak') {
-      const wordsToFetch = selected.map((w) => ({ word: w.word, thai: w.thai }));
-      fetch('/api/word-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ words: wordsToFetch }),
-      })
-        .then((res) => {
-          if (res.headers.get('X-Budget-Exhausted') === '1' || res.status === 429) {
-            markBudgetExhausted();
-          }
-          return res.ok ? res.json() : null;
-        })
-        .then((data) => {
-          const images: Record<string, string> = data?.images || {};
-          const items: QueueItem[] = selected.map((w) => {
-            const k = w.word.toLowerCase().trim();
-            return {
-              id: `${w.id}-${targetMode}`,
-              wordId: w.id,
-              word: w.word,
-              thai: w.thai as string,
-              game: targetMode,
-              imageUrl: images[k],
-            };
-          });
-          setQueue(items);
-          setInitialTotal(items.length);
-          setIsPractice(practiceActive);
-          setIndex(0);
-          setImproved(0);
-          setPhase('playing');
-        })
-        .catch((err) => {
-          console.warn('Failed to prefetch word images, falling back to text:', err);
-          const items: QueueItem[] = selected.map((w) => ({
-            id: `${w.id}-${targetMode}`,
-            wordId: w.id,
-            word: w.word,
-            thai: w.thai as string,
-            game: targetMode,
-          }));
-          setQueue(items);
-          setInitialTotal(items.length);
-          setIsPractice(practiceActive);
-          setIndex(0);
-          setImproved(0);
-          setPhase('playing');
-        });
-      return;
-    }
-
     const items: QueueItem[] = selected.map((w) => ({
       id: `${w.id}-${targetMode}`,
       wordId: w.id,
@@ -279,17 +226,13 @@ function RefreshPlayContent() {
       return;
     }
 
-    const items: QueueItem[] = selected.map((w) => {
-      const prev = queue.find((q) => q.wordId === w.id);
-      return {
-        id: `${w.id}-${targetMode}-missed-${Date.now()}`,
-        wordId: w.id,
-        word: w.word,
-        thai: (w.thai || '') as string,
-        game: targetMode,
-        imageUrl: prev?.imageUrl,
-      };
-    });
+    const items: QueueItem[] = selected.map((w) => ({
+      id: `${w.id}-${targetMode}-missed-${Date.now()}`,
+      wordId: w.id,
+      word: w.word,
+      thai: (w.thai || '') as string,
+      game: targetMode,
+    }));
 
     summaryMapRef.current.clear();
     setSummaryItems([]);
@@ -480,7 +423,6 @@ function RefreshPlayContent() {
     wordBank: words,
     onDone: handleDone,
     excludeWords,
-    imageUrl: item.imageUrl,
   };
 
   return (
