@@ -6,7 +6,7 @@ import {
   useEffect,
   type KeyboardEvent,
 } from 'react';
-import { Send, Mic, XCircle, Plus, BookOpen, Loader2 } from 'lucide-react';
+import { Send, Mic, XCircle, Plus, Loader2, Bot } from 'lucide-react';
 import type { SavedWord } from '@/shared/types/chatTypes';
 import { validateMessage } from '../utils/validateMessage';
 import { useStrings } from '@/shared/utils/strings';
@@ -33,6 +33,12 @@ export interface ChatInputProps {
   resetKey?: string | number;
   /** Opens the full-screen voice conversation mode. */
   onVoiceMode?: () => void;
+  /** Currently active custom AI role / prompt. */
+  customPrompt?: string | null;
+  /** Callback to open the custom role configuration modal. */
+  onOpenRoleModal?: () => void;
+  /** Callback to clear the active custom role. */
+  onClearCustomPrompt?: () => void;
 }
 
 export default function ChatInput({
@@ -51,6 +57,9 @@ export default function ChatInput({
   skillsEnabled = false,
   resetKey,
   onVoiceMode,
+  customPrompt,
+  onOpenRoleModal,
+  onClearCustomPrompt,
 }: ChatInputProps) {
   const t = useStrings();
   const [inputValue, setInputValue] = useState('');
@@ -103,6 +112,33 @@ export default function ChatInput({
 
   return (
     <div className="w-full relative">
+      {/* Custom role active badge */}
+      {customPrompt && (
+        <div className="flex flex-wrap items-center gap-2 mb-2.5 px-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-bg/80 px-3 py-1 text-xs font-semibold text-primary shadow-soft-sm backdrop-blur-sm max-w-full">
+            <Bot size={13} className="shrink-0 text-primary" />
+            <span className="truncate max-w-[200px] sm:max-w-xs">
+              บทบาท AI: {customPrompt}
+            </span>
+            <button
+              type="button"
+              onClick={onOpenRoleModal}
+              className="text-xs text-primary underline hover:text-primary-hover font-medium cursor-pointer ml-1"
+            >
+              แก้ไข
+            </button>
+            <button
+              type="button"
+              onClick={onClearCustomPrompt}
+              aria-label="ลบบทบาท AI"
+              className="text-primary/70 hover:text-primary cursor-pointer ml-0.5"
+            >
+              <XCircle size={13} />
+            </button>
+          </span>
+        </div>
+      )}
+
       {/* Word context tags */}
       {selectedWords.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3 px-2">
@@ -149,11 +185,14 @@ export default function ChatInput({
                   >
                     <button
                       type="button"
-                      onClick={() => setPlusMenuOpen(false)}
+                      onClick={() => {
+                        setPlusMenuOpen(false);
+                        onOpenRoleModal?.();
+                      }}
                       className="w-full flex items-center gap-2.5 text-left px-3.5 py-2.5 rounded-xl text-sm font-bold text-foreground/80 hover:bg-background/80 transition-colors cursor-pointer"
                     >
-                      <BookOpen size={16} className="text-primary" />
-                      <span>{t.chat.guidedLearning}</span>
+                      <Bot size={16} className="text-primary" />
+                      <span>ตั้งค่าบทบาท AI</span>
                     </button>
                   </div>
                 </>

@@ -23,6 +23,8 @@ import { useToast } from '@/shared/components/Toast';
 
 import { Lightbulb, Loader2, Volume2 } from 'lucide-react';
 import AppShell from '@/shared/components/AppShell';
+import { useCustomRolePrompt } from '../hooks/useCustomRolePrompt';
+import CustomRoleModal from './CustomRoleModal';
 
 interface ChatScreenProps {
   /** Existing session id to restore, or null for a brand-new open session. */
@@ -40,6 +42,8 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceTranscribing, setVoiceTranscribing] = useState(false);
   const [spokenVoiceId, setSpokenVoiceId] = useState<string | null>(null);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const { customPrompt, setCustomPrompt, clearCustomPrompt } = useCustomRolePrompt();
 
   const { activeLanguage } = useActiveLanguage();
   const { displayName, isPremium, isBudgetExhausted } = useUserProfile();
@@ -54,6 +58,7 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
     startSession,
     restoreSession,
     sessionId,
+    updateCustomPrompt,
   } = useConversationSession(isPremium);
 
   const speechLang = speechLangForLanguage(activeLanguage);
@@ -123,13 +128,19 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
     }
   }, [voiceMode, budgetExhausted, showToast]);
 
+  // Sync customPrompt into active session config whenever it changes
+  useEffect(() => {
+    updateCustomPrompt(customPrompt);
+  }, [customPrompt, updateCustomPrompt]);
+
   // Start a fresh open-ended session.
   const startOpenSession = useCallback(() => {
     const config: SessionConfig = {
       language: activeLanguage,
+      customPrompt: customPrompt || undefined,
     };
     startSession(config);
-  }, [activeLanguage, startSession]);
+  }, [activeLanguage, startSession, customPrompt]);
 
   // Restore/start the session and reflect its id in the URL once saved.
   useSessionUrlSync({
@@ -230,6 +241,9 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
       disabled={budgetExhausted}
       placeholder={budgetExhausted ? 'งบ AI วันนี้หมดแล้ว ใช้ต่อพรุ่งนี้' : undefined}
       onVoiceMode={budgetExhausted ? undefined : handleOpenVoiceMode}
+      customPrompt={customPrompt}
+      onOpenRoleModal={() => setRoleModalOpen(true)}
+      onClearCustomPrompt={clearCustomPrompt}
     />
   );
 
@@ -347,6 +361,13 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
           </div>
         </div>
       </div>
+      <CustomRoleModal
+        isOpen={roleModalOpen}
+        onClose={() => setRoleModalOpen(false)}
+        currentPrompt={customPrompt}
+        onSave={setCustomPrompt}
+        onClear={clearCustomPrompt}
+      />
     </AppShell>
   );
 }

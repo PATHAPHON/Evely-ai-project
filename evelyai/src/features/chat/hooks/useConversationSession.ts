@@ -27,7 +27,9 @@ export interface UseConversationSessionReturn {
   sendMessage: (text: string) => Promise<void>;
   retryLastMessage: () => Promise<void>;
   /** Load an existing session's messages and resume sending into it. */
-  restoreSession: (sessionId: string, language: TargetLanguage) => Promise<void>;
+  restoreSession: (sessionId: string, language: TargetLanguage, customPrompt?: string) => Promise<void>;
+  /** Update the active session's custom role prompt on the fly. */
+  updateCustomPrompt: (prompt: string | null) => void;
 }
 
 export function useConversationSession(isPremium = false): UseConversationSessionReturn {
@@ -65,14 +67,14 @@ export function useConversationSession(isPremium = false): UseConversationSessio
 
   /** Resume an existing conversation: load its messages and point further sends at the same session id. */
   const restoreSession = useCallback(
-    async (sessionId: string, language: TargetLanguage): Promise<void> => {
+    async (sessionId: string, language: TargetLanguage, customPrompt?: string): Promise<void> => {
       setError(null);
       sessionIdRef.current = sessionId;
       setSessionId(sessionId);
       createdAtRef.current = new Date().toISOString();
       sessionSavedRef.current = true; // row already exists in DB
       setSessionSaved(true);
-      const config: SessionConfig = { language };
+      const config: SessionConfig = { language, customPrompt };
       sessionConfigRef.current = config;
       setSessionConfig(config);
       try {
@@ -134,6 +136,7 @@ export function useConversationSession(isPremium = false): UseConversationSessio
         const aiResponse: ChatSuccessResponse = await callChatApi(
           contextMessages,
           config.language,
+          config.customPrompt,
         );
 
         // The model now replies with both target language and Thai translations
@@ -338,6 +341,16 @@ export function useConversationSession(isPremium = false): UseConversationSessio
     setIsLoading(false);
   }, [messages, runAssistantReply]);
 
+  const updateCustomPrompt = useCallback((prompt: string | null) => {
+    const val = prompt?.trim() || undefined;
+    setSessionConfig((prev) => (prev ? { ...prev, customPrompt: val } : { language: 'english', customPrompt: val }));
+    if (sessionConfigRef.current) {
+      sessionConfigRef.current.customPrompt = val;
+    } else {
+      sessionConfigRef.current = { language: 'english', customPrompt: val };
+    }
+  }, []);
+
   // ─── Return ──────────────────────────────────────────────────────────────────
 
   return {
@@ -351,5 +364,6 @@ export function useConversationSession(isPremium = false): UseConversationSessio
     sendMessage,
     retryLastMessage,
     restoreSession,
+    updateCustomPrompt,
   };
 }

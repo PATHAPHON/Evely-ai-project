@@ -45,8 +45,16 @@ function errorResponse(
   );
 }
 
-function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string {
+function buildSystemPrompt(
+  language: TargetLanguage,
+  isPremium: boolean,
+  customPrompt?: string
+): string {
   const lang = LANG_PROMPT[language];
+
+  const personaSection = customPrompt?.trim()
+    ? `SPECIAL ROLE / PERSONA INSTRUCTIONS (CRITICAL PRIORITY):\n${customPrompt.trim()}\nStrictly adopt this role, character, tone, or scenario in your reply while strictly adhering to the language and JSON output rules below.\n\n`
+    : `You are a ${lang.label} friend having an ongoing, casual text chat with the user.\n\n`;
 
   const suggestionsSection = isPremium
     ? `SUGGESTED REPLIES ("suggestions"):\n` +
@@ -61,7 +69,7 @@ function buildSystemPrompt(language: TargetLanguage, isPremium: boolean): string
     : `  "suggestions": []\n`;
 
   return (
-    `You are a ${lang.label} friend having an ongoing, casual text chat with the user.\n\n` +
+    personaSection +
     `CONTEXT IS CRITICAL: The messages above are the real conversation so far. Read ALL of them and reply DIRECTLY to the user's most recent message. Acknowledge what they just said, answer their questions, and keep the dialogue flowing. Never ignore their message, never change the subject randomly, and never repeat one of your earlier replies.\n\n` +
     `The user may write in ${lang.label}, Thai, or English — understand their meaning either way, but ALWAYS reply in ${lang.label}.\n\n` +
     `CONCISE 1–3 SENTENCE STRUCTURE:\n` +
@@ -119,9 +127,15 @@ function validateInput(body: unknown): ChatRequest | null {
     ? record.language
     : 'english';
 
+  const customPrompt =
+    typeof record.customPrompt === 'string' && record.customPrompt.trim().length > 0
+      ? record.customPrompt.trim().slice(0, 1000)
+      : undefined;
+
   return {
     messages: record.messages as ChatRequest['messages'],
     language,
+    customPrompt,
   };
 }
 
@@ -151,7 +165,7 @@ export async function POST(
     return errorResponse('invalid_input', 400);
   }
 
-  const { messages, language } = input;
+  const { messages, language, customPrompt } = input;
 
   const openRouterKey = process.env.OPENROUTER_API_KEY;
 
@@ -159,7 +173,7 @@ export async function POST(
     return errorResponse('api_error', 401);
   }
 
-  const systemPrompt = buildSystemPrompt(language ?? 'english', isPremium);
+  const systemPrompt = buildSystemPrompt(language ?? 'english', isPremium, customPrompt);
 
   const chatMessages: ChatMessage[] = messages.map((msg, index) => ({
     id: String(index),

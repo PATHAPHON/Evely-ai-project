@@ -16,6 +16,7 @@ export interface UseChatApiReturn {
   callChatApi: (
     contextMessages: ChatMessage[],
     language: TargetLanguage,
+    customPrompt?: string,
   ) => Promise<ChatSuccessResponse>;
 }
 
@@ -48,6 +49,7 @@ export function useChatApi(): UseChatApiReturn {
     async (
       contextMessages: ChatMessage[],
       language: TargetLanguage,
+      customPrompt?: string,
     ): Promise<ChatSuccessResponse> => {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -55,6 +57,7 @@ export function useChatApi(): UseChatApiReturn {
         body: JSON.stringify({
           messages: buildContextPayload(contextMessages),
           language,
+          ...(customPrompt?.trim() ? { customPrompt: customPrompt.trim() } : {}),
         }),
       });
 

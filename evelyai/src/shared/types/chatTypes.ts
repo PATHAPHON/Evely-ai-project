@@ -61,6 +61,7 @@ export interface ChatMessage {
 export interface SessionConfig {
   /** Learning language the AI should converse in. */
   language: TargetLanguage;
+  customPrompt?: string;
 }
 
 export interface SavedWord {
@@ -75,6 +76,7 @@ export interface ChatRequest {
   messages: ChatMessagePayload[];
   /** Learning language the AI should converse in (defaults to English). */
   language?: TargetLanguage;
+  customPrompt?: string;
 }
 
 export interface ChatMessagePayload {

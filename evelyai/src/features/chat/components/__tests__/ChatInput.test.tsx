@@ -158,4 +158,39 @@ describe('ChatInput', () => {
     fireEvent.change(input, { target: { value: 'hello' } });
     expect(screen.getByLabelText('ส่งข้อความ')).toBeDisabled();
   });
+
+  it('renders custom role badge when customPrompt is provided', () => {
+    const onOpenRoleModal = vi.fn();
+    const onClearCustomPrompt = vi.fn();
+
+    renderChatInput({
+      customPrompt: 'Barista in London',
+      onOpenRoleModal,
+      onClearCustomPrompt,
+    });
+
+    expect(screen.getByText(/บทบาท AI: Barista in London/)).toBeInTheDocument();
+
+    const editBtn = screen.getByText('แก้ไข');
+    fireEvent.click(editBtn);
+    expect(onOpenRoleModal).toHaveBeenCalledTimes(1);
+
+    const clearBtn = screen.getByLabelText('ลบบทบาท AI');
+    fireEvent.click(clearBtn);
+    expect(onClearCustomPrompt).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens plus menu and calls onOpenRoleModal when clicking ตั้งค่าบทบาท AI', () => {
+    const onOpenRoleModal = vi.fn();
+    renderChatInput({ skillsEnabled: true, onOpenRoleModal });
+
+    const plusBtn = screen.getByLabelText('เปิดเมนูตัวเลือก');
+    fireEvent.click(plusBtn);
+
+    const roleMenuBtn = screen.getByText('ตั้งค่าบทบาท AI');
+    expect(roleMenuBtn).toBeInTheDocument();
+
+    fireEvent.click(roleMenuBtn);
+    expect(onOpenRoleModal).toHaveBeenCalledTimes(1);
+  });
 });
