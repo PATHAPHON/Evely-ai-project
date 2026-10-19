@@ -39,8 +39,8 @@ export default function RefreshMenu({
   }[] = [
     {
       id: 'matching',
-      label: 'จับคู่คำ',
-      desc: 'จับคู่คำศัพท์และความหมายภาษาไทย (รอบละ 3 คำ)',
+      label: 'จับคู่ฟองศัพท์ (Bubble Pop)',
+      desc: 'แตะฟองคำศัพท์และคำแปลที่ลอยให้ชนกันระเบิดก่อนหมดเวลา',
       icon: <Layers size={20} stroke="url(#refresh-grad)" />,
       isLocked: !hasEnoughForMatching,
       lockReason: !hasEnoughForMatching ? `ต้องการอีก ${remainingForMatching} คำ` : undefined,
@@ -48,8 +48,8 @@ export default function RefreshMenu({
     },
     {
       id: 'speak',
-      label: 'พูดออกเสียง',
-      desc: 'ฝึกออกเสียงคำศัพท์เป็นภาษาอังกฤษด้วย AI',
+      label: 'ยิงพลังเสียง (Sonic Blaster)',
+      desc: 'ชาร์จพลังงานเสียงและเปล่งเสียงคำศัพท์เพื่อยิงเป้าหมาย',
       icon: <Mic size={20} stroke="url(#refresh-grad)" />,
       isLocked: isBudgetExhausted || !hasEnoughWords,
       lockReason: isBudgetExhausted
@@ -61,8 +61,8 @@ export default function RefreshMenu({
     },
     {
       id: 'typing',
-      label: 'พิมพ์แปลคำ',
-      desc: 'ฝึกสะกดและพิมพ์คำแปลภาษาไทยของคำศัพท์',
+      label: 'พิมพ์ศัพท์จับจังหวะ',
+      desc: 'พิมพ์คำศัพท์ที่ไหลลงมาให้ทัน พร้อมฟังเสียงและเรียนรู้คำแปล',
       icon: <Keyboard size={20} stroke="url(#refresh-grad)" />,
       isLocked: !hasEnoughWords,
       lockReason: !hasEnoughWords ? `ต้องการอีก ${remainingToPlay} คำ` : undefined,

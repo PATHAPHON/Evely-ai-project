@@ -7,7 +7,7 @@ import { useUserProfile } from '@/shared/hooks/useUserProfile';
 import { useBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import GameShell from '@/features/refresh/components/GameShell';
 import MatchingGame, { MatchingResult } from '@/features/refresh/components/MatchingGame';
-import TypingGame from '@/features/refresh/components/TypingGame';
+import TypingGame, { TypingResult } from '@/features/refresh/components/TypingGame';
 import SpeakGame from '@/features/refresh/components/SpeakGame';
 import SummaryScreen from '@/features/refresh/components/SummaryScreen';
 import { shuffle } from '@/features/refresh/utils/shuffle';
@@ -28,9 +28,9 @@ interface QueueItem {
 const WORDS_PER_MODE = 5;
 
 const TITLES: Record<GameKind, string> = {
-  matching: 'จับคู่ให้ถูกต้อง',
-  typing: 'แปลคำต่อไปนี้',
-  speak: 'บอกคำภาษาอังกฤษ',
+  matching: 'จับคู่ฟองศัพท์ (Bubble Pop)',
+  typing: 'พิมพ์ศัพท์จับจังหวะ',
+  speak: 'ยิงพลังเสียง (Sonic Blaster)',
 };
 
 function RefreshPlayContent() {
@@ -256,6 +256,36 @@ function RefreshPlayContent() {
   }
 
   async function handleMatchingRoundDone(results: MatchingResult[]) {
+    for (const res of results) {
+      const qItem = queue.find((q) => q.wordId === res.wordId);
+      if (qItem) {
+        recordWordResult(res.wordId, qItem.word, qItem.thai, res.quality, res.mistakes);
+      }
+    }
+
+    const improvedCount = results.filter((r) => r.quality >= 3).length;
+    setImproved((m) => m + improvedCount);
+
+    const nextIdx = index + 3;
+    if (nextIdx >= queue.length) {
+      setSummaryItems(Array.from(summaryMapRef.current.values()));
+      setPhase('summary');
+    } else {
+      setIndex(nextIdx);
+    }
+
+    if (!isPractice) {
+      for (const res of results) {
+        try {
+          await reviewWord(res.wordId, res.quality);
+        } catch (err) {
+          console.error('Failed to record word review in database:', err);
+        }
+      }
+    }
+  }
+
+  async function handleTypingRoundDone(results: TypingResult[]) {
     if (!isPractice) {
       for (const res of results) {
         try {
@@ -276,7 +306,7 @@ function RefreshPlayContent() {
     const improvedCount = results.filter((r) => r.quality >= 3).length;
     setImproved((m) => m + improvedCount);
 
-    const nextIdx = index + 3;
+    const nextIdx = index + results.length;
     if (nextIdx >= queue.length) {
       setSummaryItems(Array.from(summaryMapRef.current.values()));
       setPhase('summary');
@@ -415,6 +445,29 @@ function RefreshPlayContent() {
     );
   }
 
+  if (item.game === 'typing') {
+    const roundItems = queue.slice(index, index + 5);
+    const roundNumber = Math.floor(index / 5) + 1;
+    const totalRounds = Math.ceil(queue.length / 5);
+    const progress = totalRounds > 0 ? (roundNumber - 1) / totalRounds : 0;
+
+    return (
+      <GameShell
+        progress={progress}
+        onClose={() => router.push('/refresh')}
+        title={TITLES.typing}
+      >
+        <TypingGame
+          key={`typing-round-${roundNumber}`}
+          items={roundItems}
+          roundNumber={roundNumber}
+          totalRounds={totalRounds}
+          onRoundComplete={handleTypingRoundDone}
+        />
+      </GameShell>
+    );
+  }
+
   const excludeWords = new Set(queue.map((q) => q.word.toLowerCase().trim()));
 
   const props = {
@@ -431,7 +484,6 @@ function RefreshPlayContent() {
       onClose={() => router.push('/refresh')}
       title={TITLES[item.game]}
     >
-      {item.game === 'typing' && <TypingGame key={item.id + '-' + item.game} {...props} />}
       {item.game === 'speak' && (
         <SpeakGame
           key={item.id + '-' + item.game}

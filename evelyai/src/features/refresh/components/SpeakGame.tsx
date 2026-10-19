@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Mic, RotateCcw, Volume2 } from 'lucide-react';
+import {
+  Mic,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  Zap,
+  Crosshair,
+  ShieldAlert,
+  Sparkles,
+} from 'lucide-react';
 import { useTTS } from '@/shared/hooks/useTTS';
 import { useSTT } from '@/shared/hooks/useSTT';
 import type { GameProps } from '../gameTypes';
@@ -9,8 +18,9 @@ import { SpeakRound, EXIT_ANIM_MS } from '../gameTypes';
 import { useToast } from '@/shared/components/Toast';
 import { useGameExit } from '../useGameExit';
 import VoicePermissionModal, { PermissionModalStatus } from './VoicePermissionModal';
+import { gameAudio } from '../utils/gameAudio';
 
-type SpeakState = 'idle' | 'listening' | 'correct' | 'wrong1' | 'wrong2' | 'skipped';
+type SpeakState = 'idle' | 'listening' | 'firing' | 'correct' | 'wrong1' | 'wrong2' | 'skipped';
 
 export interface SpeakGameProps extends GameProps {
   onFallbackToTyping?: () => void;
@@ -22,21 +32,15 @@ function normalizeSpokenText(s: string): string {
   return s.toLowerCase().trim().replace(/[.,!?]/g, '');
 }
 
-// Per-bar multipliers for the waveform
-const BAR_SCALE = [0.4, 0.7, 1, 0.7, 0.4];
-
-function Waveform({ level }: { level: number }) {
-  return (
-    <div className="flex items-center justify-center gap-1.5 h-8" aria-label="กำลังฟัง">
-      {BAR_SCALE.map((scale, i) => (
-        <span
-          key={i}
-          className="w-1.5 rounded-full bg-slate-900 transition-[height] duration-75"
-          style={{ height: `${20 + level * scale * 80}%` }}
-        />
-      ))}
-    </div>
-  );
+interface BlastParticle {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  size: number;
+  life: number;
 }
 
 export default function SpeakGame(props: SpeakGameProps) {
@@ -48,6 +52,10 @@ export default function SpeakGame(props: SpeakGameProps) {
   const [state, setState] = useState<SpeakState>('idle');
   const [attempts, setAttempts] = useState(0);
   const [isSkipExiting, setIsSkipExiting] = useState(false);
+  const [isMuted, setIsMuted] = useState(gameAudio.getMuted());
+  const [particles, setParticles] = useState<BlastParticle[]>([]);
+  const nextParticleIdRef = useRef(0);
+
   const { isExiting, round } = useGameExit(
     (roundProps, onExitStart) => new SpeakRound(roundProps, onExitStart),
     props,
@@ -55,6 +63,48 @@ export default function SpeakGame(props: SpeakGameProps) {
 
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionModalStatus, setPermissionModalStatus] = useState<PermissionModalStatus>('unrequested');
+
+  // Spawn explosion particles
+  const spawnExplosionParticles = () => {
+    const count = 18;
+    const colors = ['#38bdf8', '#818cf8', '#c084fc', '#f59e0b', '#ffffff'];
+    const newParticles: BlastParticle[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+      const speed = Math.random() * 3.5 + 2.0;
+      newParticles.push({
+        id: nextParticleIdRef.current++,
+        x: 0,
+        y: 0,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: colors[i % colors.length],
+        size: Math.random() * 5 + 3,
+        life: 1.0,
+      });
+    }
+
+    setParticles(newParticles);
+  };
+
+  // Particles animation frame loop
+  useEffect(() => {
+    if (particles.length === 0) return;
+    const anim = requestAnimationFrame(() => {
+      setParticles((prev) =>
+        prev
+          .map((p) => ({
+            ...p,
+            x: p.x + p.vx * 3.5,
+            y: p.y + p.vy * 3.5,
+            life: p.life - 0.045,
+          }))
+          .filter((p) => p.life > 0)
+      );
+    });
+    return () => cancelAnimationFrame(anim);
+  }, [particles]);
 
   function runListening() {
     const nextAttempt = attempts + 1;
@@ -88,9 +138,21 @@ export default function SpeakGame(props: SpeakGameProps) {
           return;
         }
 
-        if (normalizeSpokenText(t) === normalizeSpokenText(word)) {
-          setState('correct');
+        const isMatch = normalizeSpokenText(t) === normalizeSpokenText(word);
+
+        if (isMatch) {
+          // Fire sonic laser beam!
+          setState('firing');
+          gameAudio.playLaserBlast();
+
+          setTimeout(() => {
+            gameAudio.playTargetExplosion();
+            spawnExplosionParticles();
+            setState('correct');
+          }, 240);
         } else {
+          // Misfire / Shield deflection
+          gameAudio.playShieldDeflect();
           setState(nextAttempt >= 2 ? 'wrong2' : 'wrong1');
         }
       },
@@ -98,7 +160,7 @@ export default function SpeakGame(props: SpeakGameProps) {
   }
 
   async function handleMic() {
-    if (isTranscribing || isExiting || isSkipExiting) return;
+    if (isTranscribing || isExiting || isSkipExiting || state === 'firing') return;
 
     if (isListening) {
       stopListening();
@@ -133,7 +195,7 @@ export default function SpeakGame(props: SpeakGameProps) {
 
   const finishedRef = useRef(false);
 
-  // Auto-advance & auto-TTS on correct: wait for TTS to finish before completing round
+  // Auto-advance & auto-TTS on correct
   useEffect(() => {
     if (state !== 'correct') return;
     finishedRef.current = false;
@@ -143,24 +205,18 @@ export default function SpeakGame(props: SpeakGameProps) {
       if (finishedRef.current) return;
       finishedRef.current = true;
       if (timeoutId) clearTimeout(timeoutId);
-      // Small visual pause after speech ends so user hears full pronunciation
       setTimeout(() => {
         round.finish(round.score(attempts, true));
       }, 400);
     };
 
-    // Fallback timer in case audio fails or cannot play
     timeoutId = setTimeout(() => {
       finishRound();
     }, 4500);
 
     speak(word, {
-      onEnd: () => {
-        finishRound();
-      },
-      onError: () => {
-        finishRound();
-      },
+      onEnd: () => finishRound(),
+      onError: () => finishRound(),
     });
 
     return () => {
@@ -168,7 +224,7 @@ export default function SpeakGame(props: SpeakGameProps) {
     };
   }, [state, word, attempts, round, speak]);
 
-  // Auto-advance & auto-TTS on wrong2 (missed 2 attempts): wait for TTS to finish before completing round
+  // Auto-advance & auto-TTS on wrong2 (missed 2 attempts)
   useEffect(() => {
     if (state !== 'wrong2') return;
     finishedRef.current = false;
@@ -183,18 +239,13 @@ export default function SpeakGame(props: SpeakGameProps) {
       }, 500);
     };
 
-    // Fallback timer in case audio fails or cannot play
     timeoutId = setTimeout(() => {
       finishRound();
     }, 5000);
 
     speak(word, {
-      onEnd: () => {
-        finishRound();
-      },
-      onError: () => {
-        finishRound();
-      },
+      onEnd: () => finishRound(),
+      onError: () => finishRound(),
     });
 
     return () => {
@@ -202,10 +253,11 @@ export default function SpeakGame(props: SpeakGameProps) {
     };
   }, [state, word, attempts, round, speak]);
 
-  // Skip / loop handler: wait for TTS to finish before animating card out
+  // Skip / Tactical Evade handler
   function handleSkipClick() {
     if (
       state === 'correct' ||
+      state === 'firing' ||
       state === 'wrong2' ||
       state === 'skipped' ||
       isExiting ||
@@ -238,70 +290,113 @@ export default function SpeakGame(props: SpeakGameProps) {
     }, 4500);
 
     speak(word, {
-      onEnd: () => {
-        proceedSkip();
-      },
-      onError: () => {
-        proceedSkip();
-      },
+      onEnd: () => proceedSkip(),
+      onError: () => proceedSkip(),
     });
   }
 
-  const cardBorder =
-    state === 'correct'
-      ? 'border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] bg-emerald-500/10'
-      : state === 'wrong1'
-        ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.35)] bg-amber-500/10 animate-shake'
-        : state === 'wrong2'
-          ? 'border-rose-500 shadow-[0_0_24px_rgba(244,63,94,0.35)] bg-rose-500/10'
-          : state === 'skipped'
-            ? 'border-[#1cb0f6] shadow-[0_0_20px_rgba(28,176,246,0.35)] bg-[#1cb0f6]/10'
-            : isListening
-              ? 'border-[#1cb0f6] shadow-[0_0_24px_rgba(28,176,246,0.3)] bg-card-bg'
-              : 'border-border-color bg-card-bg border-b-4 border-b-border-color/80';
-
-  const cardAnim = (isExiting || isSkipExiting) ? 'animate-card-out' : 'animate-card-in';
-  const canMic = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isTranscribing;
-  const canSkip = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isListening && !isTranscribing;
+  const isDangerZone = state === 'wrong1';
+  const isTargetDestroyed = state === 'correct';
+  const cardAnim = isExiting || isSkipExiting ? 'animate-card-out' : 'animate-card-in';
+  const canMic = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isTranscribing && state !== 'firing';
+  const canSkip = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isListening && !isTranscribing && state !== 'firing';
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-between py-2 sm:py-4">
-      {/* Center card area with layered deck effect */}
-      <div className="w-full flex-1 flex items-center justify-center min-h-[300px] max-h-[380px] my-auto">
-        <div className="relative w-full max-w-xs h-[280px] sm:h-[300px]">
-          {/* Layered Card Deck Illusion (4 layers behind main card) */}
-          <div className="absolute inset-x-8 -top-4 h-full rounded-[2.5rem] border border-border-color/30 bg-card-bg/25 pointer-events-none" />
-          <div className="absolute inset-x-6 -top-3 h-full rounded-[2.5rem] border border-border-color/45 bg-card-bg/45 pointer-events-none" />
-          <div className="absolute inset-x-4 -top-2 h-full rounded-[2.5rem] border border-border-color/60 bg-card-bg/65 pointer-events-none" />
-          <div className="absolute inset-x-2 -top-1 h-full rounded-[2.5rem] border border-border-color/80 bg-card-bg/85 pointer-events-none" />
+    <div className="flex-1 flex flex-col items-center justify-between py-2 sm:py-4 relative w-full max-w-sm mx-auto select-none min-h-[500px]">
+      {/* Top HUD Status Bar */}
+      <div className="w-full flex items-center justify-between px-2 mb-2">
+        <div className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+            <Crosshair size={12} />
+            SONIC BLASTER
+          </span>
+          {isDangerZone && (
+            <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse">
+              <ShieldAlert size={12} />
+              DANGER ZONE
+            </span>
+          )}
+        </div>
 
-          {/* Front Main Card */}
+        <button
+          type="button"
+          onClick={() => setIsMuted(gameAudio.toggleMute())}
+          aria-label={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'}
+          className="p-1.5 rounded-full bg-card-bg border border-border-color/80 text-foreground/60 hover:text-foreground active:scale-90 transition-all shadow-soft-xs cursor-pointer"
+        >
+          {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+        </button>
+      </div>
+
+      {/* Target Arena (Top / Center) */}
+      <div className="w-full flex-1 flex flex-col items-center justify-center relative min-h-[240px]">
+        {/* Holographic Aiming Crosshair Grid */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+          <div className="w-64 h-64 rounded-full border border-dashed border-cyan-400 animate-spin-slow" />
+          <div className="w-44 h-44 rounded-full border border-cyan-500/40" />
+        </div>
+
+        {/* Laser Beam Shooting Upwards */}
+        {state === 'firing' && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-3.5 h-64 bg-gradient-to-t from-cyan-400 via-sky-200 to-white rounded-full shadow-[0_0_24px_rgba(34,211,238,1)] animate-pulse z-30 pointer-events-none" />
+        )}
+
+        {/* Approaching Target Drone / Core */}
+        <div
+          className={`relative w-full max-w-xs transition-all duration-300 ${
+            isDangerZone ? 'translate-y-6 scale-105' : 'translate-y-0 scale-100'
+          }`}
+        >
           <div
-            className={`relative w-full h-full rounded-[2.5rem] border-2 flex flex-col items-center justify-center p-6 transition-all duration-300 shadow-xl ${cardBorder} ${cardAnim}`}
+            className={`relative w-full rounded-3xl border-2 p-6 flex flex-col items-center justify-center backdrop-blur-md shadow-xl transition-all duration-300 ${cardAnim} ${
+              isTargetDestroyed
+                ? 'border-emerald-400 bg-emerald-500/15 shadow-[0_0_30px_rgba(16,185,129,0.5)] scale-95 opacity-90'
+                : isDangerZone
+                ? 'border-rose-500 bg-rose-500/15 shadow-[0_0_25px_rgba(244,63,94,0.5)] animate-shake'
+                : state === 'wrong2'
+                ? 'border-rose-500 bg-rose-500/20 shadow-[0_0_25px_rgba(244,63,94,0.4)]'
+                : isListening
+                ? 'border-cyan-400 bg-cyan-500/10 shadow-[0_0_25px_rgba(34,211,238,0.35)]'
+                : 'border-border-color/80 bg-card-bg shadow-soft-sm'
+            }`}
           >
-            {/* Visual icon area */}
-            <div className="w-20 h-20 rounded-3xl bg-foreground/[0.03] dark:bg-foreground/[0.06] border border-border-color/40 flex items-center justify-center mb-3 shadow-inner">
-              <Volume2 size={32} className="text-foreground/35" />
+            {/* Target Reticle Badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/[0.05] border border-border-color/60 text-[10px] font-bold text-foreground/60 mb-2">
+              <Crosshair size={12} className={isDangerZone ? 'text-rose-500' : 'text-cyan-400'} />
+              <span>{isDangerZone ? 'ระยะประชิด: 30M' : 'เป้าหมายตรวจจับ: 100M'}</span>
             </div>
 
-            {/* Thai word */}
-            <span className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-wide text-center">
+            {/* Prompt Thai Word */}
+            <span className="text-3xl sm:text-4xl font-black text-foreground tracking-wide text-center">
               {thai}
             </span>
 
-            {/* Feedback & Word Reveal */}
-            {state === 'wrong1' && (
-              <p className="text-amber-500 dark:text-amber-400 font-bold text-sm mt-3 animate-shake">
-                ลองอีกครั้ง!
-              </p>
+            {/* Target Feedback Overlay */}
+            {isTargetDestroyed && (
+              <div className="mt-3 flex flex-col items-center animate-card-fade-in text-center">
+                <span className="flex items-center gap-1 text-[11px] font-black text-emerald-400 uppercase tracking-widest">
+                  <Sparkles size={14} />
+                  {attempts === 1 ? 'DIRECT HIT! PERFECT SHOT' : 'TARGET DESTROYED!'}
+                </span>
+                <span className="text-2xl sm:text-3xl font-black text-emerald-400 mt-0.5">
+                  {word}
+                </span>
+              </div>
+            )}
+
+            {isDangerZone && (
+              <div className="mt-2.5 flex items-center gap-1 text-rose-400 font-extrabold text-xs">
+                <ShieldAlert size={14} />
+                <span>เกราะสะท้อนการยิง! ลองปรับเสียงแล้วยิงอีกครั้ง</span>
+              </div>
             )}
 
             {state === 'wrong2' && (
               <div className="mt-3 flex flex-col items-center animate-card-fade-in text-center">
-                <span className="text-[11px] font-bold text-rose-500 uppercase tracking-wider">
-                  คำตอบที่ถูกต้องคือ
+                <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+                  คลื่นเสียงที่ถูกต้องคือ
                 </span>
-                <span className="text-2xl sm:text-3xl font-black text-rose-500 dark:text-rose-400 mt-0.5">
+                <span className="text-2xl sm:text-3xl font-black text-rose-400 mt-0.5">
                   {word}
                 </span>
               </div>
@@ -309,79 +404,122 @@ export default function SpeakGame(props: SpeakGameProps) {
 
             {state === 'skipped' && (
               <div className="mt-3 flex flex-col items-center animate-card-fade-in text-center">
-                <span className="text-[11px] font-bold text-[#1cb0f6] uppercase tracking-wider">
-                  คำศัพท์คือ
+                <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
+                  ข้ามเป้าหมาย — คำศัพท์คือ
                 </span>
-                <span className="text-2xl sm:text-3xl font-black text-[#1cb0f6] mt-0.5">
+                <span className="text-2xl sm:text-3xl font-black text-cyan-400 mt-0.5">
                   {word}
                 </span>
               </div>
             )}
 
-            {state === 'correct' && (
-              <div className="mt-3 flex flex-col items-center animate-card-fade-in text-center">
-                <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">
-                  ถูกต้อง!
-                </span>
-                <span className="text-2xl sm:text-3xl font-black text-emerald-500 dark:text-emerald-400 mt-0.5">
-                  {word}
-                </span>
-              </div>
-            )}
+            {/* Explosion Particle Emitter */}
+            {particles.map((p) => (
+              <div
+                key={p.id}
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(${p.x}px, ${p.y}px) scale(${p.life})`,
+                  width: `${p.size}px`,
+                  height: `${p.size}px`,
+                  backgroundColor: p.color,
+                  opacity: p.life,
+                  borderRadius: '9999px',
+                  boxShadow: `0 0 12px ${p.color}`,
+                  pointerEvents: 'none',
+                  zIndex: 40,
+                }}
+              />
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Bottom Controls Area */}
+      {/* Bottom Sonic Cannon & Core Energy Reactor */}
       <div className="w-full max-w-xs flex flex-col items-center mt-auto">
-        {/* Buttons Row: Large 3D Blue Mic + Tactile Skip Button */}
-        <div className="flex items-center gap-3.5 w-full">
+        {/* Status Prompt Line */}
+        <div className="text-center text-xs font-bold mb-3 h-5 flex items-center justify-center">
+          {isListening ? (
+            <span className="text-cyan-400 flex items-center gap-1.5 animate-pulse">
+              <Zap size={14} />
+              กำลังชาร์จพลังงานเสียง... พูดคำภาษาอังกฤษเลย!
+            </span>
+          ) : isTranscribing ? (
+            <span className="text-amber-400 animate-pulse">กำลังล็อกพิกัดและประมวลผลเสียง...</span>
+          ) : state === 'firing' ? (
+            <span className="text-cyan-300 font-extrabold animate-bounce">FIRING SONIC BEAM!</span>
+          ) : isDangerZone ? (
+            <span className="text-rose-400 font-bold">เป้าหมายกำลังประชิด! แตะปืนใหญ่แล้วยิงอีกครั้ง</span>
+          ) : (
+            <span className="text-foreground/50">แตะปืนใหญ่แล้วออกเสียงภาษาอังกฤษเพื่อยิงเป้าหมาย</span>
+          )}
+        </div>
+
+        {/* Sonic Cannon Trigger Controls */}
+        <div className="flex items-center gap-3 w-full">
+          {/* Main Core Energy Reactor / Mic Button */}
           <button
+            type="button"
             onClick={handleMic}
             disabled={!canMic && !isListening}
-            aria-label={isListening ? 'กำลังฟัง กดเพื่อหยุด' : 'กดเพื่อพูด'}
-            className={`flex-1 h-18 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center transition-all cursor-pointer select-none ${
+            aria-label={isListening ? 'กำลังชาร์จพลังเสียง แตะเพื่อยิง' : 'แตะเพื่อชาร์จปืนใหญ่'}
+            className={`flex-1 h-20 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden transition-all duration-200 cursor-pointer select-none ${
               isListening
-                ? 'bg-[#1cb0f6] border-b-2 border-[#1479ab] shadow-[0_0_24px_rgba(28,176,246,0.45)] scale-[0.98]'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 border-2 border-cyan-300 shadow-[0_0_30px_rgba(34,211,238,0.6)]'
                 : canMic
-                  ? 'bg-[#1cb0f6] hover:bg-[#1899d6] border-b-[5px] border-[#1479ab] active:border-b-0 active:translate-y-[5px] shadow-md'
-                  : 'bg-[#1cb0f6]/50 border-b-2 border-[#1479ab]/50 opacity-50 cursor-not-allowed'
+                ? 'bg-gradient-to-br from-card-bg via-card-bg/90 to-primary/10 border-2 border-primary/50 hover:border-primary active:scale-95 shadow-soft-sm'
+                : 'bg-card-bg/40 border border-border-color/40 opacity-50 cursor-not-allowed'
             }`}
           >
+            {/* Real-time Voice Volume Halo Glow based on `level` */}
+            {isListening && (
+              <div
+                className="absolute inset-0 bg-cyan-300/30 rounded-3xl pointer-events-none transition-transform duration-75"
+                style={{ transform: `scale(${1 + Math.min(level, 1) * 0.45})` }}
+              />
+            )}
+
             {isListening ? (
-              <Waveform level={level} />
+              <div className="flex items-center gap-1.5 z-10" aria-label="คลื่นเสียงชาร์จ">
+                {[0.4, 0.7, 1, 0.7, 0.4].map((scale, i) => (
+                  <span
+                    key={i}
+                    className="w-1.5 rounded-full bg-white transition-[height] duration-75 shadow-[0_0_8px_white]"
+                    style={{ height: `${20 + level * scale * 70}%`, minHeight: '12px' }}
+                  />
+                ))}
+              </div>
             ) : isTranscribing ? (
-              <span className="text-slate-900 font-bold text-sm animate-pulse">กำลังประมวลผล...</span>
+              <span className="text-amber-400 font-extrabold text-xs z-10 animate-pulse">LOCKING...</span>
             ) : (
-              <Mic size={34} className="text-slate-900" strokeWidth={2.6} />
+              <div className="flex items-center gap-2 z-10 text-primary">
+                <Mic size={26} strokeWidth={2.5} />
+                <span className="font-extrabold text-sm tracking-wide">
+                  {isDangerZone ? 'ยิงอีกครั้ง' : 'ชาร์จพลังยิง'}
+                </span>
+              </div>
             )}
           </button>
 
-          <button
-            onClick={handleSkipClick}
-            disabled={!canSkip}
-            aria-label="ข้ามคำนี้เพื่อวนกลับมาใหม่"
-            title="ข้ามคำนี้เพื่อวนกลับมาใหม่"
-            className={`w-18 h-18 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center transition-all cursor-pointer select-none ${
-              canSkip
-                ? 'bg-slate-800 dark:bg-[#18232c] hover:bg-slate-700 dark:hover:bg-[#22303c] border border-slate-700 dark:border-[#2a3744] border-b-[5px] border-b-slate-950 dark:border-b-[#10171d] active:border-b-0 active:translate-y-[5px] shadow-md'
-                : 'bg-slate-800/40 dark:bg-[#18232c]/40 border border-border-color/30 border-b-2 border-b-border-color/30 opacity-40 cursor-not-allowed'
-            }`}
-          >
-            <RotateCcw size={26} className="text-[#1cb0f6]" strokeWidth={2.6} />
-          </button>
-        </div>
-
-        {/* Can't speak right now text link */}
-        {onFallbackToTyping && (
+          {/* Tactical Skip Button */}
           <button
             type="button"
-            onClick={onFallbackToTyping}
-            className="text-foreground/45 hover:text-foreground/80 text-xs sm:text-sm font-medium transition-colors cursor-pointer active:opacity-60 py-2 px-4 mt-4"
+            onClick={handleSkipClick}
+            disabled={!canSkip}
+            aria-label="หลบหลีกและข้ามคำนี้"
+            title="หลบหลีกและข้ามคำนี้"
+            className={`w-20 h-20 rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer select-none border ${
+              canSkip
+                ? 'bg-card-bg border-border-color/80 hover:border-cyan-400 active:scale-95 text-foreground/60 hover:text-cyan-400 shadow-soft-xs'
+                : 'bg-card-bg/30 border-border-color/30 opacity-40 cursor-not-allowed text-foreground/30'
+            }`}
           >
-            ตอนนี้ไม่สะดวกพูด
+            <RotateCcw size={22} strokeWidth={2.4} />
+            <span className="text-[10px] font-bold mt-1">หลบหลีก</span>
           </button>
-        )}
+        </div>
       </div>
 
       <VoicePermissionModal
@@ -393,4 +531,3 @@ export default function SpeakGame(props: SpeakGameProps) {
     </div>
   );
 }
-
