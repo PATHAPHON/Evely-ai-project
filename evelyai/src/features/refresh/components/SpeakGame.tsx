@@ -298,8 +298,8 @@ export default function SpeakGame(props: SpeakGameProps) {
   const isDangerZone = state === 'wrong1';
   const isTargetDestroyed = state === 'correct';
   const cardAnim = isExiting || isSkipExiting ? 'animate-card-out' : 'animate-card-in';
-  const canMic = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isTranscribing && state !== 'firing';
-  const canSkip = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isListening && !isTranscribing && state !== 'firing';
+  const canMic = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isTranscribing;
+  const canSkip = (state === 'idle' || state === 'wrong1') && !isExiting && !isSkipExiting && !isListening && !isTranscribing;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-between py-2 sm:py-4 relative w-full max-w-sm mx-auto select-none min-h-[500px]">
