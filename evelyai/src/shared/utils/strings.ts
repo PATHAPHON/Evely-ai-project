@@ -457,7 +457,7 @@ export const th: UIStrings = {
     navChat: 'แชทหลัก',
     navWords: 'คลังคำศัพท์',
     navGem: 'Gem',
-    navRefresh: 'โหมดการเล่น',
+    navRefresh: 'เกมทบทวน',
     recent: 'ล่าสุด',
     allChats: 'แชททั้งหมด',
     untitledChat: 'คุยทั่วไป',
