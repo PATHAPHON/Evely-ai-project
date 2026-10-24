@@ -3,6 +3,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import Stripe from 'stripe';
 
+import { resolveOrigin } from '../_lib/resolveOrigin';
+
 export async function POST(request: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
@@ -44,9 +46,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: '/profile?portal=mock' });
   }
 
+  let body: { origin?: string } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // Empty body is acceptable
+  }
+
   try {
     const stripe = new Stripe(secretKey);
-    const origin = new URL(request.url).origin;
+    const origin = resolveOrigin(request, body.origin);
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,

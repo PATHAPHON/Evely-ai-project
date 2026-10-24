@@ -16,6 +16,19 @@ vi.mock('../../utils/gameAudio', () => ({
   },
 }));
 
+// Mock useTTS
+const mockSpeak = vi.fn();
+vi.mock('@/shared/hooks/useTTS', () => ({
+  useTTS: () => ({
+    speak: mockSpeak,
+    stop: vi.fn(),
+    isSpeaking: false,
+    isSynthesizing: false,
+    isSupported: true,
+    error: null,
+  }),
+}));
+
 describe('TypingGame 4-Lane Component', () => {
   const mockItems = [
     { id: '1', wordId: 'w1', word: 'cat', thai: 'แมว' },
@@ -25,12 +38,6 @@ describe('TypingGame 4-Lane Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-
-    // Mock speech synthesis
-    window.speechSynthesis = {
-      cancel: vi.fn(),
-      speak: vi.fn(),
-    } as unknown as SpeechSynthesis;
   });
 
   afterEach(() => {
@@ -90,5 +97,58 @@ describe('TypingGame 4-Lane Component', () => {
     const { unmount } = render(<TypingGame items={mockItems} />);
     unmount();
     expect(gameAudio.stopBgm).toHaveBeenCalled();
+  });
+
+  it('waits for TTS voice speech onEnd before advancing to the next word', () => {
+    render(<TypingGame items={mockItems} />);
+
+    // Hit note 1 ('C')
+    act(() => {
+      vi.advanceTimersByTime(2800);
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'C' }));
+    });
+
+    // Hit note 2 ('A')
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    });
+
+    // Hit note 3 ('T')
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'T' }));
+    });
+
+    // Completion popup should be visible and speak triggered
+    expect(screen.getByText('✓ ถูกต้องยอดเยี่ยม!')).toBeInTheDocument();
+    expect(mockSpeak).toHaveBeenCalledWith('cat', expect.any(Object));
+
+    // Even after 1400ms (the old premature advance timeout), it should STILL be on word 1
+    act(() => {
+      vi.advanceTimersByTime(1400);
+    });
+    expect(screen.getByText(/คำที่ 1 \/ 2/)).toBeInTheDocument();
+
+    // Now simulate TTS onEnd callback
+    const ttsArgs = mockSpeak.mock.calls[0][1];
+    act(() => {
+      ttsArgs.onEnd();
+    });
+
+    // Advance 500ms after audio finishes
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // Now it should have advanced to word 2 ('fruit')
+    expect(screen.getByText(/คำที่ 2 \/ 2/)).toBeInTheDocument();
+    expect(screen.getByText('ผลไม้')).toBeInTheDocument();
   });
 });

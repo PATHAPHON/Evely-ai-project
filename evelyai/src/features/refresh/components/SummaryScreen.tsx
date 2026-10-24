@@ -72,9 +72,9 @@ export default function SummaryScreen({
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-background text-foreground px-6">
         <div className="text-6xl mb-6">📚</div>
-        <h2 className="text-2xl font-bold mb-2">ยังไม่มีคำครบกำหนด</h2>
+        <h2 className="text-2xl font-bold mb-2">ยังไม่มีคำศัพท์ในคลัง</h2>
         <p className="text-foreground/60 mb-8 text-center max-w-sm">
-          สะสมคำให้ครบ 40 คำ (มีคำแปลแล้ว) แล้วคำที่ถึงกำหนดทบทวนจะมาอยู่ที่นี่
+          สะสมคำศัพท์ให้ครบอย่างน้อย 6 คำจากการสนทนา แล้วกลับมาฝึกฝนที่นี่
         </p>
 
         {!isPremium && (

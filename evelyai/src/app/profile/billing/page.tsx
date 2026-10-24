@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStrings } from "@/shared/utils/strings";
 import { useUserProfile } from "@/shared/hooks/useUserProfile";
 import { useToast } from "@/shared/components/Toast";
+import { clearBudgetExhausted } from "@/shared/hooks/useBudgetExhausted";
 import AppShell from "@/shared/components/AppShell";
 import SandboxCheckoutModal from "@/shared/components/SandboxCheckoutModal";
 
@@ -24,10 +26,82 @@ const PREMIUM_FEATURES = [
 /* ── Inner content (rendered inside Suspense) ────────────────── */
 function BillingPageContent() {
   const t = useStrings();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
-  const { isPremium, isUnlimited, subscriptionStatus, periodEnd } = useUserProfile();
+  const { isPremium, isUnlimited, subscriptionStatus, periodEnd, refetchProfile } = useUserProfile();
   const [loading, setLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [showSandboxModal, setShowSandboxModal] = useState(false);
+  const hasSyncedRef = useRef(false);
+
+  const checkout = searchParams.get("checkout");
+  const sessionId = searchParams.get("session_id");
+  const isMock = searchParams.get("mock") === "1";
+
+  // Auto-sync after Stripe checkout redirect
+  useEffect(() => {
+    if (checkout !== "success" || hasSyncedRef.current) return;
+    hasSyncedRef.current = true;
+    setIsSyncing(true);
+
+    const syncAndRefresh = async () => {
+      try {
+        const res = await fetch("/api/stripe/sync-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, isMock }),
+        });
+
+        if (res.ok) {
+          clearBudgetExhausted();
+          await refetchProfile();
+          showToast("อัปเกรด Premium สำเร็จ! ได้รับงบ AI 50,000 tokens ต่อวันแล้ว", "info");
+        } else {
+          showToast("ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง", "error");
+        }
+      } catch (err) {
+        console.error("Sync error:", err);
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
+      } finally {
+        setIsSyncing(false);
+        router.replace("/profile/billing");
+      }
+    };
+
+    void syncAndRefresh();
+  }, [checkout, sessionId, isMock, refetchProfile, router, showToast]);
+
+  // Manual sync for users who completed payment or need status refreshed
+  const handleManualSync = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch("/api/stripe/sync-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        clearBudgetExhausted();
+        await refetchProfile();
+        showToast("ซิงค์สถานะ Premium สำเร็จแล้ว!", "info");
+      } else {
+        showToast(
+          data.error === "No active subscription found"
+            ? "ไม่พบข้อมูลการชำระเงินที่ใช้งานอยู่สำหรับอีเมลนี้"
+            : (data.error || "ไม่พบข้อมูลการสมัครสมาชิก"),
+          "warning"
+        );
+      }
+    } catch (err) {
+      console.error("Manual sync failed:", err);
+      showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง", "error");
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [refetchProfile, showToast]);
 
   // User is an active paying Stripe subscriber with an existing subscription
   const hasActiveStripeSub = subscriptionStatus === 'active' && !isUnlimited;
@@ -36,7 +110,14 @@ function BillingPageContent() {
   const handleCheckout = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/stripe/create-checkout-session", { method: "POST" });
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: window.location.origin,
+          returnPath: "/profile/billing",
+        }),
+      });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
         window.location.href = data.url;
@@ -56,7 +137,13 @@ function BillingPageContent() {
   const handleManagePortal = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: window.location.origin,
+        }),
+      });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
         window.location.href = data.url;
@@ -106,6 +193,16 @@ function BillingPageContent() {
       <div className="relative flex-1 flex w-full select-none flex-col overflow-hidden bg-background font-sans text-foreground">
         <div className="flex-1 overflow-y-auto">
           <div className="animate-card-fade-in max-w-md mx-auto w-full px-4 py-6 flex flex-col gap-5">
+
+            {/* ── Syncing banner ── */}
+            {isSyncing && (
+              <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/10 p-4 text-primary animate-pulse">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent shrink-0" />
+                <div className="min-w-0 flex-1 text-xs font-bold text-left">
+                  กำลังซิงค์สถานะการสมัครสมาชิกกับ Stripe...
+                </div>
+              </div>
+            )}
 
             {/* ── Main billing card ─────────────────────────── */}
             <div className="rounded-2xl border border-border-color bg-card-bg shadow-soft-md p-5 flex flex-col items-center text-center">
@@ -182,7 +279,7 @@ function BillingPageContent() {
               <button
                 type="button"
                 onClick={handleClickAction}
-                disabled={loading}
+                disabled={loading || isSyncing}
                 className="mt-6 w-full rounded-xl bg-primary hover:bg-primary-hover px-4 py-3 text-sm font-bold text-white dark:text-gray-900 shadow-soft-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading
@@ -199,6 +296,31 @@ function BillingPageContent() {
                   (ระบบทดสอบ Sandbox พร้อมบัตรตัวอย่าง)
                 </p>
               )}
+
+              {/* Manual sync button */}
+              <div className="mt-4 pt-3 border-t border-border-color/60 w-full flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleManualSync}
+                  disabled={isSyncing || loading}
+                  className="text-xs font-semibold text-foreground/60 hover:text-primary transition-colors cursor-pointer flex items-center gap-1.5 py-1 disabled:opacity-50"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={isSyncing ? "animate-spin" : ""}
+                  >
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                  <span>{isSyncing ? "กำลังตรวจสอบสถานะกับ Stripe..." : "ซิงค์สถานะการชำระเงินกับ Stripe"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

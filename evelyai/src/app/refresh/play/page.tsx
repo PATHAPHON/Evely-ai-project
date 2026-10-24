@@ -11,19 +11,12 @@ import TypingGame, { TypingResult } from '@/features/refresh/components/TypingGa
 import SpeakGame from '@/features/refresh/components/SpeakGame';
 import SummaryScreen from '@/features/refresh/components/SummaryScreen';
 import { shuffle } from '@/features/refresh/utils/shuffle';
+import { buildPlayQueue, type QueueItem } from '@/features/refresh/utils/queueBuilder';
 import { WordProgress } from '@/shared/utils/spacedRepetition';
 import type { WordReviewSummaryItem } from '@/features/refresh/gameTypes';
 
 type GameKind = 'matching' | 'typing' | 'speak';
 type Phase = 'loading' | 'playing' | 'summary';
-
-interface QueueItem {
-  id: string;
-  wordId: string;
-  word: string;
-  thai: string;
-  game: GameKind;
-}
 
 const WORDS_PER_MODE = 5;
 
@@ -63,33 +56,17 @@ function RefreshPlayContent() {
       return;
     }
 
-    const hasThai = (w: typeof words[number]) => !!w.thai && !!w.thai.trim();
+    const items = buildPlayQueue({
+      words,
+      targetMode,
+      wordsPerMode: WORDS_PER_MODE,
+    });
 
-    // Dedup by normalized word, then shuffle — ensures no duplicate words in one session
-    function dedupShuffle<T extends { word: string }>(list: T[]): T[] {
-      const m = new Map<string, T>();
-      for (const e of list) {
-        const k = e.word.toLowerCase().trim();
-        if (!m.has(k)) m.set(k, e);
-      }
-      const arr = [...m.values()];
-      shuffle(arr);
-      return arr;
-    }
-
-    const yellow = dedupShuffle(words.filter((w) => w.status === 'needs_review' && hasThai(w)));
-    const allEligible = dedupShuffle(words.filter(hasThai));
-    const pool = isPracticeMode ? allEligible : yellow;
-    const practiceActive = isPracticeMode;
-
-    const minRequired = targetMode === 'matching' ? 3 : WORDS_PER_MODE;
-
-    // Gate: require minimum words to play (3 for matching, 5 for typing/speak)
-    if (pool.length < minRequired) {
+    if (items.length === 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setQueue([]);
       setInitialTotal(0);
-      setIsPractice(practiceActive);
+      setIsPractice(isPracticeMode);
       setIndex(0);
       setImproved(0);
       setSummaryItems([]);
@@ -98,44 +75,9 @@ function RefreshPlayContent() {
       return;
     }
 
-    // Matching mode: 3 words per round, up to 6 words (max 2 rounds)
-    if (targetMode === 'matching') {
-      const takeCount = pool.length >= 6 ? 6 : 3;
-      const selected = pool.slice(0, takeCount);
-      shuffle(selected);
-
-      const items: QueueItem[] = selected.map((w) => ({
-        id: `${w.id}-${targetMode}`,
-        wordId: w.id,
-        word: w.word,
-        thai: w.thai as string,
-        game: targetMode,
-      }));
-
-      setQueue(items);
-      setInitialTotal(items.length);
-      setIsPractice(practiceActive);
-      setIndex(0);
-      setImproved(0);
-      setPhase('playing');
-      return;
-    }
-
-    const requiredTotal = WORDS_PER_MODE;
-    const selected = pool.slice(0, requiredTotal);
-    shuffle(selected);
-
-    const items: QueueItem[] = selected.map((w) => ({
-      id: `${w.id}-${targetMode}`,
-      wordId: w.id,
-      word: w.word,
-      thai: w.thai as string,
-      game: targetMode,
-    }));
-
     setQueue(items);
     setInitialTotal(items.length);
-    setIsPractice(practiceActive);
+    setIsPractice(isPracticeMode);
     setIndex(0);
     setImproved(0);
     setPhase('playing');

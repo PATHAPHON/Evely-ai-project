@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Volume2, VolumeX, Sparkles, Flame, Timer, Zap } from 'lucide-react';
+import { useTTS } from '@/shared/hooks/useTTS';
 import { gameAudio } from '../utils/gameAudio';
 import { matchingQuality } from '../quality';
 
@@ -76,6 +77,7 @@ export default function MatchingGame({
   const dimensionsRef = useRef(dimensions);
   dimensionsRef.current = dimensions;
 
+  const { speak } = useTTS('en-US');
   const [isMuted, setIsMuted] = useState(gameAudio.getMuted());
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
   const [combo, setCombo] = useState(0);
@@ -84,6 +86,7 @@ export default function MatchingGame({
   const [floatingScores, setFloatingScores] = useState<FloatingScore[]>([]);
   const [isRoundClear, setIsRoundClear] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [lastMatchedWord, setLastMatchedWord] = useState<string | null>(null);
 
   // Mutable refs for physics and state loop
   const bubblesRef = useRef<BubbleData[]>([]);
@@ -208,38 +211,81 @@ export default function MatchingGame({
 
   // Round completion handler
   const handleFinish = useCallback(
-    (reason: 'clear' | 'timeout') => {
+    (reason: 'clear' | 'timeout', wordToSpeak?: string) => {
       if (isFinishingRef.current) return;
       isFinishingRef.current = true;
 
       if (reason === 'clear') {
         setIsRoundClear(true);
         gameAudio.playWordSuccess();
+
+        const finishResults = () => {
+          const results: MatchingResult[] = items.map((item) => {
+            const key = item.word.toLowerCase().trim();
+            const mistakes = mistakesPerWordRef.current[key] || 0;
+            return {
+              wordId: item.wordId,
+              quality: matchingQuality(mistakes),
+              mistakes,
+            };
+          });
+
+          onRoundComplete(results);
+        };
+
+        let hasAdvanced = false;
+        let safetyTimeout: NodeJS.Timeout | null = null;
+
+        const proceed = () => {
+          if (hasAdvanced) return;
+          hasAdvanced = true;
+          if (safetyTimeout) {
+            clearTimeout(safetyTimeout);
+            safetyTimeout = null;
+          }
+          setTimeout(() => {
+            finishResults();
+          }, 450);
+        };
+
+        // 8s fallback safety timeout in case network drops or TTS hangs
+        safetyTimeout = setTimeout(() => {
+          proceed();
+        }, 8000);
+
+        if (wordToSpeak) {
+          speak(wordToSpeak, {
+            onEnd: () => proceed(),
+            onError: () => proceed(),
+          });
+        } else {
+          proceed();
+        }
       } else {
         setIsGameOver(true);
         gameAudio.playWordMiss();
+
+        setTimeout(() => {
+          const results: MatchingResult[] = items.map((item) => {
+            const key = item.word.toLowerCase().trim();
+            let mistakes = mistakesPerWordRef.current[key] || 0;
+            // If timed out and this word wasn't popped yet, penalize
+            const engBubble = bubblesRef.current.find((b) => b.id === `eng-${item.wordId}`);
+            if (reason === 'timeout' && engBubble && engBubble.state !== 'popped') {
+              mistakes += 3;
+            }
+            return {
+              wordId: item.wordId,
+              quality: matchingQuality(mistakes),
+              mistakes,
+            };
+          });
+
+          onRoundComplete(results);
+        }, 900);
       }
-
-      setTimeout(() => {
-        const results: MatchingResult[] = items.map((item) => {
-          const key = item.word.toLowerCase().trim();
-          let mistakes = mistakesPerWordRef.current[key] || 0;
-          // If timed out and this word wasn't popped yet, penalize
-          const engBubble = bubblesRef.current.find((b) => b.id === `eng-${item.wordId}`);
-          if (reason === 'timeout' && engBubble && engBubble.state !== 'popped') {
-            mistakes += 3;
-          }
-          return {
-            wordId: item.wordId,
-            quality: matchingQuality(mistakes),
-            mistakes,
-          };
-        });
-
-        onRoundComplete(results);
-      }, 900);
     },
-    [items, onRoundComplete]
+    [items, onRoundComplete, speak]
   );
 
   // Timer countdown loop
@@ -463,6 +509,9 @@ export default function MatchingGame({
     const isMatch = firstBubble.wordId === clickedBubble.wordId;
 
     if (isMatch) {
+      const englishWord = firstBubble.rawWord;
+      setLastMatchedWord(englishWord);
+
       // Calculate midpoint for merge animation
       const midX = (firstBubble.x + clickedBubble.x) / 2;
       const midY = (firstBubble.y + clickedBubble.y) / 2;
@@ -500,7 +549,9 @@ export default function MatchingGame({
         poppedCountRef.current += 1;
 
         if (poppedCountRef.current >= items.length) {
-          handleFinish('clear');
+          handleFinish('clear', englishWord);
+        } else {
+          speak(englishWord);
         }
       }, 260);
     } else {
@@ -720,6 +771,12 @@ export default function MatchingGame({
             </div>
             <p className="text-xl font-black text-foreground">ยอดเยี่ยม!</p>
             <p className="text-xs text-foreground/60 mt-1 font-medium">จับคู่คำศัพท์สำเร็จครบทุกฟอง</p>
+            {lastMatchedWord && (
+              <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold animate-pulse">
+                <Volume2 size={14} />
+                <span>{lastMatchedWord}</span>
+              </div>
+            )}
           </div>
         )}
 

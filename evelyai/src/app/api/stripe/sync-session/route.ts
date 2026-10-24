@@ -66,45 +66,74 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, isPremium: true, mock: true });
   }
 
-  // 2. Real Stripe session verification
+  // 2. Real Stripe session verification & fallback
   if (!secretKey) {
     return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
   }
 
   const { sessionId } = body;
-  if (!sessionId) {
-    return NextResponse.json({ error: 'Missing session ID' }, { status: 400 });
-  }
 
   try {
     const stripe = new Stripe(secretKey);
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-    // Verify ownership: session belongs to current user
-    const sessionUserId = session.metadata?.supabase_user_id;
-    if (sessionUserId && sessionUserId !== user.id) {
-      return NextResponse.json({ error: 'User mismatch' }, { status: 403 });
-    }
-
-    // Verify payment was successful
-    if (session.payment_status !== 'paid' && session.status !== 'complete') {
-      return NextResponse.json({ error: 'Session not completed' }, { status: 400 });
-    }
-
+    let customerId: string | null = null;
     let periodEnd: string | null = null;
-    if (session.subscription) {
-      const subscription = await stripe.subscriptions.retrieve(
-        session.subscription as string
+    let isSubActive = false;
+
+    // A. Verify with specific Checkout Session ID if provided
+    if (sessionId) {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      // Verify ownership: session belongs to current user
+      const sessionUserId = session.metadata?.supabase_user_id;
+      if (sessionUserId && sessionUserId !== user.id) {
+        return NextResponse.json({ error: 'User mismatch' }, { status: 403 });
+      }
+
+      if (session.payment_status === 'paid' || session.status === 'complete') {
+        isSubActive = true;
+        customerId = (session.customer as string) || null;
+        if (session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(
+            session.subscription as string
+          );
+          const ts = subscription.items?.data?.[0]?.current_period_end;
+          periodEnd = ts ? new Date(ts * 1000).toISOString() : null;
+        }
+      }
+    }
+
+    // B. Fallback: If no sessionId or session didn't confirm active sub, search by user email
+    if (!isSubActive && user.email) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length > 0) {
+        const customer = customers.data[0];
+        const subs = await stripe.subscriptions.list({
+          customer: customer.id,
+          status: 'active',
+          limit: 1,
+        });
+        if (subs.data.length > 0) {
+          const sub = subs.data[0];
+          isSubActive = true;
+          customerId = customer.id;
+          const ts = sub.items?.data?.[0]?.current_period_end;
+          periodEnd = ts ? new Date(ts * 1000).toISOString() : null;
+        }
+      }
+    }
+
+    if (!isSubActive) {
+      return NextResponse.json(
+        { error: sessionId ? 'Session not completed' : 'No active subscription found' },
+        { status: 400 }
       );
-      const ts = subscription.items?.data?.[0]?.current_period_end;
-      periodEnd = ts ? new Date(ts * 1000).toISOString() : null;
     }
 
     const { error: updateErr } = await serviceClient
       .from('profiles')
       .update({
         subscription_status: 'active',
-        stripe_customer_id: session.customer as string,
+        stripe_customer_id: customerId,
         subscription_current_period_end: periodEnd,
       })
       .eq('id', user.id);

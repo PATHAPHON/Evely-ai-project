@@ -9,24 +9,26 @@ export type RefreshMode = 'matching' | 'speak' | 'typing';
 interface Props {
   onStartMode: (mode: RefreshMode) => void;
   withThai?: number;
+  totalPlayable?: number;
+  yellowCount?: number;
   isLoading?: boolean;
   isBudgetExhausted?: boolean;
 }
 
-const WORDS_PER_MODE = 5;
-const WORDS_FOR_MATCHING = 3;
+const MIN_WORDS_TO_PLAY = 6;
 
 export default function RefreshMenu({
   onStartMode,
   withThai = 0,
+  totalPlayable,
+  yellowCount = 0,
   isLoading = false,
   isBudgetExhausted = false,
 }: Props) {
   const router = useRouter();
-  const hasEnoughWords = withThai >= WORDS_PER_MODE;
-  const hasEnoughForMatching = withThai >= WORDS_FOR_MATCHING;
-  const remainingToPlay = Math.max(0, WORDS_PER_MODE - withThai);
-  const remainingForMatching = Math.max(0, WORDS_FOR_MATCHING - withThai);
+  const total = totalPlayable ?? withThai;
+  const hasEnoughWords = total >= MIN_WORDS_TO_PLAY;
+  const remainingToPlay = Math.max(0, MIN_WORDS_TO_PLAY - total);
 
   const modes: {
     id: RefreshMode;
@@ -42,8 +44,8 @@ export default function RefreshMenu({
       label: 'จับคู่ฟองศัพท์ (Bubble Pop)',
       desc: 'แตะฟองคำศัพท์และคำแปลที่ลอยให้ชนกันระเบิดก่อนหมดเวลา',
       icon: <Layers size={20} stroke="url(#refresh-grad)" />,
-      isLocked: !hasEnoughForMatching,
-      lockReason: !hasEnoughForMatching ? `ต้องการอีก ${remainingForMatching} คำ` : undefined,
+      isLocked: !hasEnoughWords,
+      lockReason: !hasEnoughWords ? `ต้องการอีก ${remainingToPlay} คำ` : undefined,
       badge: 'รอบละ 3 คำ (สูงสุด 2 รอบ)',
     },
     {
@@ -86,10 +88,17 @@ export default function RefreshMenu({
         {/* Status overview card */}
         <div className="rounded-2xl bg-card-bg border border-border-color/80 p-4 shadow-soft-sm flex items-center justify-between">
           <div>
-            <p className="text-foreground/60 text-xs font-medium">คำที่ถึงกำหนดทบทวน</p>
-            <p className="text-2xl font-bold text-foreground mt-0.5">
-              {isLoading ? '...' : `${withThai} คำ`}
-            </p>
+            <p className="text-foreground/60 text-xs font-medium">คำศัพท์พร้อมฝึกฝน</p>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <p className="text-2xl font-bold text-foreground">
+                {isLoading ? '...' : `${total} คำ`}
+              </p>
+              {yellowCount > 0 && !isLoading && (
+                <span className="text-[11px] font-semibold text-amber-500 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                  ทบทวนด่วน {yellowCount} คำ (เล่นก่อน)
+                </span>
+              )}
+            </div>
           </div>
           {isLoading ? (
             <div className="text-xs text-foreground/50">กำลังโหลด...</div>

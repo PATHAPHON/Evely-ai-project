@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
+import { useToast } from '@/shared/components/Toast';
 import type { SpeechLang } from '../types/chatTypes';
 
 const noopSubscribe = () => () => {};
@@ -13,7 +14,7 @@ export interface SpeakOptions {
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (err?: unknown) => void;
-  /** Called as soon as the audio blob is fetched and decoded (or when fallback initiates), before playback begins */
+  /** Called as soon as the audio blob is fetched and decoded, before playback begins */
   onReady?: () => void;
 }
 
@@ -27,15 +28,17 @@ export interface UseTTSReturn {
 }
 
 const DEFAULT_LANG: SpeechLang = 'en-US';
-const ERROR_MESSAGE = 'ไม่สามารถเล่นเสียงได้';
+const ERROR_MESSAGE = 'ระบบเสียงยังไม่พร้อมใช้งาน กรุณารอสักครู่';
 
 export function useTTS(
   lang: SpeechLang = DEFAULT_LANG,
   voice?: string,
 ): UseTTSReturn {
+  void lang;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const isSupported = useSyncExternalStore(
     noopSubscribe,
     getClientSupport,
@@ -43,7 +46,6 @@ export function useTTS(
   );
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const requestIdRef = useRef(0);
 
   const releaseAudio = useCallback(() => {
@@ -61,72 +63,12 @@ export function useTTS(
     }
   }, []);
 
-  const cancelSpeechSynthesis = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    utteranceRef.current = null;
-  }, []);
-
   const stop = useCallback(() => {
     requestIdRef.current += 1;
     releaseAudio();
-    cancelSpeechSynthesis();
     setIsSynthesizing(false);
     setIsSpeaking(false);
-  }, [releaseAudio, cancelSpeechSynthesis]);
-
-  const speakViaWebSpeech = useCallback(
-    (text: string, options?: SpeakOptions) => {
-      setIsSynthesizing(false);
-      options?.onReady?.();
-
-      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-        setError(ERROR_MESSAGE);
-        setIsSpeaking(false);
-        options?.onError?.(new Error(ERROR_MESSAGE));
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-      // Strip any audio tags like [cheerful], [curious], [whispers] so browser doesn't speak "bracket ..."
-      const cleanText = text.replace(/\[[a-zA-Z0-9_-]+\]\s*/g, '').trim();
-      if (!cleanText) {
-        setIsSpeaking(false);
-        options?.onEnd?.();
-        return;
-      }
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = lang;
-
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-        options?.onStart?.();
-      };
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        utteranceRef.current = null;
-        options?.onEnd?.();
-      };
-      utterance.onerror = (event) => {
-        if (event.error === 'interrupted' || event.error === 'canceled') {
-          setIsSpeaking(false);
-          utteranceRef.current = null;
-          options?.onEnd?.();
-          return;
-        }
-        setError(ERROR_MESSAGE);
-        setIsSpeaking(false);
-        utteranceRef.current = null;
-        options?.onError?.(event);
-      };
-
-      utteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
-    },
-    [lang],
-  );
+  }, [releaseAudio]);
 
   const speak = useCallback(
     (text: string, options?: SpeakOptions) => {
@@ -141,9 +83,8 @@ export function useTTS(
       requestIdRef.current += 1;
       const currentRequestId = requestIdRef.current;
 
-      // Stop any in-flight playback (both channels) before starting new.
+      // Stop any in-flight playback before starting new.
       releaseAudio();
-      cancelSpeechSynthesis();
       setError(null);
 
       if (typeof window === 'undefined') {
@@ -154,10 +95,14 @@ export function useTTS(
 
       setIsSynthesizing(true);
 
-      const fallback = () => {
+      const handleSpeechError = (err?: unknown) => {
         if (requestIdRef.current !== currentRequestId) return;
         setIsSynthesizing(false);
-        speakViaWebSpeech(trimmed, options);
+        setIsSpeaking(false);
+        releaseAudio();
+        setError(ERROR_MESSAGE);
+        showToast(ERROR_MESSAGE, 'warning');
+        options?.onError?.(err ?? new Error(ERROR_MESSAGE));
       };
 
       void (async () => {
@@ -174,7 +119,7 @@ export function useTTS(
             if (response.status === 429) {
               markBudgetExhausted();
             }
-            fallback();
+            handleSpeechError(new Error(`TTS request failed with status ${response.status}`));
             return;
           }
 
@@ -201,36 +146,34 @@ export function useTTS(
             releaseAudio();
             options?.onEnd?.();
           };
-          audio.onerror = () => {
+          audio.onerror = (e) => {
             if (requestIdRef.current !== currentRequestId) return;
-            releaseAudio();
-            fallback();
+            handleSpeechError(e);
           };
 
           const playPromise = audio.play();
           if (playPromise && typeof playPromise.catch === 'function') {
-            playPromise.catch(() => {
+            playPromise.catch((err) => {
               if (requestIdRef.current !== currentRequestId) return;
-              releaseAudio();
-              fallback();
+              if (err instanceof Error && err.name === 'AbortError') return;
+              handleSpeechError(err);
             });
           }
-        } catch {
+        } catch (err) {
           if (requestIdRef.current !== currentRequestId) return;
-          fallback();
+          handleSpeechError(err);
         }
       })();
     },
-    [voice, releaseAudio, cancelSpeechSynthesis, speakViaWebSpeech],
+    [voice, releaseAudio, showToast],
   );
 
   useEffect(() => {
     return () => {
       requestIdRef.current += 1;
       releaseAudio();
-      cancelSpeechSynthesis();
     };
-  }, [releaseAudio, cancelSpeechSynthesis]);
+  }, [releaseAudio]);
 
   return { speak, stop, isSpeaking, isSynthesizing, isSupported, error };
 }

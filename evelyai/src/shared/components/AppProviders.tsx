@@ -52,7 +52,10 @@ export default function AppProviders({ children }: { children: ReactNode }) {
     if (!checkingAuth) {
       const isPublicPath = pathname === '/auth' || pathname === '/';
       if (!session && !isPublicPath) {
-        router.push(`/auth?redirect=${encodeURIComponent(pathname)}`);
+        const fullPath = typeof window !== 'undefined'
+          ? (window.location.pathname + window.location.search)
+          : pathname;
+        router.push(`/auth?redirect=${encodeURIComponent(fullPath)}`);
       }
     }
   }, [session, pathname, checkingAuth, router]);

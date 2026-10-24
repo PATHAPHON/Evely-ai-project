@@ -50,8 +50,8 @@ describe('computeReviewSchedule', () => {
     const result = computeReviewSchedule(tomorrow, 1);
     expect(result).not.toBeNull();
     expect(result?.days).toBe(1);
-    expect(result?.label).toContain('ทบทวนอีกครั้งใน 1 วัน');
-    expect(result?.label).toContain('พรุ่งนี้');
+    expect(result?.label).toContain('ทบทวนพรุ่งนี้');
+    expect(result?.isDue).toBe(false);
   });
 
   it('calculates multiple days for future dates', () => {
@@ -59,8 +59,9 @@ describe('computeReviewSchedule', () => {
     const result = computeReviewSchedule(in6Days, 6);
     expect(result).not.toBeNull();
     expect(result?.days).toBe(6);
-    expect(result?.label).toContain('ทบทวนอีกครั้งในอีก 6 วัน');
+    expect(result?.label).toContain('ทบทวนอีก 6 วัน');
     expect(result?.interval).toBe(6);
+    expect(result?.isDue).toBe(false);
   });
 });
 
@@ -77,7 +78,7 @@ describe('WordDetailPopup review schedule banner', () => {
     });
   });
 
-  it('renders review schedule banner when word has nextReviewAt', async () => {
+  it('renders green review schedule banner when word has future nextReviewAt', async () => {
     const targetDate = new Date(Date.now() + 6 * 24 * 3600 * 1000);
     const word: FeedWordRecord = {
       id: 'w-growing',
@@ -95,7 +96,39 @@ describe('WordDetailPopup review schedule banner', () => {
     render(<WordDetailPopup word={word} onClose={vi.fn()} />);
 
     expect(await screen.findByText('growing')).toBeInTheDocument();
-    expect(screen.getByText(/ทบทวนอีกครั้งในอีก 6 วัน/)).toBeInTheDocument();
+    const labelEl = screen.getByText(/ทบทวนอีก 6 วัน/);
+    expect(labelEl).toBeInTheDocument();
     expect(screen.getByText('รอบ 6 วัน')).toBeInTheDocument();
+
+    const banner = labelEl.closest('.rounded-2xl');
+    expect(banner?.className).toContain('bg-correct/10');
+    expect(banner?.className).toContain('text-correct');
+  });
+
+  it('renders yellow review schedule banner when word is due for review', async () => {
+    const pastDate = new Date(Date.now() - 24 * 3600 * 1000);
+    const word: FeedWordRecord = {
+      id: 'w-growing',
+      language: 'english',
+      generatedDate: '',
+      thai: 'ที่กำลังเติบโต',
+      bookmarked: false,
+      createdAt: 0,
+      partOfSpeech: 'adj.',
+      word: 'growing',
+      nextReviewAt: pastDate,
+      interval: 1,
+    };
+
+    render(<WordDetailPopup word={word} onClose={vi.fn()} />);
+
+    expect(await screen.findByText('growing')).toBeInTheDocument();
+    const labelEl = screen.getByText('ครบกำหนดทบทวนแล้ว');
+    expect(labelEl).toBeInTheDocument();
+    expect(screen.getByText('รอบ 1 วัน')).toBeInTheDocument();
+
+    const banner = labelEl.closest('.rounded-2xl');
+    expect(banner?.className).toContain('bg-warning/10');
+    expect(banner?.className).toContain('text-warning');
   });
 });

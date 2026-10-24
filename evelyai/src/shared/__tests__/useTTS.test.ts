@@ -2,18 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTTS } from '../hooks/useTTS';
 
-class MockUtterance {
-  text: string;
-  lang = '';
-  onstart: (() => void) | null = null;
-  onend: (() => void) | null = null;
-  onerror: ((event: { error: string }) => void) | null = null;
-
-  constructor(text: string) {
-    this.text = text;
-  }
-}
-
 class MockAudio {
   src: string;
   onplay: (() => void) | null = null;
@@ -28,23 +16,6 @@ class MockAudio {
   }
 
   static lastInstance: MockAudio | null = null;
-}
-
-function createMockSpeechSynthesis() {
-  return {
-    speak: vi.fn(),
-    cancel: vi.fn(),
-  };
-}
-
-function installSpeechSynthesis() {
-  const mock = createMockSpeechSynthesis();
-  Object.defineProperty(window, 'speechSynthesis', {
-    value: mock,
-    writable: true,
-    configurable: true,
-  });
-  return mock;
 }
 
 function mockFetchOk(audioBytes = new Uint8Array([0x01, 0x02, 0x03])) {
@@ -67,7 +38,6 @@ function mockFetchStatus(status: number) {
 beforeEach(() => {
   vi.restoreAllMocks();
   MockAudio.lastInstance = null;
-  (globalThis as unknown as Record<string, unknown>).SpeechSynthesisUtterance = MockUtterance;
   (globalThis as unknown as Record<string, unknown>).Audio = MockAudio;
 
   // URL.createObjectURL / revokeObjectURL aren't in jsdom by default.
@@ -99,7 +69,6 @@ describe('useTTS', () => {
 
   describe('speak — cloud TTS happy path', () => {
     it('POSTs text to /api/tts and plays returned audio', async () => {
-      installSpeechSynthesis();
       const fetchMock = mockFetchOk();
       vi.stubGlobal('fetch', fetchMock);
 
@@ -122,7 +91,6 @@ describe('useTTS', () => {
     });
 
     it('passes voice option to /api/tts when provided', async () => {
-      installSpeechSynthesis();
       const fetchMock = mockFetchOk();
       vi.stubGlobal('fetch', fetchMock);
 
@@ -143,7 +111,6 @@ describe('useTTS', () => {
     });
 
     it('sets isSpeaking true on audio play, false on ended', async () => {
-      installSpeechSynthesis();
       vi.stubGlobal('fetch', mockFetchOk());
 
       const { result } = renderHook(() => useTTS());
@@ -166,7 +133,6 @@ describe('useTTS', () => {
     });
 
     it('calls onReady when audio blob is loaded, before onplay', async () => {
-      installSpeechSynthesis();
       vi.stubGlobal('fetch', mockFetchOk());
       const onReady = vi.fn();
       const onStart = vi.fn();
@@ -189,80 +155,66 @@ describe('useTTS', () => {
     });
   });
 
-  describe('speak — fallback to Web Speech', () => {
-    it('falls back and marks budget exhausted when /api/tts returns 429', async () => {
-      const synth = installSpeechSynthesis();
+  describe('speak — error handling without fallback', () => {
+    it('marks budget exhausted and sets error without fallback when /api/tts returns 429', async () => {
       vi.stubGlobal('fetch', mockFetchStatus(429));
+      const onError = vi.fn();
 
       const { result } = renderHook(() => useTTS('en-US'));
 
       act(() => {
-        result.current.speak('Hello');
+        result.current.speak('Hello', { onError });
       });
 
-      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
-
-      const utterance = synth.speak.mock.calls[0]![0] as MockUtterance;
-      expect(utterance.text).toBe('Hello');
-      expect(utterance.lang).toBe('en-US');
-    });
-
-    it('falls back when /api/tts returns 503', async () => {
-      const synth = installSpeechSynthesis();
-      vi.stubGlobal('fetch', mockFetchStatus(503));
-
-      const { result } = renderHook(() => useTTS('en-US'));
-
-      act(() => {
-        result.current.speak('안녕하세요');
-      });
-
-      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
-
-      const utterance = synth.speak.mock.calls[0]![0] as MockUtterance;
-      expect(utterance.text).toBe('안녕하세요');
-      expect(utterance.lang).toBe('en-US');
+      await waitFor(() => expect(onError).toHaveBeenCalled());
+      expect(result.current.isSpeaking).toBe(false);
+      expect(result.current.isSynthesizing).toBe(false);
+      expect(result.current.error).toBe('ระบบเสียงยังไม่พร้อมใช้งาน กรุณารอสักครู่');
       expect(MockAudio.lastInstance).toBeNull();
     });
 
-    it('falls back when fetch throws a network error', async () => {
-      const synth = installSpeechSynthesis();
-      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
-
-      const { result } = renderHook(() => useTTS('en-US'));
-
-      act(() => {
-        result.current.speak('안녕');
-      });
-
-      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
-      expect((synth.speak.mock.calls[0]![0] as MockUtterance).lang).toBe('en-US');
-    });
-
-    it('strips inline audio emotion tags in Web Speech fallback', async () => {
-      const synth = installSpeechSynthesis();
+    it('sets error and does not play when /api/tts returns 503', async () => {
       vi.stubGlobal('fetch', mockFetchStatus(503));
+      const onError = vi.fn();
 
       const { result } = renderHook(() => useTTS('en-US'));
 
       act(() => {
-        result.current.speak('[excited] Great job! [curious] What is next?');
+        result.current.speak('안녕하세요', { onError });
       });
 
-      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
-
-      const utterance = synth.speak.mock.calls[0]![0] as MockUtterance;
-      expect(utterance.text).toBe('Great job! What is next?');
+      await waitFor(() => expect(onError).toHaveBeenCalled());
+      expect(result.current.isSpeaking).toBe(false);
+      expect(result.current.isSynthesizing).toBe(false);
+      expect(result.current.error).toBe('ระบบเสียงยังไม่พร้อมใช้งาน กรุณารอสักครู่');
+      expect(MockAudio.lastInstance).toBeNull();
     });
 
-    it('falls back when audio playback errors out', async () => {
-      const synth = installSpeechSynthesis();
+    it('handles network error without fallback', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+      const onError = vi.fn();
+
+      const { result } = renderHook(() => useTTS('en-US'));
+
+      act(() => {
+        result.current.speak('안녕', { onError });
+      });
+
+      await waitFor(() => expect(onError).toHaveBeenCalled());
+      expect(result.current.isSpeaking).toBe(false);
+      expect(result.current.isSynthesizing).toBe(false);
+      expect(result.current.error).toBe('ระบบเสียงยังไม่พร้อมใช้งาน กรุณารอสักครู่');
+      expect(MockAudio.lastInstance).toBeNull();
+    });
+
+    it('handles audio playback errors without fallback', async () => {
       vi.stubGlobal('fetch', mockFetchOk());
+      const onError = vi.fn();
 
       const { result } = renderHook(() => useTTS());
 
       act(() => {
-        result.current.speak('안녕');
+        result.current.speak('안녕', { onError });
       });
 
       await waitFor(() => expect(MockAudio.lastInstance).not.toBeNull());
@@ -271,13 +223,14 @@ describe('useTTS', () => {
         MockAudio.lastInstance!.onerror?.();
       });
 
-      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
+      await waitFor(() => expect(onError).toHaveBeenCalled());
+      expect(result.current.isSpeaking).toBe(false);
+      expect(result.current.error).toBe('ระบบเสียงยังไม่พร้อมใช้งาน กรุณารอสักครู่');
     });
   });
 
   describe('stop', () => {
     it('pauses audio playback and clears state', async () => {
-      installSpeechSynthesis();
       vi.stubGlobal('fetch', mockFetchOk());
 
       const { result } = renderHook(() => useTTS());
@@ -301,23 +254,10 @@ describe('useTTS', () => {
       expect(audio.pause).toHaveBeenCalled();
       expect(result.current.isSpeaking).toBe(false);
     });
-
-    it('cancels Web Speech synthesis as well', () => {
-      const synth = installSpeechSynthesis();
-
-      const { result } = renderHook(() => useTTS());
-
-      act(() => {
-        result.current.stop();
-      });
-
-      expect(synth.cancel).toHaveBeenCalled();
-    });
   });
 
   describe('cleanup', () => {
     it('releases resources on unmount', async () => {
-      const synth = installSpeechSynthesis();
       vi.stubGlobal('fetch', mockFetchOk());
 
       const { result, unmount } = renderHook(() => useTTS());
@@ -331,7 +271,6 @@ describe('useTTS', () => {
       unmount();
 
       expect(MockAudio.lastInstance!.pause).toHaveBeenCalled();
-      expect(synth.cancel).toHaveBeenCalled();
     });
   });
 });

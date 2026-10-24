@@ -3,6 +3,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import Stripe from 'stripe';
 
+import { resolveOrigin } from '../_lib/resolveOrigin';
+
 export async function POST(request: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
@@ -29,14 +31,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let body: { origin?: string; returnPath?: string } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // Empty body is acceptable
+  }
+
+  const rawPath = body.returnPath || '/profile/usage';
+  const returnPath = rawPath.startsWith('/') && !rawPath.startsWith('//') ? rawPath : '/profile/usage';
+
   // ponytail: mock mode — swap for real Stripe call when sk_test_mock replaced
   if (secretKey === 'sk_test_mock') {
-    return NextResponse.json({ url: '/profile/usage?checkout=success&mock=1' });
+    return NextResponse.json({ url: `${returnPath}?checkout=success&mock=1` });
   }
 
   try {
     const stripe = new Stripe(secretKey);
-    const origin = new URL(request.url).origin;
+    const origin = resolveOrigin(request, body.origin);
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -47,8 +59,8 @@ export async function POST(request: Request) {
       // events can match a profile even if they arrive before this checkout
       // session's own webhook (Stripe doesn't guarantee delivery order).
       subscription_data: { metadata: { supabase_user_id: user.id } },
-      success_url: `${origin}/profile/usage?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/profile/usage`,
+      success_url: `${origin}${returnPath}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${returnPath}`,
     });
 
     return NextResponse.json({ url: session.url });

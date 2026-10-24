@@ -46,7 +46,7 @@ describe('SummaryScreen', () => {
       />
     );
 
-    expect(screen.getByText('ยังไม่มีคำครบกำหนด')).toBeInTheDocument();
+    expect(screen.getByText('ยังไม่มีคำศัพท์ในคลัง')).toBeInTheDocument();
     expect(screen.getByText('ไปสะสมคำที่แชต →')).toBeInTheDocument();
   });
 

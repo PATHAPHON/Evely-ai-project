@@ -15,14 +15,25 @@ export default function RefreshPage() {
   const { exhausted: localBudgetExhausted } = useBudgetExhausted();
   const isBudgetExhausted = userBudgetExhausted || localBudgetExhausted;
 
-  // Deduplicate yellow words that have Thai translation
+  // Deduplicate playable words that have Thai translation
+  const totalPlayableMap = new Map<string, typeof words[number]>();
   const yellowMap = new Map<string, typeof words[number]>();
+
   for (const w of words) {
-    if (w.status === 'needs_review' && w.thai && w.thai.trim()) {
+    if (w.thai && w.thai.trim()) {
       const k = w.word.toLowerCase().trim();
-      if (!yellowMap.has(k)) yellowMap.set(k, w);
+      if (!totalPlayableMap.has(k)) {
+        totalPlayableMap.set(k, w);
+      }
+      if (w.status === 'needs_review') {
+        if (!yellowMap.has(k)) {
+          yellowMap.set(k, w);
+        }
+      }
     }
   }
+
+  const totalPlayableCount = totalPlayableMap.size;
   const yellowCount = yellowMap.size;
 
   function handleStartMode(mode: RefreshMode) {
@@ -32,7 +43,9 @@ export default function RefreshPage() {
   return (
     <RefreshMenu
       onStartMode={handleStartMode}
-      withThai={yellowCount}
+      totalPlayable={totalPlayableCount}
+      yellowCount={yellowCount}
+      withThai={totalPlayableCount}
       isLoading={isLoading}
       isBudgetExhausted={isBudgetExhausted}
     />

@@ -50,21 +50,21 @@ export function computeReviewSchedule(
   if (diffDays <= 0) {
     return {
       days: 0,
-      label: "ครบกำหนดทบทวนแล้ว (ทบทวนได้เลย)",
+      label: "ครบกำหนดทบทวนแล้ว",
       isDue: true,
       interval,
     };
   } else if (diffDays === 1) {
     return {
       days: 1,
-      label: `ทบทวนอีกครั้งใน 1 วัน (พรุ่งนี้ · ${formatThaiDate(target)})`,
+      label: `ทบทวนพรุ่งนี้ (${formatThaiDate(target)})`,
       isDue: false,
       interval,
     };
   } else {
     return {
       days: diffDays,
-      label: `ทบทวนอีกครั้งในอีก ${diffDays} วัน (${formatThaiDate(target)})`,
+      label: `ทบทวนอีก ${diffDays} วัน (${formatThaiDate(target)})`,
       isDue: false,
       interval,
     };
@@ -276,21 +276,27 @@ export default function WordDetailPopup({ word, onClose, onUpdate }: WordDetailP
         {/* Review Schedule / Spaced Repetition Info */}
         {reviewSchedule && (
           <div
-            className={`mt-4 flex items-center justify-between px-3.5 py-2.5 rounded-2xl border text-xs font-medium ${
+            className={`mt-4 flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl border text-xs font-medium ${
               reviewSchedule.isDue
-                ? "bg-correct/10 border-correct/25 text-correct"
-                : "bg-primary-bg/70 border-primary/25 text-foreground"
+                ? "bg-warning/10 border-warning/25 text-warning"
+                : "bg-correct/10 border-correct/25 text-correct"
             }`}
           >
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <Calendar
                 size={15}
-                className={reviewSchedule.isDue ? "text-correct shrink-0" : "text-primary shrink-0"}
+                className={reviewSchedule.isDue ? "text-warning shrink-0" : "text-correct shrink-0"}
               />
               <span className="truncate">{reviewSchedule.label}</span>
             </div>
             {typeof reviewSchedule.interval === "number" && reviewSchedule.interval > 0 && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-foreground/10 text-foreground/70 shrink-0 ml-1">
+              <span
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
+                  reviewSchedule.isDue
+                    ? "bg-warning/15 text-warning border border-warning/20"
+                    : "bg-correct/15 text-correct border border-correct/20"
+                }`}
+              >
                 รอบ {reviewSchedule.interval} วัน
               </span>
             )}

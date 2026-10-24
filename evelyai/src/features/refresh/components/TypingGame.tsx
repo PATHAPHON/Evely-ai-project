@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Volume2, VolumeX, Sparkles, Volume1 } from 'lucide-react';
+import { useTTS } from '@/shared/hooks/useTTS';
 import { gameAudio } from '../utils/gameAudio';
 import type { WordBank } from '../gameTypes';
 
@@ -90,24 +91,12 @@ export default function TypingGame(props: TypingGameProps) {
   const lastTimeRef = useRef<number | null>(null);
   const isWordTransitioningRef = useRef<boolean>(false);
 
+  const { speak } = useTTS('en-US');
+
   // Extract clean alphabetic characters from the word
   const cleanWordLetters = useMemo(() => {
     return currentItem.word.toUpperCase().replace(/[^A-Z]/g, '').split('');
   }, [currentItem.word]);
-
-  // Pronounce word via native SpeechSynthesis
-  const speakWord = useCallback((text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.95;
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      // ignore
-    }
-  }, []);
 
   // Generate Zig-Zag 4-lane pattern for current word
   const setupWordPattern = useCallback((wordLetters: string[]) => {
@@ -300,17 +289,37 @@ export default function TypingGame(props: TypingGameProps) {
         if (nextSpelled.length === cleanWordLetters.length) {
           isWordTransitioningRef.current = true;
           gameAudio.playWordSuccess();
-          speakWord(currentItem.word);
 
           setCompletedPopup({
             word: currentItem.word,
             thai: currentItem.thai,
           });
 
-          setTimeout(() => {
-            setCompletedPopup(null);
-            advanceToNextWord();
-          }, 1400);
+          let hasAdvanced = false;
+          let safetyTimer: NodeJS.Timeout | null = null;
+
+          const proceedToNext = () => {
+            if (hasAdvanced) return;
+            hasAdvanced = true;
+            if (safetyTimer) {
+              clearTimeout(safetyTimer);
+              safetyTimer = null;
+            }
+            setTimeout(() => {
+              setCompletedPopup(null);
+              advanceToNextWord();
+            }, 400);
+          };
+
+          // 8s fallback safety timeout in case network drops or TTS hangs
+          safetyTimer = setTimeout(() => {
+            proceedToNext();
+          }, 8000);
+
+          speak(currentItem.word, {
+            onEnd: () => proceedToNext(),
+            onError: () => proceedToNext(),
+          });
         } else {
           // Advance active target to next letter
           activeNoteIdxRef.current = currentIdx + 1;
@@ -322,7 +331,7 @@ export default function TypingGame(props: TypingGameProps) {
       mistakesPerWordRef.current[currentItem.wordId] =
         (mistakesPerWordRef.current[currentItem.wordId] || 0) + 1;
     }
-  }, [advanceToNextWord, cleanWordLetters.length, currentItem, speakWord]);
+  }, [advanceToNextWord, cleanWordLetters.length, currentItem, speak]);
 
   // Physical Keyboard Listener
   useEffect(() => {

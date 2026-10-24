@@ -3,6 +3,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import MatchingGame from '../MatchingGame';
 import { gameAudio } from '../../utils/gameAudio';
 
+// Mock useTTS
+const mockSpeak = vi.fn((_text: string, options?: { onEnd?: () => void }) => {
+  options?.onEnd?.();
+});
+
+vi.mock('@/shared/hooks/useTTS', () => ({
+  useTTS: () => ({
+    speak: mockSpeak,
+    isSpeaking: false,
+    stop: vi.fn(),
+  }),
+}));
+
 // Mock game audio methods
 vi.mock('../../utils/gameAudio', () => ({
   gameAudio: {
@@ -182,5 +195,61 @@ describe('MatchingGame (Neon Bubble Pop)', () => {
 
     // apple should STILL be popped! It should not respawn!
     expect(screen.queryByText('apple')).not.toBeInTheDocument();
+  });
+
+  it('waits for TTS voice speech onEnd on the final match before calling onRoundComplete', () => {
+    let capturedOnEnd: (() => void) | undefined;
+    mockSpeak.mockImplementation((_text: string, options?: { onEnd?: () => void }) => {
+      capturedOnEnd = options?.onEnd;
+    });
+
+    const onRoundCompleteMock = vi.fn();
+    render(
+      <MatchingGame
+        items={mockItems}
+        roundNumber={1}
+        totalRounds={1}
+        onRoundComplete={onRoundCompleteMock}
+      />
+    );
+
+    // Pop Pair 1: apple + แอปเปิ้ล
+    fireEvent.click(screen.getByText('apple').closest('button')!);
+    fireEvent.click(screen.getByText('แอปเปิ้ล').closest('button')!);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(mockSpeak).toHaveBeenCalledWith('apple');
+
+    // Pop Pair 2: book + หนังสือ (Last pair in round)
+    fireEvent.click(screen.getByText('book').closest('button')!);
+    fireEvent.click(screen.getByText('หนังสือ').closest('button')!);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(screen.getByText('ยอดเยี่ยม!')).toBeInTheDocument();
+    expect(mockSpeak).toHaveBeenCalledWith('book', expect.any(Object));
+
+    // Before TTS onEnd is called, it should NOT have completed yet
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(onRoundCompleteMock).not.toHaveBeenCalled();
+
+    // Now call onEnd
+    act(() => {
+      capturedOnEnd?.();
+    });
+
+    // Advance 500ms after audio finishes
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(onRoundCompleteMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -132,6 +132,8 @@ export default function WordRenderer({ text, className, textClassName, reveal = 
         createdAt: Date.now(),
         partOfSpeech: entry?.partOfSpeech ?? undefined,
         word,
+        nextReviewAt: entry?.nextReviewAt,
+        interval: entry?.interval,
       });
     },
     [getEntry]

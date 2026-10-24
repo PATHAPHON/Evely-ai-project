@@ -212,7 +212,7 @@ export default function SpeakGame(props: SpeakGameProps) {
 
     timeoutId = setTimeout(() => {
       finishRound();
-    }, 4500);
+    }, 10000);
 
     speak(word, {
       onEnd: () => finishRound(),
@@ -241,7 +241,7 @@ export default function SpeakGame(props: SpeakGameProps) {
 
     timeoutId = setTimeout(() => {
       finishRound();
-    }, 5000);
+    }, 10000);
 
     speak(word, {
       onEnd: () => finishRound(),
@@ -287,7 +287,7 @@ export default function SpeakGame(props: SpeakGameProps) {
 
     fallbackTimeout = setTimeout(() => {
       proceedSkip();
-    }, 4500);
+    }, 10000);
 
     speak(word, {
       onEnd: () => proceedSkip(),
@@ -378,8 +378,9 @@ export default function SpeakGame(props: SpeakGameProps) {
                   <Sparkles size={14} />
                   {attempts === 1 ? 'DIRECT HIT! PERFECT SHOT' : 'TARGET DESTROYED!'}
                 </span>
-                <span className="text-2xl sm:text-3xl font-black text-emerald-400 mt-0.5">
-                  {word}
+                <span className="text-2xl sm:text-3xl font-black text-emerald-400 mt-0.5 inline-flex items-center justify-center gap-2">
+                  <span>{word}</span>
+                  <Volume2 size={22} className="text-emerald-400 animate-pulse" />
                 </span>
               </div>
             )}
@@ -396,8 +397,9 @@ export default function SpeakGame(props: SpeakGameProps) {
                 <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
                   คลื่นเสียงที่ถูกต้องคือ
                 </span>
-                <span className="text-2xl sm:text-3xl font-black text-rose-400 mt-0.5">
-                  {word}
+                <span className="text-2xl sm:text-3xl font-black text-rose-400 mt-0.5 inline-flex items-center justify-center gap-2">
+                  <span>{word}</span>
+                  <Volume2 size={22} className="text-rose-400 animate-pulse" />
                 </span>
               </div>
             )}
@@ -407,8 +409,9 @@ export default function SpeakGame(props: SpeakGameProps) {
                 <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
                   ข้ามเป้าหมาย — คำศัพท์คือ
                 </span>
-                <span className="text-2xl sm:text-3xl font-black text-cyan-400 mt-0.5">
-                  {word}
+                <span className="text-2xl sm:text-3xl font-black text-cyan-400 mt-0.5 inline-flex items-center justify-center gap-2">
+                  <span>{word}</span>
+                  <Volume2 size={22} className="text-cyan-400 animate-pulse" />
                 </span>
               </div>
             )}

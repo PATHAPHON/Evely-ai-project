@@ -62,7 +62,14 @@ function UsagePageContent() {
   const handleUpgrade = useCallback(async () => {
     setIsUpgrading(true);
     try {
-      const res = await fetch("/api/stripe/create-checkout-session", { method: "POST" });
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: window.location.origin,
+          returnPath: "/profile/usage",
+        }),
+      });
       const data = await res.json();
       if (res.ok && data.url) {
         window.location.href = data.url;

@@ -72,6 +72,7 @@ export async function middleware(request: NextRequest) {
     if (!isLoggedIn) {
       const url = request.nextUrl.clone();
       url.pathname = '/auth';
+      url.search = '';
       url.searchParams.set('redirect', pathname + request.nextUrl.search);
       return NextResponse.redirect(url);
     }
