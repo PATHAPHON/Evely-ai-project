@@ -14,6 +14,8 @@ export interface StartListeningOptions {
   maxDurationMs?: number;
   /** Optional language code for transcription (e.g. 'en', 'th'). */
   language?: string;
+  /** Context of the STT request (e.g. 'game' for mini-games) */
+  context?: 'chat' | 'game';
 }
 
 export interface UseSTTReturn {
@@ -73,6 +75,7 @@ async function transcribeBlob(
   blob: Blob,
   format: string,
   language?: string,
+  context?: 'chat' | 'game',
 ): Promise<{ text: string } | { error: string }> {
   try {
     const base64 = await blobToBase64(blob);
@@ -84,6 +87,7 @@ async function transcribeBlob(
         audio: base64,
         format,
         ...(language ? { language } : {}),
+        ...(context ? { context } : {}),
       }),
     });
 
@@ -192,6 +196,7 @@ export function useSTT(): UseSTTReturn {
     const sessionOnEnd = opts?.onEnd;
     const sessionOnTranscribeStart = opts?.onTranscribeStart;
     const sessionLanguage = opts?.language;
+    const sessionContext = opts?.context;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -227,7 +232,7 @@ export function useSTT(): UseSTTReturn {
 
         setIsTranscribing(true);
         currentOnTranscribeStart?.();
-        const result = await transcribeBlob(blob, format, sessionLanguage);
+        const result = await transcribeBlob(blob, format, sessionLanguage, sessionContext);
         if ('error' in result) {
           setError(result.error);
           currentOnEnd?.('', result.error);

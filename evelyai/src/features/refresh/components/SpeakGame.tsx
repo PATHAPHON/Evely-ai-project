@@ -114,6 +114,7 @@ export default function SpeakGame(props: SpeakGameProps) {
     startListening({
       autoStopSilenceMs: 1500,
       maxDurationMs: 6000,
+      context: 'game',
       onEnd: (t, err) => {
         if (err) {
           if (

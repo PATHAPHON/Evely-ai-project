@@ -24,9 +24,9 @@ export interface QueueItem {
 export const MIN_WORDS_TO_PLAY = 6;
 
 /**
- * Builds a game queue prioritizing yellow (`needs_review`) words first.
- * If yellow words do not fill the target round size, green (`known`) words fill the remaining slots.
- * If there are no yellow words, green words are randomly sampled.
+ * Builds a game queue with a 70/30 yellow/green ratio.
+ * Yellow (`needs_review`) words fill 70 % of slots, green (`known`) words fill 30 %.
+ * If one pool is too small the other pool back-fills the remaining slots.
  * Requires at least MIN_WORDS_TO_PLAY (6 words) to play.
  */
 export function buildPlayQueue({
@@ -58,11 +58,22 @@ export function buildPlayQueue({
 
   const targetCount = targetMode === 'matching' ? 6 : wordsPerMode;
 
-  // Yellow-first priority: pick yellow words up to targetCount, then fill remainder with green words
-  const yellowSelected = yellow.slice(0, targetCount);
-  const remainingNeeded = targetCount - yellowSelected.length;
-  const greenSelected = green.slice(0, remainingNeeded);
-  const selected = [...yellowSelected, ...greenSelected];
+  // 70 % yellow / 30 % green ratio
+  const yellowTarget = Math.ceil(targetCount * 0.7);
+  const greenTarget = targetCount - yellowTarget;
+
+  // Take up to the target from each pool; if one pool is short, back-fill from the other
+  const yellowSelected = yellow.slice(0, yellowTarget);
+  const greenSelected = green.slice(0, greenTarget);
+
+  const yellowShortfall = yellowTarget - yellowSelected.length;
+  const greenShortfall = greenTarget - greenSelected.length;
+
+  // Back-fill: if yellow pool was short, take extra green; and vice-versa
+  const greenBackfill = green.slice(greenSelected.length, greenSelected.length + yellowShortfall);
+  const yellowBackfill = yellow.slice(yellowSelected.length, yellowSelected.length + greenShortfall);
+
+  const selected = [...yellowSelected, ...yellowBackfill, ...greenSelected, ...greenBackfill];
 
   return selected.map((w) => ({
     id: `${w.id}-${targetMode}`,

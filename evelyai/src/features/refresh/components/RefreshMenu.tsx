@@ -53,12 +53,8 @@ export default function RefreshMenu({
       label: 'ยิงพลังเสียง (Sonic Blaster)',
       desc: 'ชาร์จพลังงานเสียงและเปล่งเสียงคำศัพท์เพื่อยิงเป้าหมาย',
       icon: <Mic size={20} stroke="url(#refresh-grad)" />,
-      isLocked: isBudgetExhausted || !hasEnoughWords,
-      lockReason: isBudgetExhausted
-        ? 'งบ AI วันนี้เต็มแล้ว'
-        : !hasEnoughWords
-          ? `ต้องการอีก ${remainingToPlay} คำ`
-          : undefined,
+      isLocked: !hasEnoughWords,
+      lockReason: !hasEnoughWords ? `ต้องการอีก ${remainingToPlay} คำ` : undefined,
       badge: '5 คำ / รอบ',
     },
     {
@@ -116,12 +112,7 @@ export default function RefreshMenu({
           )}
         </div>
 
-        {isBudgetExhausted && (
-          <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-foreground/5 border border-border-color text-foreground/70 text-xs font-medium">
-            <Sparkles size={16} className="shrink-0 text-primary" />
-            <span>งบ AI วันนี้เต็มแล้ว — โหมดพูดจะปิดชั่วคราวและเปิดใหม่พรุ่งนี้</span>
-          </div>
-        )}
+
 
         {/* Mode list */}
         <div>

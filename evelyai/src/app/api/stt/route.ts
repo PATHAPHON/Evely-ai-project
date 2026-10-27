@@ -17,22 +17,26 @@ export async function POST(request: Request) {
     const user = await getRequestUser();
     if (!user) return unauthorizedResponse();
 
-    const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
-    const hasBudget = await checkBudget(limit, user.isUnlimited);
-    if (!hasBudget) return budgetExhaustedResponse();
+    const body = await request.json().catch(() => null);
+    if (!body || !body.audio) {
+      return NextResponse.json({ error: 'Missing audio data' }, { status: 400 });
+    }
+
+    const { audio, format = 'webm', language = 'en', context } = body;
+
+    // Check budget unless requested from mini-games where pronunciation practice is always accessible
+    const isGame = context === 'game';
+    if (!isGame) {
+      const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
+      const hasBudget = await checkBudget(limit, user.isUnlimited);
+      if (!hasBudget) return budgetExhaustedResponse();
+    }
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       console.error('OPENROUTER_API_KEY is not set in environment variables');
       return NextResponse.json({ error: 'OpenRouter API key is not configured' }, { status: 500 });
     }
-
-    const body = await request.json().catch(() => null);
-    if (!body || !body.audio) {
-      return NextResponse.json({ error: 'Missing audio data' }, { status: 400 });
-    }
-
-    const { audio, format = 'webm', language = 'en' } = body;
 
     if (typeof audio !== 'string' || audio.length > MAX_AUDIO_BASE64_LENGTH) {
       return NextResponse.json({ error: 'Audio data too large' }, { status: 400 });
@@ -73,7 +77,9 @@ export async function POST(request: Request) {
     const result = await response.json();
 
     after(async () => {
-      await debitBudget(STT_COST_MICROBAHT);
+      if (!isGame) {
+        await debitBudget(STT_COST_MICROBAHT);
+      }
     });
 
     return NextResponse.json({ text: result.text || '' });

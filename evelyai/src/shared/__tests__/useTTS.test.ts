@@ -156,7 +156,7 @@ describe('useTTS', () => {
   });
 
   describe('speak — error handling without fallback', () => {
-    it('marks budget exhausted and sets error without fallback when /api/tts returns 429', async () => {
+    it('sets error without fallback when /api/tts fails with error status', async () => {
       vi.stubGlobal('fetch', mockFetchStatus(429));
       const onError = vi.fn();
 

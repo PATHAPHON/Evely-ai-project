@@ -1,13 +1,9 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import {
   getRequestUser,
   unauthorizedResponse,
-  checkBudget,
-  debitBudget,
-  budgetExhaustedResponse,
 } from '@/app/api/_lib/utils/requireUser';
-import { DAILY_BUDGET_MICROBAHT, TTS_COST_MICROBAHT } from '@/app/api/_lib/utils/tokenCost';
 
 const OPENROUTER_TTS_URL = 'https://openrouter.ai/api/v1/audio/speech';
 const API_TIMEOUT_MS = 15_000;
@@ -169,11 +165,7 @@ export async function POST(request: NextRequest) {
     return audioResponse(cached, 'HIT');
   }
 
-  // Gate cache MISS path by daily token budget
-  const limit = user.isPremium ? DAILY_BUDGET_MICROBAHT.premium : DAILY_BUDGET_MICROBAHT.free;
-  const hasBudget = await checkBudget(limit, user.isUnlimited);
-  if (!hasBudget) return budgetExhaustedResponse();
-
+  // TTS is free and not constrained by chat budget, allowing users to listen anytime
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -226,10 +218,6 @@ export async function POST(request: NextRequest) {
     const buffer = isWav ? rawBuffer : pcmToWav(rawBuffer, 24000);
     audioCache.set(key, buffer);
     evictIfNeeded();
-
-    after(async () => {
-      await debitBudget(TTS_COST_MICROBAHT);
-    });
 
     return audioResponse(buffer, 'MISS');
   } catch (error: unknown) {

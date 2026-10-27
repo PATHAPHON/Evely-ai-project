@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { markBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import { useToast } from '@/shared/components/Toast';
 import type { SpeechLang } from '../types/chatTypes';
 
@@ -116,9 +115,6 @@ export function useTTS(
           if (requestIdRef.current !== currentRequestId) return;
 
           if (!response.ok) {
-            if (response.status === 429) {
-              markBudgetExhausted();
-            }
             handleSpeechError(new Error(`TTS request failed with status ${response.status}`));
             return;
           }

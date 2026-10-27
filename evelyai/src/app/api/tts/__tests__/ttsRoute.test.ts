@@ -27,8 +27,6 @@ vi.mock('@/app/api/_lib/utils/requireUser', async () => {
 
 import {
   getRequestUser,
-  checkBudget,
-  debitBudget,
 } from '@/app/api/_lib/utils/requireUser';
 
 describe('POST /api/tts', () => {
@@ -71,23 +69,8 @@ describe('POST /api/tts', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 429 if budget is exhausted on cache miss', async () => {
+  it('calls OpenRouter TTS successfully without budget restrictions', async () => {
     vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
-    vi.mocked(checkBudget).mockResolvedValueOnce(false);
-
-    const uniqueText = `Uncached test text ${Date.now()}`;
-    const req = new NextRequest('http://localhost/api/tts', {
-      method: 'POST',
-      body: JSON.stringify({ text: uniqueText }),
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(429);
-  });
-
-  it('calls OpenRouter TTS and debits budget on success', async () => {
-    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
-    vi.mocked(checkBudget).mockResolvedValueOnce(true);
 
     const dummyPcm = new Uint8Array(480).buffer;
     const fetchMock = vi.fn().mockResolvedValueOnce({
@@ -106,6 +89,5 @@ describe('POST /api/tts', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('audio/wav');
     expect(res.headers.get('X-Cache')).toBe('MISS');
-    expect(debitBudget).toHaveBeenCalledWith(500);
   });
 });

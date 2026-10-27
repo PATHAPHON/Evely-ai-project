@@ -57,7 +57,7 @@ describe('POST /api/stt', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 429 if budget is exhausted', async () => {
+  it('returns 429 if budget is exhausted and context is not game', async () => {
     vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
     vi.mocked(checkBudget).mockResolvedValueOnce(false);
 
@@ -68,6 +68,26 @@ describe('POST /api/stt', () => {
 
     const res = await POST(req);
     expect(res.status).toBe(429);
+  });
+
+  it('allows STT even when budget is exhausted if context is game', async () => {
+    vi.mocked(getRequestUser).mockResolvedValueOnce({ id: 'user-1', isPremium: false, isUnlimited: false });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: 'game spoken text' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = new Request('http://localhost/api/stt', {
+      method: 'POST',
+      body: JSON.stringify({ audio: 'dGVzdA==', context: 'game' }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.text).toBe('game spoken text');
   });
 
   it('returns 400 if audio is missing', async () => {

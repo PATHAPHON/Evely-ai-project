@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWordBank } from '@/shared/hooks/useWordBank';
 import { useUserProfile } from '@/shared/hooks/useUserProfile';
-import { useBudgetExhausted } from '@/shared/hooks/useBudgetExhausted';
 import GameShell from '@/features/refresh/components/GameShell';
 import MatchingGame, { MatchingResult } from '@/features/refresh/components/MatchingGame';
 import TypingGame, { TypingResult } from '@/features/refresh/components/TypingGame';
@@ -34,7 +33,6 @@ function RefreshPlayContent() {
 
   const { words, reviewWord, getEntry, isLoading } = useWordBank();
   const { isPremium } = useUserProfile();
-  const { exhausted: isBudgetExhausted } = useBudgetExhausted();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -49,12 +47,6 @@ function RefreshPlayContent() {
 
   useEffect(() => {
     if (isLoading || phase !== 'loading') return;
-
-    // Check if mode is speak but budget is exhausted
-    if (targetMode === 'speak' && isBudgetExhausted) {
-      router.replace('/refresh');
-      return;
-    }
 
     const items = buildPlayQueue({
       words,
@@ -81,7 +73,7 @@ function RefreshPlayContent() {
     setIndex(0);
     setImproved(0);
     setPhase('playing');
-  }, [isLoading, words, phase, isBudgetExhausted, targetMode, isPracticeMode, router]);
+  }, [isLoading, words, phase, targetMode, isPracticeMode]);
 
   function recordWordResult(
     wordId: string,

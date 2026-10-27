@@ -78,7 +78,7 @@ describe('RefreshMenu', () => {
     expect(screen.getAllByText('ต้องการอีก 6 คำ').length).toBeGreaterThan(0);
   });
 
-  it('locks speak mode when budget is exhausted even if words are available', () => {
+  it('keeps speak mode unlocked when budget is exhausted as long as words are available', () => {
     render(
       <RefreshMenu
         onStartMode={vi.fn()}
@@ -88,10 +88,9 @@ describe('RefreshMenu', () => {
       />
     );
 
-    expect(screen.getByText('งบ AI วันนี้เต็มแล้ว — โหมดพูดจะปิดชั่วคราวและเปิดใหม่พรุ่งนี้')).toBeInTheDocument();
     const buttons = screen.getAllByRole('button');
     const speakBtn = buttons.find((b) => b.textContent?.includes('Sonic Blaster'));
-    expect(speakBtn).toBeDisabled();
+    expect(speakBtn).toBeEnabled();
 
     const typingBtn = buttons.find((b) => b.textContent?.includes('พิมพ์ศัพท์จับจังหวะ'));
     expect(typingBtn).toBeEnabled();
