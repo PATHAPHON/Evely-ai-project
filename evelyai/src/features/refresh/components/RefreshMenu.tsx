@@ -11,6 +11,7 @@ interface Props {
   withThai?: number;
   totalPlayable?: number;
   yellowCount?: number;
+  greenCount?: number;
   isLoading?: boolean;
   isBudgetExhausted?: boolean;
 }
@@ -22,11 +23,13 @@ export default function RefreshMenu({
   withThai = 0,
   totalPlayable,
   yellowCount = 0,
+  greenCount,
   isLoading = false,
   isBudgetExhausted = false,
 }: Props) {
   const router = useRouter();
   const total = totalPlayable ?? withThai;
+  const resolvedGreenCount = greenCount ?? Math.max(0, total - yellowCount);
   const hasEnoughWords = total >= MIN_WORDS_TO_PLAY;
   const remainingToPlay = Math.max(0, MIN_WORDS_TO_PLAY - total);
 
@@ -82,32 +85,42 @@ export default function RefreshMenu({
 
       <div className="flex flex-col gap-5 p-4 pb-24">
         {/* Status overview card */}
-        <div className="rounded-2xl bg-card-bg border border-border-color/80 p-4 shadow-soft-sm flex items-center justify-between">
-          <div>
-            <p className="text-foreground/60 text-xs font-medium">คำศัพท์พร้อมฝึกฝน</p>
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <p className="text-2xl font-bold text-foreground">
-                {isLoading ? '...' : `${total} คำ`}
-              </p>
-              {yellowCount > 0 && !isLoading && (
-                <span className="text-[11px] font-semibold text-amber-500 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                  ทบทวนด่วน {yellowCount} คำ (เล่นก่อน)
-                </span>
-              )}
+        <div className="rounded-2xl bg-card-bg border border-border-color/80 p-4 shadow-soft-sm flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-foreground/60 text-xs font-medium">คำศัพท์พร้อมฝึกฝน</p>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading ? '...' : `${total} คำ`}
+                </p>
+              </div>
             </div>
+            {isLoading ? (
+              <div className="text-xs text-foreground/50">กำลังโหลด...</div>
+            ) : !hasEnoughWords ? (
+              <button
+                onClick={() => router.push('/new')}
+                className="text-xs font-semibold text-primary hover:underline cursor-pointer px-2.5 py-1.5 rounded-lg bg-primary/10 transition-colors"
+              >
+                ไปสะสมคำที่แชต →
+              </button>
+            ) : (
+              <div className="flex items-center gap-1 text-xs font-medium text-correct bg-correct/10 border border-correct/20 px-2.5 py-1 rounded-full">
+                <span>พร้อมทบทวน</span>
+              </div>
+            )}
           </div>
-          {isLoading ? (
-            <div className="text-xs text-foreground/50">กำลังโหลด...</div>
-          ) : !hasEnoughWords ? (
-            <button
-              onClick={() => router.push('/new')}
-              className="text-xs font-semibold text-primary hover:underline cursor-pointer px-2.5 py-1.5 rounded-lg bg-primary/10 transition-colors"
-            >
-              ไปสะสมคำที่แชต →
-            </button>
-          ) : (
-            <div className="flex items-center gap-1 text-xs font-medium text-correct bg-correct/10 border border-correct/20 px-2.5 py-1 rounded-full">
-              <span>พร้อมทบทวน</span>
+
+          {!isLoading && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-color/50">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                ต้องทบทวน (สีเหลือง) {yellowCount} คำ
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                จำได้แล้ว (สีเขียว) {resolvedGreenCount} คำ
+              </span>
             </div>
           )}
         </div>

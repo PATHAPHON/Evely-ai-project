@@ -17,11 +17,13 @@ describe('RefreshMenu', () => {
         onStartMode={onStartMode}
         totalPlayable={6}
         yellowCount={2}
+        greenCount={4}
       />
     );
 
     expect(screen.getByText('6 คำ')).toBeInTheDocument();
-    expect(screen.getByText('ทบทวนด่วน 2 คำ (เล่นก่อน)')).toBeInTheDocument();
+    expect(screen.getByText('ต้องทบทวน (สีเหลือง) 2 คำ')).toBeInTheDocument();
+    expect(screen.getByText('จำได้แล้ว (สีเขียว) 4 คำ')).toBeInTheDocument();
     expect(screen.getByText('พร้อมทบทวน')).toBeInTheDocument();
 
     const buttons = screen.getAllByRole('button');
@@ -48,7 +50,8 @@ describe('RefreshMenu', () => {
     );
 
     expect(screen.getByText('4 คำ')).toBeInTheDocument();
-    expect(screen.getByText('ทบทวนด่วน 1 คำ (เล่นก่อน)')).toBeInTheDocument();
+    expect(screen.getByText('ต้องทบทวน (สีเหลือง) 1 คำ')).toBeInTheDocument();
+    expect(screen.getByText('จำได้แล้ว (สีเขียว) 3 คำ')).toBeInTheDocument();
     expect(screen.getByText('ไปสะสมคำที่แชต →')).toBeInTheDocument();
 
     const buttons = screen.getAllByRole('button');

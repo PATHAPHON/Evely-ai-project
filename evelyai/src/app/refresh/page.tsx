@@ -18,6 +18,7 @@ export default function RefreshPage() {
   // Deduplicate playable words that have Thai translation
   const totalPlayableMap = new Map<string, typeof words[number]>();
   const yellowMap = new Map<string, typeof words[number]>();
+  const greenMap = new Map<string, typeof words[number]>();
 
   for (const w of words) {
     if (w.thai && w.thai.trim()) {
@@ -29,12 +30,17 @@ export default function RefreshPage() {
         if (!yellowMap.has(k)) {
           yellowMap.set(k, w);
         }
+      } else {
+        if (!greenMap.has(k)) {
+          greenMap.set(k, w);
+        }
       }
     }
   }
 
   const totalPlayableCount = totalPlayableMap.size;
   const yellowCount = yellowMap.size;
+  const greenCount = greenMap.size;
 
   function handleStartMode(mode: RefreshMode) {
     router.push(`/refresh/play?mode=${mode}`);
@@ -45,6 +51,7 @@ export default function RefreshPage() {
       onStartMode={handleStartMode}
       totalPlayable={totalPlayableCount}
       yellowCount={yellowCount}
+      greenCount={greenCount}
       withThai={totalPlayableCount}
       isLoading={isLoading}
       isBudgetExhausted={isBudgetExhausted}
