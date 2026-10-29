@@ -272,28 +272,8 @@ function RefreshPlayContent() {
       recordWordResult(item.wordId, item.word, item.thai, quality, mistakes);
     }
 
-    // If failed (quality < 3), re-queue word at the end of current game mode's block
-    const willRequeue = quality < 3 && !!item;
-    if (willRequeue) {
-      setQueue((prev) => {
-        let lastSameGameIdx = index;
-        for (let i = prev.length - 1; i >= index; i--) {
-          if (prev[i].game === item.game) {
-            lastSameGameIdx = i;
-            break;
-          }
-        }
-        const copy = [...prev];
-        copy.splice(lastSameGameIdx + 1, 0, {
-          ...item,
-          id: `${item.wordId}-retry-${Date.now()}`,
-        });
-        return copy;
-      });
-    }
-
     const nextIdx = index + 1;
-    if (!willRequeue && nextIdx >= queue.length) {
+    if (nextIdx >= queue.length) {
       setSummaryItems(Array.from(summaryMapRef.current.values()));
       setPhase('summary');
     } else {

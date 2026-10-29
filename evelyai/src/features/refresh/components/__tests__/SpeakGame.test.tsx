@@ -162,4 +162,20 @@ describe('SpeakGame (Sonic Blaster)', () => {
 
     expect(baseProps.onSkip).toHaveBeenCalledTimes(1);
   });
+
+  it('treats STT service error (e.g. OpenRouter Too Many Requests) as a wrong attempt without showing toast', () => {
+    render(<SpeakGame {...baseProps} />);
+
+    const triggerBtn = screen.getByRole('button', { name: /แตะเพื่อชาร์จปืนใหญ่/i });
+    fireEvent.click(triggerBtn);
+
+    const callArgs = mockStartListening.mock.calls[0][0];
+    act(() => {
+      callArgs.onEnd('', 'OpenRouter STT service failed: Too Many Requests');
+    });
+
+    expect(gameAudio.playShieldDeflect).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('DANGER ZONE')).toBeInTheDocument();
+    expect(screen.getByText(/เกราะสะท้อนการยิง!/)).toBeInTheDocument();
+  });
 });

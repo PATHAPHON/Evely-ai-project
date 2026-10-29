@@ -124,18 +124,25 @@ export default function SpeakGame(props: SpeakGameProps) {
           ) {
             setPermissionModalStatus('denied');
             setPermissionModalOpen(true);
+            setState('idle');
+            setAttempts((prev) => Math.max(0, prev - 1));
+            return;
           } else if (err.includes('ไม่รองรับ')) {
             setPermissionModalStatus('unsupported');
             setPermissionModalOpen(true);
+            setState('idle');
+            setAttempts((prev) => Math.max(0, prev - 1));
+            return;
           } else if (err.includes('งบ AI') || err.includes('budget') || err.includes('429')) {
             showToast('งบ AI วันนี้เต็มแล้ว — สลับเป็นโหมดพิมพ์ให้อัตโนมัติ', 'info');
             onFallbackToTyping?.();
             return;
-          } else {
-            showToast(err, 'error');
           }
-          setState('idle');
-          setAttempts((prev) => Math.max(0, prev - 1));
+
+          // Any other STT error (e.g. OpenRouter 429 Too Many Requests / 502):
+          // Treat as a wrong attempt directly without showing an error toast
+          gameAudio.playShieldDeflect();
+          setState(nextAttempt >= 2 ? 'wrong2' : 'wrong1');
           return;
         }
 

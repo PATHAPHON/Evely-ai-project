@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Volume2, VolumeX, Sparkles, Volume1, Loader2 } from 'lucide-react';
+import { Volume2, VolumeX, Sparkles, Volume1, Loader2, AlertCircle } from 'lucide-react';
 import { useTTS } from '@/shared/hooks/useTTS';
 import { gameAudio } from '../utils/gameAudio';
 import type { WordBank } from '../gameTypes';
@@ -75,7 +75,7 @@ export default function TypingGame(props: TypingGameProps) {
   const [activeNoteIdx, setActiveNoteIdx] = useState(0);
   const [spelledChars, setSpelledChars] = useState<string[]>([]);
   const [hitFeedback, setHitFeedback] = useState<{ text: string; lane: number } | null>(null);
-  const [completedPopup, setCompletedPopup] = useState<{ word: string; thai: string } | null>(null);
+  const [completedPopup, setCompletedPopup] = useState<{ word: string; thai: string; failed?: boolean } | null>(null);
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(gameAudio.getMuted());
   const [isFinishing, setIsFinishing] = useState(false);
@@ -160,14 +160,12 @@ export default function TypingGame(props: TypingGameProps) {
       const misses = missCountPerWordRef.current[it.wordId] || 0;
 
       let quality = 5;
-      if (misses > 1) {
+      if (misses >= 2 || mistakes >= 2) {
         quality = 2;
       } else if (misses === 1) {
         quality = 3;
       } else if (mistakes === 1) {
         quality = 4;
-      } else if (mistakes >= 2) {
-        quality = 3;
       }
 
       return {
@@ -193,13 +191,49 @@ export default function TypingGame(props: TypingGameProps) {
     }
   }, [currentWordIdx, items.length, finishRound]);
 
-  // Reset current word on miss
+  // Reset current word on miss (or advance if missed twice)
   const resetCurrentWord = useCallback(() => {
-    missCountPerWordRef.current[currentItem.wordId] =
-      (missCountPerWordRef.current[currentItem.wordId] || 0) + 1;
+    const nextMisses = (missCountPerWordRef.current[currentItem.wordId] || 0) + 1;
+    missCountPerWordRef.current[currentItem.wordId] = nextMisses;
     gameAudio.playWordMiss();
+
+    if (nextMisses >= 2) {
+      isWordTransitioningRef.current = true;
+      setCompletedPopup({
+        word: currentItem.word,
+        thai: currentItem.thai,
+        failed: true,
+      });
+
+      let hasAdvanced = false;
+      let safetyTimer: NodeJS.Timeout | null = null;
+
+      const proceedToNext = () => {
+        if (hasAdvanced) return;
+        hasAdvanced = true;
+        if (safetyTimer) {
+          clearTimeout(safetyTimer);
+          safetyTimer = null;
+        }
+        setTimeout(() => {
+          setCompletedPopup(null);
+          advanceToNextWord();
+        }, 400);
+      };
+
+      safetyTimer = setTimeout(() => {
+        proceedToNext();
+      }, 8000);
+
+      speak(currentItem.word, {
+        onEnd: () => proceedToNext(),
+        onError: () => proceedToNext(),
+      });
+      return;
+    }
+
     setupWordPattern(cleanWordLetters);
-  }, [cleanWordLetters, currentItem.wordId, setupWordPattern]);
+  }, [advanceToNextWord, cleanWordLetters, currentItem, setupWordPattern, speak]);
 
   // Main Game Loop (Physics & Falling)
   useEffect(() => {
@@ -328,8 +362,43 @@ export default function TypingGame(props: TypingGameProps) {
       }
     } else {
       // Wrong Key pressed
-      mistakesPerWordRef.current[currentItem.wordId] =
-        (mistakesPerWordRef.current[currentItem.wordId] || 0) + 1;
+      const nextMistakes = (mistakesPerWordRef.current[currentItem.wordId] || 0) + 1;
+      mistakesPerWordRef.current[currentItem.wordId] = nextMistakes;
+      gameAudio.playWordMiss();
+
+      if (nextMistakes >= 2) {
+        isWordTransitioningRef.current = true;
+        setCompletedPopup({
+          word: currentItem.word,
+          thai: currentItem.thai,
+          failed: true,
+        });
+
+        let hasAdvanced = false;
+        let safetyTimer: NodeJS.Timeout | null = null;
+
+        const proceedToNext = () => {
+          if (hasAdvanced) return;
+          hasAdvanced = true;
+          if (safetyTimer) {
+            clearTimeout(safetyTimer);
+            safetyTimer = null;
+          }
+          setTimeout(() => {
+            setCompletedPopup(null);
+            advanceToNextWord();
+          }, 400);
+        };
+
+        safetyTimer = setTimeout(() => {
+          proceedToNext();
+        }, 8000);
+
+        speak(currentItem.word, {
+          onEnd: () => proceedToNext(),
+          onError: () => proceedToNext(),
+        });
+      }
     }
   }, [advanceToNextWord, cleanWordLetters.length, currentItem, speak]);
 
@@ -545,8 +614,14 @@ export default function TypingGame(props: TypingGameProps) {
         {/* Word Completion Popup Modal */}
         {completedPopup && (
           <div className="absolute inset-0 z-40 bg-card-bg/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-card-fade-in">
-            <div className="w-12 h-12 rounded-2xl bg-correct/15 text-correct flex items-center justify-center mb-2 animate-bounce">
-              <Sparkles size={24} />
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-2 animate-bounce ${
+                completedPopup.failed
+                  ? 'bg-incorrect/15 text-incorrect'
+                  : 'bg-correct/15 text-correct'
+              }`}
+            >
+              {completedPopup.failed ? <AlertCircle size={24} /> : <Sparkles size={24} />}
             </div>
             <div className="flex items-center gap-2">
               <h3 className="text-2xl font-black text-foreground tracking-wide">
@@ -572,8 +647,14 @@ export default function TypingGame(props: TypingGameProps) {
             <p className="text-sm font-semibold text-foreground/75 mt-1">
               {completedPopup.thai}
             </p>
-            <span className="text-xs font-bold text-correct mt-2 px-3 py-1 rounded-full bg-correct/10 border border-correct/20">
-              ✓ ถูกต้องยอดเยี่ยม!
+            <span
+              className={`text-xs font-bold mt-2 px-3 py-1 rounded-full border ${
+                completedPopup.failed
+                  ? 'text-incorrect bg-incorrect/10 border-incorrect/20'
+                  : 'text-correct bg-correct/10 border-correct/20'
+              }`}
+            >
+              {completedPopup.failed ? '⚠️ ต้องทบทวนเพิ่ม' : '✓ ถูกต้องยอดเยี่ยม!'}
             </span>
           </div>
         )}

@@ -86,7 +86,6 @@ export default function MatchingGame({
   const [floatingScores, setFloatingScores] = useState<FloatingScore[]>([]);
   const [isRoundClear, setIsRoundClear] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [lastMatchedWord, setLastMatchedWord] = useState<string | null>(null);
 
   // Mutable refs for physics and state loop
   const bubblesRef = useRef<BubbleData[]>([]);
@@ -211,7 +210,7 @@ export default function MatchingGame({
 
   // Round completion handler
   const handleFinish = useCallback(
-    (reason: 'clear' | 'timeout', wordToSpeak?: string) => {
+    (reason: 'clear' | 'timeout') => {
       if (isFinishingRef.current) return;
       isFinishingRef.current = true;
 
@@ -253,14 +252,10 @@ export default function MatchingGame({
           proceed();
         }, 8000);
 
-        if (wordToSpeak) {
-          speak(wordToSpeak, {
-            onEnd: () => proceed(),
-            onError: () => proceed(),
-          });
-        } else {
-          proceed();
-        }
+        speak('good', {
+          onEnd: () => proceed(),
+          onError: () => proceed(),
+        });
       } else {
         setIsGameOver(true);
         gameAudio.playWordMiss();
@@ -510,7 +505,6 @@ export default function MatchingGame({
 
     if (isMatch) {
       const englishWord = firstBubble.rawWord;
-      setLastMatchedWord(englishWord);
 
       // Calculate midpoint for merge animation
       const midX = (firstBubble.x + clickedBubble.x) / 2;
@@ -549,7 +543,7 @@ export default function MatchingGame({
         poppedCountRef.current += 1;
 
         if (poppedCountRef.current >= items.length) {
-          handleFinish('clear', englishWord);
+          handleFinish('clear');
         } else {
           speak(englishWord);
         }
@@ -771,12 +765,10 @@ export default function MatchingGame({
             </div>
             <p className="text-xl font-black text-foreground">ยอดเยี่ยม!</p>
             <p className="text-xs text-foreground/60 mt-1 font-medium">จับคู่คำศัพท์สำเร็จครบทุกฟอง</p>
-            {lastMatchedWord && (
-              <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold animate-pulse">
-                <Volume2 size={14} />
-                <span>{lastMatchedWord}</span>
-              </div>
-            )}
+            <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold animate-pulse">
+              <Volume2 size={14} />
+              <span>good</span>
+            </div>
           </div>
         )}
 

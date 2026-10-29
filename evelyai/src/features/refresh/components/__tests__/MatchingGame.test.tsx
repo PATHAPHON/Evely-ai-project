@@ -232,7 +232,7 @@ describe('MatchingGame (Neon Bubble Pop)', () => {
     });
 
     expect(screen.getByText('ยอดเยี่ยม!')).toBeInTheDocument();
-    expect(mockSpeak).toHaveBeenCalledWith('book', expect.any(Object));
+    expect(mockSpeak).toHaveBeenCalledWith('good', expect.any(Object));
 
     // Before TTS onEnd is called, it should NOT have completed yet
     act(() => {
