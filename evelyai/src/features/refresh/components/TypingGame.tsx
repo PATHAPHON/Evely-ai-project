@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Volume2, VolumeX, Sparkles, Volume1 } from 'lucide-react';
+import { Volume2, VolumeX, Sparkles, Volume1, Loader2 } from 'lucide-react';
 import { useTTS } from '@/shared/hooks/useTTS';
 import { gameAudio } from '../utils/gameAudio';
 import type { WordBank } from '../gameTypes';
@@ -91,7 +91,7 @@ export default function TypingGame(props: TypingGameProps) {
   const lastTimeRef = useRef<number | null>(null);
   const isWordTransitioningRef = useRef<boolean>(false);
 
-  const { speak } = useTTS('en-US');
+  const { speak, isSpeaking, isSynthesizing } = useTTS('en-US');
 
   // Extract clean alphabetic characters from the word
   const cleanWordLetters = useMemo(() => {
@@ -389,7 +389,23 @@ export default function TypingGame(props: TypingGameProps) {
       {/* Target Word Translation & Letter Slots (Header) */}
       <div className="px-3 py-2.5 rounded-2xl bg-card-bg/70 border border-border-color/80 mb-2.5 text-center shadow-soft-xs flex flex-col items-center">
         <p className="text-xs font-medium text-foreground/55">แปลคำว่า</p>
-        <p className="text-xl font-bold text-foreground mt-0.5">{currentItem.thai}</p>
+        <div className="flex items-center justify-center gap-2 mt-0.5">
+          <p className="text-xl font-bold text-foreground">{currentItem.thai}</p>
+          <button
+            type="button"
+            onClick={() => speak(currentItem.word)}
+            disabled={isSynthesizing}
+            aria-label={`ฟังเสียงคำว่า ${currentItem.word}`}
+            title="ฟังเสียงอ่าน"
+            className="p-1.5 rounded-full hover:bg-primary/10 text-primary transition-colors cursor-pointer active:scale-95"
+          >
+            {isSynthesizing ? (
+              <Loader2 size={18} className="animate-spin text-primary" />
+            ) : (
+              <Volume2 size={18} className={isSpeaking ? 'animate-bounce' : ''} />
+            )}
+          </button>
+        </div>
 
         {/* Spelling Progress Slots */}
         <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
@@ -536,7 +552,22 @@ export default function TypingGame(props: TypingGameProps) {
               <h3 className="text-2xl font-black text-foreground tracking-wide">
                 {completedPopup.word}
               </h3>
-              <Volume1 size={18} className="text-primary animate-pulse" />
+              <button
+                type="button"
+                onClick={() => speak(completedPopup.word)}
+                disabled={isSynthesizing}
+                aria-label={`ฟังเสียงคำว่า ${completedPopup.word}`}
+                className="p-1.5 rounded-full hover:bg-primary/10 transition-colors cursor-pointer text-primary"
+              >
+                {isSynthesizing ? (
+                  <Loader2 size={18} className="animate-spin text-primary" />
+                ) : (
+                  <Volume1
+                    size={18}
+                    className={`text-primary ${isSpeaking ? 'animate-bounce' : 'animate-pulse'}`}
+                  />
+                )}
+              </button>
             </div>
             <p className="text-sm font-semibold text-foreground/75 mt-1">
               {completedPopup.thai}

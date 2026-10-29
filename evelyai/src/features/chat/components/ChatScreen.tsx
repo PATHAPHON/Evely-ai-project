@@ -42,6 +42,7 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceTranscribing, setVoiceTranscribing] = useState(false);
   const [spokenVoiceId, setSpokenVoiceId] = useState<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
   const { customPrompt, setCustomPrompt, clearCustomPrompt } = useCustomRolePrompt();
 
@@ -172,24 +173,31 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
 
   const handleSpeak = useCallback(
     (messageId: string, text?: string) => {
-      if (text) {
-        speak(text);
-        return;
-      }
-      const message = sessionMessages.find((m) => m.id === messageId);
-      if (message) {
-        // Prioritize pre-compiled ttsText with inline audio tags for dynamic emotion
-        if (message.ttsText) {
-          speak(message.ttsText);
-        } else if (message.sentences && message.sentences.length > 0) {
-          const tagged = message.sentences
-            .map((s) => (s.emotion ? `[${s.emotion}] ${s.englishText}` : s.englishText))
-            .join(' ');
-          speak(tagged || message.englishText);
-        } else if (message.englishText) {
-          speak(message.englishText);
+      let ttsPayload = text;
+      if (!ttsPayload) {
+        const message = sessionMessages.find((m) => m.id === messageId);
+        if (message) {
+          // Prioritize pre-compiled ttsText with inline audio tags for dynamic emotion
+          if (message.ttsText) {
+            ttsPayload = message.ttsText;
+          } else if (message.sentences && message.sentences.length > 0) {
+            const tagged = message.sentences
+              .map((s) => (s.emotion ? `[${s.emotion}] ${s.englishText}` : s.englishText))
+              .join(' ');
+            ttsPayload = tagged || message.englishText;
+          } else if (message.englishText) {
+            ttsPayload = message.englishText;
+          }
         }
       }
+
+      if (!ttsPayload) return;
+
+      setSpeakingMessageId(messageId);
+      speak(ttsPayload, {
+        onEnd: () => setSpeakingMessageId((current) => (current === messageId ? null : current)),
+        onError: () => setSpeakingMessageId((current) => (current === messageId ? null : current)),
+      });
     },
     [sessionMessages, speak]
   );
@@ -278,6 +286,7 @@ export default function ChatScreen({ sessionId: sessionParam }: ChatScreenProps)
             error={sessionError}
             onRetry={retrySessionMessage}
             onSpeak={handleSpeak}
+            speakingMessageId={speakingMessageId}
             voiceTranscribing={voiceTranscribing}
             pendingVoiceMessageId={pendingVoiceMessageId}
             voiceMode={voiceMode}

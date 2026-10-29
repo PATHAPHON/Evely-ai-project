@@ -13,6 +13,7 @@ interface ChatListProps {
   error: string | null;
   onRetry: () => void;
   onSpeak: (messageId: string, text?: string) => void;
+  speakingMessageId?: string | null;
   voiceTranscribing?: boolean;
   pendingVoiceMessageId?: string | null;
   voiceMode?: boolean;
@@ -34,6 +35,7 @@ export default function ChatList({
   error,
   onRetry,
   onSpeak,
+  speakingMessageId = null,
   voiceTranscribing = false,
   pendingVoiceMessageId = null,
   voiceMode = false,
@@ -99,10 +101,24 @@ export default function ChatList({
           if (message.status === 'pending') {
             // Show partial streaming content if available, otherwise hide
             if (!hasPartialContent(message)) return null;
-            return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
+            return (
+              <AIMessage
+                key={message.id}
+                message={message}
+                onSpeak={onSpeak}
+                isSpeaking={speakingMessageId === message.id}
+              />
+            );
           }
           if (message.role === 'assistant') {
-            return <AIMessage key={message.id} message={message} onSpeak={onSpeak} />;
+            return (
+              <AIMessage
+                key={message.id}
+                message={message}
+                onSpeak={onSpeak}
+                isSpeaking={speakingMessageId === message.id}
+              />
+            );
           }
           return (
             <div key={message.id} ref={index === lastUserIndex ? lastUserMsgRef : undefined}>

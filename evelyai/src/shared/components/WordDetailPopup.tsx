@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useContext } from "react";
 import { createPortal } from "react-dom";
-import { Calendar } from "lucide-react";
+import { Calendar, Loader2 } from "lucide-react";
 import { supabase } from "@/shared/supabase/supabaseClient";
 import { useTTS } from "@/shared/hooks/useTTS";
 import { markBudgetExhausted } from "@/shared/hooks/useBudgetExhausted";
@@ -86,7 +86,8 @@ function Skeleton({ lines }: { lines: number }) {
 }
 
 export default function WordDetailPopup({ word, onClose, onUpdate }: WordDetailPopupProps) {
-  const { speak } = useTTS("en-US");
+  const { speak, isSpeaking, isSynthesizing } = useTTS("en-US");
+  const isAudioWorking = isSynthesizing || isSpeaking;
   const wordStatusContext = useContext(WordStatusContext);
   const [detail, setDetail] = useState<WordDetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -348,16 +349,21 @@ export default function WordDetailPopup({ word, onClose, onUpdate }: WordDetailP
         <div className="mt-6 flex justify-center">
           <button
             type="button"
+            disabled={isAudioWorking}
             onClick={() => word.word && speak(word.word)}
-            className="inline-flex h-[52px] items-center justify-center gap-2.5 rounded-2xl bg-primary px-7 text-sm font-bold tracking-wide text-white dark:text-gray-900 transition-all hover:bg-primary-hover active:scale-95 cursor-pointer shadow-soft-sm"
+            className="inline-flex h-[52px] items-center justify-center gap-2.5 rounded-2xl bg-primary px-7 text-sm font-bold tracking-wide text-white dark:text-gray-900 transition-all hover:bg-primary-hover active:scale-95 cursor-pointer shadow-soft-sm disabled:opacity-80"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor" stroke="none" />
-              <path d="M5 11a7 7 0 0 0 14 0" />
-              <line x1="12" y1="18" x2="12" y2="22" />
-              <line x1="8" y1="22" x2="16" y2="22" />
-            </svg>
-            กดเพื่อฟังเสียง
+            {isAudioWorking ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor" stroke="none" />
+                <path d="M5 11a7 7 0 0 0 14 0" />
+                <line x1="12" y1="18" x2="12" y2="22" />
+                <line x1="8" y1="22" x2="16" y2="22" />
+              </svg>
+            )}
+            {isSynthesizing ? "กำลังโหลดเสียง..." : isSpeaking ? "กำลังเล่นเสียง..." : "กดเพื่อฟังเสียง"}
           </button>
         </div>
       </div>

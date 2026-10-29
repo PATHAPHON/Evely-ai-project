@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Sparkles,
   Calendar,
+  Loader2,
 } from 'lucide-react';
 import AdSlot from '@/shared/components/AdSlot';
 import WordDetailPopup from '@/shared/components/WordDetailPopup';
@@ -41,6 +42,7 @@ export default function SummaryScreen({
   const router = useRouter();
   const { speak } = useTTS('en-US');
   const [selectedWord, setSelectedWord] = useState<FeedWordRecord | null>(null);
+  const [speakingWordId, setSpeakingWordId] = useState<string | null>(null);
 
   const isEmpty = total === 0 && summaryItems.length === 0;
 
@@ -192,15 +194,24 @@ export default function SummaryScreen({
                           </span>
                           <button
                             type="button"
+                            disabled={speakingWordId === item.wordId}
                             onClick={(e) => {
                               e.stopPropagation();
-                              speak(item.word);
+                              setSpeakingWordId(item.wordId);
+                              speak(item.word, {
+                                onEnd: () => setSpeakingWordId((cur) => (cur === item.wordId ? null : cur)),
+                                onError: () => setSpeakingWordId((cur) => (cur === item.wordId ? null : cur)),
+                              });
                             }}
                             className="p-1 rounded-lg text-primary hover:bg-primary-bg/50 transition-colors cursor-pointer"
                             title="ฟังเสียงอ่าน"
                             aria-label={`ฟังเสียงอ่านคำว่า ${item.word}`}
                           >
-                            <Volume2 size={16} />
+                            {speakingWordId === item.wordId ? (
+                              <Loader2 size={16} className="animate-spin text-primary" />
+                            ) : (
+                              <Volume2 size={16} />
+                            )}
                           </button>
                           {item.partOfSpeech && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground/65 border border-border-color">

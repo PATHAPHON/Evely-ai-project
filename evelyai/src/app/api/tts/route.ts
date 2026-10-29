@@ -120,6 +120,22 @@ function audioResponse(buffer: Buffer, cacheStatus: 'HIT' | 'MISS'): Response {
   });
 }
 
+/**
+ * Format single-word or greeting-only inputs so conversational TTS models
+ * (like google/gemini-3.1-flash-tts-preview) pronounce the word literally
+ * instead of failing or trying to reply to a greeting like "hello".
+ */
+function formatTtsInput(text: string): string {
+  const trimmed = text.trim();
+  // Strip any inline emotion tag prefix e.g. "[cheerful] hello" -> check the actual content
+  const withoutTags = trimmed.replace(/^\[[a-zA-Z0-9_-]+\]\s*/, '').trim();
+  // If it's a single word or short phrase without sentence punctuation (e.g. "hello", "some")
+  if (!/\s/.test(withoutTags) && !/[.!?]$/.test(trimmed)) {
+    return `${trimmed}.`;
+  }
+  return trimmed;
+}
+
 export async function POST(request: NextRequest) {
   const user = await getRequestUser();
   if (!user) return unauthorizedResponse();
@@ -180,10 +196,10 @@ export async function POST(request: NextRequest) {
   try {
     // Map any legacy Kokoro voice aliases to default Gemini voice
     const effectiveVoice = (voice === 'af_heart' || voice === 'bf_emma') ? DEFAULT_VOICE : voice;
+    const formattedInput = formatTtsInput(text);
 
-    const openRouterResponse = await fetch(
-      OPENROUTER_TTS_URL,
-      {
+    const requestUpstreamTts = (inputStr: string) =>
+      fetch(OPENROUTER_TTS_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -191,13 +207,20 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           model: 'google/gemini-3.1-flash-tts-preview',
-          input: text,
+          input: inputStr,
           voice: effectiveVoice,
           response_format: 'pcm',
         }),
         signal: controller.signal,
-      },
-    );
+      });
+
+    let openRouterResponse = await requestUpstreamTts(formattedInput);
+
+    // If single-word / greeting input failed (e.g., "hello" triggered a conversational refusal or 502),
+    // retry once with explicit literal speech framing so Gemini TTS pronounces it cleanly.
+    if (!openRouterResponse.ok && !/\s/.test(text.replace(/^\[[a-zA-Z0-9_-]+\]\s*/, '').trim())) {
+      openRouterResponse = await requestUpstreamTts(`[neutral] "${text.trim()}."`);
+    }
 
     clearTimeout(timeoutId);
 
@@ -212,6 +235,12 @@ export async function POST(request: NextRequest) {
 
     const audioArrayBuffer = await openRouterResponse.arrayBuffer();
     const rawBuffer = Buffer.from(audioArrayBuffer);
+    if (rawBuffer.length === 0) {
+      return NextResponse.json(
+        { error: 'tts_failed', message: 'Upstream TTS returned empty audio.' },
+        { status: 502 },
+      );
+    }
     // Wrap raw PCM (24kHz 16-bit mono) in a standard 44-byte RIFF/WAVE header
     // so HTML5 Audio (<audio> / new Audio) can decode and play it seamlessly.
     const isWav = rawBuffer.subarray(0, 4).toString() === 'RIFF';

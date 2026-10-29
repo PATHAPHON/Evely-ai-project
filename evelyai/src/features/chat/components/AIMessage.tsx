@@ -1,6 +1,6 @@
 'use client';
 
-import { Volume2, ThumbsUp, ThumbsDown, Copy, MoreHorizontal } from 'lucide-react';
+import { Volume2, ThumbsUp, ThumbsDown, Copy, MoreHorizontal, Loader2 } from 'lucide-react';
 import type { ChatMessage } from '@/shared/types/chatTypes';
 import WordRenderer from '@/shared/components/WordRenderer';
 import { useStrings } from '@/shared/utils/strings';
@@ -9,9 +9,11 @@ import { useShowTranslation } from '@/shared/hooks/useShowTranslation';
 export default function AIMessage({
   message,
   onSpeak,
+  isSpeaking = false,
 }: {
   message: ChatMessage;
   onSpeak: (messageId: string, text?: string) => void;
+  isSpeaking?: boolean;
 }) {
   const t = useStrings();
   const { showTranslation } = useShowTranslation();
@@ -82,10 +84,17 @@ export default function AIMessage({
           <button
             type="button"
             onClick={() => onSpeak(message.id)}
+            disabled={isSpeaking}
             aria-label={t.chat.playAria}
-            className="p-1.5 hover:bg-card-bg rounded-full transition-colors cursor-pointer text-foreground/60 hover:text-foreground"
+            className={`p-1.5 hover:bg-card-bg rounded-full transition-colors cursor-pointer text-foreground/60 hover:text-foreground ${
+              isSpeaking ? 'text-primary' : ''
+            }`}
           >
-            <Volume2 size={18} />
+            {isSpeaking ? (
+              <Loader2 size={18} className="animate-spin text-primary" />
+            ) : (
+              <Volume2 size={18} />
+            )}
           </button>
         </div>
       </div>
